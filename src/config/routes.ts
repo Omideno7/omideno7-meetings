@@ -22,8 +22,13 @@ export const appRoutes: AppRoute[] = [
   { key: "reports", label: "Reports", path: "/reports", allowedRoles: hostRoles },
 
   { key: "systemSetup", label: "System Setup", path: "/owner/system", allowedRoles: ownerOnly },
+  { key: "backendSetup", label: "Backend Setup", path: "/owner/backend", allowedRoles: ownerOnly },
   { key: "liveKitSetup", label: "LiveKit Setup", path: "/owner/livekit", allowedRoles: ownerOnly },
   { key: "productionRoadmap", label: "Production Roadmap", path: "/owner/roadmap", allowedRoles: ownerOnly },
   { key: "prototypeAudit", label: "Prototype Audit", path: "/owner/audit", allowedRoles: ownerOnly },
   { key: "securityTestPlan", label: "Security Test Plan", path: "/owner/security-tests", allowedRoles: ownerOnly }
+  { key: "fullBuildOverview", label: "Full Build", path: "/owner/full-build", allowedRoles: ownerOnly },
+  { key: "testingCenter", label: "Testing Center", path: "/owner/testing", allowedRoles: ownerOnly },
+  { key: "releaseReadiness", label: "Release Readiness", path: "/owner/release", allowedRoles: ownerOnly },
+  { key: "legalPagesSetup", label: "Legal Pages", path: "/owner/legal", allowedRoles: ownerOnly },
 ];

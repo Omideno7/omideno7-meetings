@@ -403,3 +403,80 @@ p, li, small {
   .button-row { width: 100%; }
   .button-row .btn, .stack .btn { width: 100%; text-align: center; justify-content: center; }
 }
+
+/* Full Build Steps 21-30 */
+.module-status-grid,
+.testing-list,
+.release-list {
+  display: grid;
+  gap: 14px;
+}
+
+.module-card,
+.testing-item,
+.release-item {
+  background: #fff;
+  border: 1px solid rgba(8,41,91,.10);
+  border-radius: 22px;
+  padding: 18px;
+  box-shadow: 0 18px 50px rgba(8,41,91,.08);
+}
+
+.module-card,
+.testing-item,
+.release-item {
+  display: flex;
+  justify-content: space-between;
+  gap: 14px;
+  align-items: flex-start;
+}
+
+.module-card span {
+  display: inline-flex;
+  border-radius: 999px;
+  padding: 7px 10px;
+  font-weight: 900;
+  font-size: .78rem;
+  background: rgba(8,41,91,.08);
+  color: #06285a;
+  white-space: nowrap;
+}
+
+.module-ready span,
+.module-prepared span,
+.release-ready {
+  background: rgba(9,164,64,.10);
+  color: #06742f;
+}
+
+.module-needs_credentials span,
+.testing-needs_fix {
+  background: rgba(250,204,21,.14);
+}
+
+.testing-passed {
+  border-color: rgba(9,164,64,.24);
+}
+
+.testing-failed {
+  border-color: rgba(217,31,42,.24);
+}
+
+.testing-item button,
+.release-item button {
+  border: 0;
+  border-radius: 999px;
+  padding: 9px 12px;
+  font-weight: 800;
+  cursor: pointer;
+  background: rgba(8,41,91,.08);
+  color: #06285a;
+}
+
+@media (max-width: 760px) {
+  .module-card,
+  .testing-item,
+  .release-item {
+    flex-direction: column;
+  }
+}

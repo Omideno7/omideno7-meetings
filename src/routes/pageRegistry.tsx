@@ -1,3 +1,8 @@
+import { LegalPagesSetupPage } from "../pages/LegalPagesSetupPage";
+import { ReleaseReadinessPage } from "../pages/ReleaseReadinessPage";
+import { TestingCenterPage } from "../pages/TestingCenterPage";
+import { FullBuildOverviewPage } from "../pages/FullBuildOverviewPage";
+import { BackendSetupPage } from "../pages/BackendSetupPage";
 import type { AppRouteKey } from "../types/routes";
 import { LandingPage } from "../pages/LandingPage";
 import { LoginPage } from "../pages/LoginPage";
@@ -37,10 +42,15 @@ export const pageRegistry: Record<AppRouteKey, React.ComponentType> = {
   mediaLibrary: MediaLibraryPage,
   reports: ReportsPage,
   systemSetup: SystemSetupPage,
+  backendSetup: BackendSetupPage,
   liveKitSetup: LiveKitSetupPage,
   productionRoadmap: ProductionRoadmapPage,
   prototypeAudit: PrototypeAuditPage,
   securityTestPlan: SecurityTestPlanPage,
   installApp: InstallAppPage,
   deployTest: DeployTestPage
+  fullBuildOverview: FullBuildOverviewPage,
+  testingCenter: TestingCenterPage,
+  releaseReadiness: ReleaseReadinessPage,
+  legalPagesSetup: LegalPagesSetupPage,
 };

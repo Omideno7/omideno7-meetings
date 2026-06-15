@@ -20,7 +20,9 @@ export type AppRouteKey =
   | "prototypeAudit"
   | "securityTestPlan"
   | "installApp"
-  | "deployTest";
+  | "deployTest"
+  | "backendSetup"
+  | "fullBuildOverview";
 
 export type AppRoute = {
   key: AppRouteKey;
