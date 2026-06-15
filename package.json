@@ -1,14 +1,14 @@
 {
   "name": "omideno7-meetings-react",
   "private": true,
-  "version": "0.22.0-step22-real-access-approvals",
+  "version": "0.22.2-current-stable-one-upload",
   "type": "module",
   "description": "OmideNo7 Meetings \u2014 Vite + React + TypeScript conversion starter",
   "scripts": {
     "dev": "vite",
     "build": "vite build",
     "preview": "vite preview",
-    "lint:types": "echo 'Type check skipped for Step 22 deploy'",
+    "lint:types": "echo 'Type check skipped for current stable deploy'",
     "audit:handoff": "cat docs/STEP16B_REACT_CONVERSION_HANDOFF.md",
     "pwa:check": "echo 'Check manifest.webmanifest, sw.js, icons and install page'",
     "build:pwa": "npm run build",
@@ -35,5 +35,5 @@
     "typescript": "latest",
     "vite": "latest"
   },
-  "appStage": "step-22-real-access-request-owner-approval-workflow"
+  "appStage": "current-stable-supabase-auth-access-approval-one-upload"
 }

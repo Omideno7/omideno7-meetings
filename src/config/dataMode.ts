@@ -1,3 +1,5 @@
-export type DataMode = "local" | "supabase";
-export const dataMode: DataMode = (import.meta.env.VITE_DATA_MODE as DataMode) || "local";
-export const shouldUseSupabase = dataMode === "supabase";
+export const dataMode = (import.meta.env.VITE_DATA_MODE || "local").toLowerCase();
+
+export function isSupabaseMode() {
+  return dataMode === "supabase";
+}

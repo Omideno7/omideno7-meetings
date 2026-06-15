@@ -9,6 +9,7 @@ import { supabaseAccessRequestService } from "../services/supabaseAccessRequestS
 export function RequestAccessPage() {
   const { setRoute } = useAppState();
   const [submitted, setSubmitted] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
   const [message, setMessage] = useState("");
   const [form, setForm] = useState({
     fullName: "",
@@ -23,36 +24,52 @@ export function RequestAccessPage() {
   }
 
   async function submit() {
-    const fullName = form.fullName.trim() || "New Test User";
-    const email = form.email.trim() || `test-${Date.now()}@example.com`;
+    setSubmitting(true);
+    setMessage("");
+
     const payload = {
-      fullName,
-      email,
-      country: form.country.trim() || "Croatia",
-      relationship: form.relationship.trim() || "Church visitor",
-      reason: form.reason.trim() || "I want to request access to OmideNo7 Meetings."
+      fullName: form.fullName.trim(),
+      email: form.email.trim().toLowerCase(),
+      country: form.country.trim(),
+      relationship: form.relationship.trim(),
+      reason: form.reason.trim()
     };
+
+    if (!payload.fullName || !payload.email) {
+      setMessage("Full name and email are required.");
+      setSubmitting(false);
+      return;
+    }
 
     if (dataMode === "supabase") {
       const result = await supabaseAccessRequestService.submitRequest({
         full_name: payload.fullName,
         email: payload.email,
-        country: payload.country,
-        relationship: payload.relationship,
-        reason: payload.reason
+        country: payload.country || "Croatia",
+        relationship: payload.relationship || "Church visitor",
+        reason: payload.reason || "I want to request access to OmideNo7 Meetings."
       });
 
       if (result.error) {
-        setMessage(result.error);
+        setMessage(`Supabase error: ${result.error}`);
+        setSubmitting(false);
         return;
       }
-      setMessage("Request saved in Supabase.");
+
+      setMessage("Request saved in Supabase. Owner can now see it in Approvals.");
     } else {
-      demoStore.submitRequest(payload);
+      demoStore.submitRequest({
+        fullName: payload.fullName,
+        email: payload.email,
+        country: payload.country || "Croatia",
+        relationship: payload.relationship || "Church visitor",
+        reason: payload.reason || "I want to request access to OmideNo7 Meetings."
+      });
       setMessage("Request saved in local demo mode.");
     }
 
     setSubmitted(true);
+    setSubmitting(false);
   }
 
   if (submitted) {
@@ -60,8 +77,8 @@ export function RequestAccessPage() {
       <div className="public-page">
         <Card className="auth-card">
           <h1>Request Sent</h1>
-          <p>{message || "Your request was saved."}</p>
-          <p>Now wait for Owner approval.</p>
+          <p>{message}</p>
+          <p>Status: Pending Approval</p>
           <div className="button-row">
             <Button onClick={() => setRoute("login")}>Go to Login</Button>
             <Button variant="secondary" onClick={() => setRoute("pendingApproval")}>Pending Page</Button>
@@ -76,6 +93,8 @@ export function RequestAccessPage() {
       <Card className="auth-card">
         <h1>Request Access</h1>
         <p>New users stay Pending until Apostle Yuhana approves them in the Owner Approval Panel.</p>
+        <p className="small-note">Data mode: {dataMode}</p>
+
         <div className="form-grid">
           <input value={form.fullName} onChange={(e) => update("fullName", e.target.value)} placeholder="Full name" />
           <input value={form.email} onChange={(e) => update("email", e.target.value)} placeholder="Email" />
@@ -83,9 +102,11 @@ export function RequestAccessPage() {
           <input value={form.relationship} onChange={(e) => update("relationship", e.target.value)} placeholder="Relationship to church" />
           <textarea value={form.reason} onChange={(e) => update("reason", e.target.value)} placeholder="Reason for requesting access" />
         </div>
+
         {message && <p className="auth-message">{message}</p>}
+
         <div className="button-row">
-          <Button onClick={submit}>Submit Request</Button>
+          <Button onClick={submit} disabled={submitting}>{submitting ? "Saving..." : "Submit Request"}</Button>
           <Button variant="ghost" onClick={() => setRoute("login")}>Back to Login</Button>
         </div>
       </Card>

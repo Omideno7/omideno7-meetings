@@ -50,17 +50,23 @@ export function ApprovalsPage() {
 
     if (dataMode === "supabase") {
       const result = await supabaseApprovalService.listRequests();
+
       if (result.error) {
-        setMessage(result.error);
+        setMessage(`Supabase read error: ${result.error}`);
         setRequests([]);
       } else {
         setRequests(result.data);
+        if (result.data.length === 0) {
+          setMessage("No Supabase access requests found yet. Submit a new Request Access form.");
+        }
       }
-    } else {
-      const local = demoStore.getAccessRequests ? demoStore.getAccessRequests() : [];
-      setRequests((local as any[]).map(normalizeLocal));
+
+      setLoading(false);
+      return;
     }
 
+    const local = demoStore.getAccessRequests ? demoStore.getAccessRequests() : [];
+    setRequests((local as any[]).map(normalizeLocal));
     setLoading(false);
   }
 
@@ -76,11 +82,13 @@ export function ApprovalsPage() {
       rejected: [],
       blocked: []
     };
+
     requests.forEach((request) => {
       const status = request.status || "pending";
       if (!byStatus[status]) byStatus[status] = [];
       byStatus[status].push(request);
     });
+
     return byStatus;
   }, [requests]);
 
@@ -99,30 +107,42 @@ export function ApprovalsPage() {
         role,
         status === "more_info" ? "Owner requested more information." : ""
       );
+
       if (result.error) {
-        setMessage(result.error);
-      } else {
-        await load();
+        setMessage(`Supabase decision error: ${result.error}`);
+        setLoading(false);
+        return;
       }
-    } else {
-      if (demoStore.updateAccessRequest) {
-        demoStore.updateAccessRequest(id, { status, approvedRole: role });
-      }
+
       await load();
+      setLoading(false);
+      return;
     }
 
+    if (demoStore.updateAccessRequest) {
+      demoStore.updateAccessRequest(id, { status, approvedRole: role });
+    }
+
+    await load();
     setLoading(false);
   }
 
   async function addDemoRequests() {
     setLoading(true);
+
     if (dataMode === "supabase") {
       const result = await supabaseApprovalService.addDemoRequests();
       setMessage(result.error || "Demo requests added in Supabase.");
-    } else if (demoStore.resetAccessDemo) {
+      await load();
+      setLoading(false);
+      return;
+    }
+
+    if (demoStore.resetAccessDemo) {
       demoStore.resetAccessDemo();
       setMessage("Local demo requests reset.");
     }
+
     await load();
     setLoading(false);
   }
@@ -185,6 +205,7 @@ export function ApprovalsPage() {
       <Card>
         <h1>Owner Approval Panel</h1>
         <p>First-time users remain Pending until approved, rejected, blocked, or asked for more information.</p>
+        <p className="small-note">Data mode: {dataMode}</p>
         <div className="button-row">
           <Button onClick={load} disabled={loading}>{loading ? "Loading..." : "Refresh Requests"}</Button>
           <Button variant="secondary" onClick={addDemoRequests} disabled={loading}>Add Demo Requests</Button>
