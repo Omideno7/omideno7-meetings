@@ -15,14 +15,17 @@ export type AppRouteKey =
   | "mediaLibrary"
   | "reports"
   | "systemSetup"
+  | "backendSetup"
   | "liveKitSetup"
   | "productionRoadmap"
   | "prototypeAudit"
   | "securityTestPlan"
   | "installApp"
   | "deployTest"
-  | "backendSetup"
-  | "fullBuildOverview";
+  | "fullBuildOverview"
+  | "testingCenter"
+  | "releaseReadiness"
+  | "legalPagesSetup";
 
 export type AppRoute = {
   key: AppRouteKey;
