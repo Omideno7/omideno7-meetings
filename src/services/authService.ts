@@ -1,5 +1,7 @@
 import type { UserProfile } from "../types/roles";
 import { mockProfiles } from "../data/mockProfiles";
+import { dataMode } from "../config/dataMode";
+import { supabaseAuthService } from "./supabaseAuthService";
 
 const STORAGE_KEY = "omideno7.react.profile";
 
@@ -14,13 +16,44 @@ export const authService = {
     }
   },
 
+  saveProfile(profile: UserProfile | null): void {
+    if (!profile) {
+      localStorage.removeItem(STORAGE_KEY);
+      return;
+    }
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(profile));
+  },
+
+  async hydrateSupabaseProfile(): Promise<UserProfile | null> {
+    if (dataMode !== "supabase" || !supabaseAuthService.isReady()) {
+      return this.getCurrentProfile();
+    }
+
+    const profile = await supabaseAuthService.getCurrentProfile();
+    this.saveProfile(profile);
+    return profile;
+  },
+
   loginAs(role: "owner" | "member" | "pending"): UserProfile {
     const profile = mockProfiles[role];
     localStorage.setItem(STORAGE_KEY, JSON.stringify(profile));
     return profile;
   },
 
-  logout(): void {
+  async signIn(email: string, password: string) {
+    const result = await supabaseAuthService.signIn(email, password);
+    if (result.profile) this.saveProfile(result.profile);
+    return result;
+  },
+
+  async signUp(email: string, password: string, fullName: string) {
+    const result = await supabaseAuthService.signUp(email, password, fullName);
+    if (result.profile) this.saveProfile(result.profile);
+    return result;
+  },
+
+  async logout(): Promise<void> {
+    await supabaseAuthService.signOut();
     localStorage.removeItem(STORAGE_KEY);
   }
 };

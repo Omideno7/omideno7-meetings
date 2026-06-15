@@ -72,3 +72,8 @@ Adds Supabase schema, RLS, storage setup, backend status page, and service files
 ## Full Build Steps 21 to 30
 
 This version includes the combined structure for Auth, Approvals, Roles, Meetings, LiveKit token placeholder, Recordings, Notifications, Reports, Testing Center and Release Readiness.
+
+
+## Step 21 — Real Supabase Auth
+
+This version adds real Supabase sign in/sign up, automatic profile trigger SQL, and Owner Bootstrap helper.

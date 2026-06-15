@@ -480,3 +480,52 @@ p, li, small {
     flex-direction: column;
   }
 }
+
+/* Step 21 Real Auth */
+.auth-toggle {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  background: rgba(8,41,91,.06);
+  border-radius: 999px;
+  padding: 5px;
+  margin: 16px 0;
+}
+
+.auth-toggle button {
+  border: 0;
+  border-radius: 999px;
+  padding: 10px 12px;
+  font-weight: 900;
+  background: transparent;
+  color: #06285a;
+  cursor: pointer;
+}
+
+.auth-toggle button.active {
+  background: #09a440;
+  color: white;
+}
+
+.auth-message {
+  background: rgba(8,41,91,.06);
+  border: 1px solid rgba(8,41,91,.12);
+  padding: 12px;
+  border-radius: 14px;
+  color: #06285a;
+}
+
+.demo-separator {
+  margin-top: 18px;
+  padding-top: 14px;
+  border-top: 1px solid rgba(8,41,91,.12);
+  color: #607086;
+  font-weight: 900;
+  font-size: .85rem;
+  text-transform: uppercase;
+}
+
+.small-note {
+  font-size: .9rem;
+  color: #607086;
+  line-height: 1.45;
+}
