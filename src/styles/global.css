@@ -1,0 +1,295 @@
+* { box-sizing: border-box; }
+
+:root {
+  font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  color: #06285a;
+  background: #f4f8fb;
+}
+
+body {
+  margin: 0;
+  min-height: 100vh;
+}
+
+button, input, textarea, select {
+  font: inherit;
+}
+
+.public-page {
+  min-height: 100vh;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  background:
+    radial-gradient(circle at top left, rgba(9,164,64,.16), transparent 32%),
+    linear-gradient(135deg, #05204a 0%, #06285a 44%, #0b3d6e 100%);
+}
+
+.card {
+  background: #fff;
+  border: 1px solid rgba(8,41,91,.10);
+  border-radius: 24px;
+  padding: 24px;
+  box-shadow: 0 24px 70px rgba(8,41,91,.12);
+}
+
+.hero-card, .auth-card {
+  width: min(560px, 100%);
+  text-align: center;
+}
+
+.hero-logo {
+  width: 108px;
+  height: 108px;
+  object-fit: contain;
+  margin-bottom: 16px;
+}
+
+h1, h2, h3 {
+  color: #06285a;
+  margin-top: 0;
+}
+
+p, li, small {
+  color: #607086;
+  line-height: 1.55;
+}
+
+.button-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  justify-content: center;
+}
+
+.stack {
+  display: grid;
+  gap: 10px;
+}
+
+.btn {
+  border: 0;
+  border-radius: 999px;
+  padding: 11px 16px;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.btn-primary {
+  background: #09a440;
+  color: #fff;
+}
+
+.btn-secondary {
+  background: rgba(8,41,91,.08);
+  color: #06285a;
+}
+
+.btn-danger {
+  background: #d91f2a;
+  color: #fff;
+}
+
+.btn-ghost {
+  background: transparent;
+  color: #06285a;
+}
+
+.form-grid {
+  display: grid;
+  gap: 10px;
+  margin-bottom: 14px;
+}
+
+.form-grid input, .form-grid textarea {
+  width: 100%;
+  border: 1px solid rgba(8,41,91,.14);
+  border-radius: 14px;
+  padding: 12px;
+}
+
+.app-shell {
+  display: grid;
+  grid-template-columns: 290px minmax(0, 1fr);
+  min-height: 100vh;
+}
+
+.sidebar {
+  background: #06285a;
+  color: #fff;
+  padding: 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.brand {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  padding-bottom: 14px;
+  border-bottom: 1px solid rgba(255,255,255,.14);
+}
+
+.brand img {
+  width: 46px;
+  height: 46px;
+  object-fit: contain;
+  background: #fff;
+  border-radius: 14px;
+}
+
+.brand strong, .brand span {
+  display: block;
+  color: #fff;
+}
+
+.brand span {
+  opacity: .75;
+  font-size: .86rem;
+}
+
+.sidebar nav {
+  display: grid;
+  gap: 7px;
+  overflow: auto;
+}
+
+.sidebar nav button, .logout {
+  text-align: left;
+  border: 0;
+  border-radius: 14px;
+  padding: 11px 12px;
+  color: #fff;
+  background: rgba(255,255,255,.08);
+  cursor: pointer;
+}
+
+.sidebar nav button.active {
+  background: #09a440;
+}
+
+.logout {
+  margin-top: auto;
+  background: rgba(217,31,42,.9);
+}
+
+.main-content {
+  padding: 24px;
+}
+
+.page-grid {
+  display: grid;
+  gap: 16px;
+}
+
+.meeting-stage {
+  min-height: 280px;
+  display: grid;
+  place-items: center;
+  text-align: center;
+  border-radius: 22px;
+  margin: 16px 0;
+  background: linear-gradient(135deg, rgba(8,41,91,.1), rgba(9,164,64,.12));
+}
+
+.meeting-stage strong, .meeting-stage span {
+  display: block;
+}
+
+@media (max-width: 900px) {
+  .app-shell {
+    grid-template-columns: 1fr;
+  }
+
+  .sidebar {
+    position: static;
+  }
+
+  .sidebar nav {
+    grid-template-columns: repeat(2, minmax(0,1fr));
+  }
+}
+
+/* Step 17 PWA Install */
+.install-card {
+  background: #fff;
+  border: 1px solid rgba(8,41,91,.10);
+  border-radius: 24px;
+  padding: 22px;
+  box-shadow: 0 24px 70px rgba(8,41,91,.10);
+}
+
+.install-card strong {
+  display: block;
+  color: #06285a;
+  font-size: 1.25rem;
+  margin-bottom: 6px;
+}
+
+.install-card.installed {
+  border-color: rgba(9,164,64,.24);
+  background: rgba(9,164,64,.06);
+}
+
+.install-steps {
+  border: 1px dashed rgba(8,41,91,.18);
+  border-radius: 18px;
+  padding: 14px;
+  background: rgba(8,41,91,.03);
+}
+
+@media (max-width: 900px) {
+  .button-row {
+    flex-direction: column;
+  }
+
+  .button-row .btn {
+    width: 100%;
+    text-align: center;
+  }
+}
+
+/* Step 18 Deploy Test */
+.deploy-checklist-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0,1fr));
+  gap: 16px;
+}
+
+.deploy-checklist-card {
+  background: #fff;
+  border: 1px solid rgba(8,41,91,.10);
+  border-radius: 24px;
+  padding: 20px;
+  box-shadow: 0 24px 70px rgba(8,41,91,.10);
+}
+
+.deploy-checklist-card h2 {
+  margin-bottom: 12px;
+}
+
+.deploy-checklist-card ul {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: grid;
+  gap: 8px;
+}
+
+.deploy-checklist-card li {
+  display: flex;
+  gap: 9px;
+  color: #334155;
+}
+
+.deploy-checklist-card li span {
+  color: #09a440;
+  font-weight: 900;
+}
+
+@media (max-width: 760px) {
+  .deploy-checklist-grid {
+    grid-template-columns: 1fr;
+  }
+}

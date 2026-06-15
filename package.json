@@ -1,0 +1,32 @@
+{
+  "name": "omideno7-meetings-react",
+  "private": true,
+  "version": "0.18.0-step18-deploy-test",
+  "type": "module",
+  "description": "OmideNo7 Meetings \u2014 Vite + React + TypeScript conversion starter",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc && vite build",
+    "preview": "vite preview",
+    "lint:types": "tsc --noEmit",
+    "audit:handoff": "cat docs/STEP16B_REACT_CONVERSION_HANDOFF.md",
+    "pwa:check": "echo 'Check manifest.webmanifest, sw.js, icons and install page'",
+    "build:pwa": "npm run build",
+    "deploy:build": "npm run build",
+    "deploy:preview": "npm run build && npm run preview",
+    "deploy:vercel": "npm run build && echo 'Upload or connect this project to Vercel'",
+    "deploy:netlify": "npm run build && echo 'Deploy dist folder to Netlify'",
+    "deploy:github-pages": "npm run build && echo 'Use .github/workflows/deploy-github-pages.yml'"
+  },
+  "dependencies": {
+    "@vitejs/plugin-react": "^latest",
+    "vite": "^latest",
+    "typescript": "^latest",
+    "react": "^latest",
+    "react-dom": "^latest",
+    "@supabase/supabase-js": "^latest",
+    "livekit-client": "^latest"
+  },
+  "devDependencies": {},
+  "appStage": "step-18-deploy-test-version"
+}
