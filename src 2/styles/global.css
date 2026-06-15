@@ -529,3 +529,19 @@ p, li, small {
   color: #607086;
   line-height: 1.45;
 }
+
+/* Step 22 Approval Workflow */
+.approval-section { display: grid; gap: 12px; }
+.approval-section > h2 { margin: 6px 0; color: #06285a; }
+.approval-card { display: grid; gap: 14px; }
+.approval-head { display: flex; justify-content: space-between; gap: 16px; align-items: flex-start; }
+.status-badge { border-radius: 999px; padding: 7px 10px; font-weight: 900; font-size: .75rem; white-space: nowrap; background: rgba(8,41,91,.08); color: #06285a; }
+.status-approved { background: rgba(9,164,64,.12); color: #06742f; }
+.status-rejected, .status-blocked { background: rgba(217,31,42,.12); color: #b71522; }
+.status-more_info { background: rgba(250,204,21,.20); color: #7a4d00; }
+.role-picker { display: grid; gap: 6px; max-width: 340px; }
+.role-picker label { font-weight: 900; color: #06285a; }
+.role-picker select { border: 1px solid rgba(8,41,91,.16); border-radius: 14px; padding: 11px 12px; font-weight: 800; color: #06285a; background: white; }
+.matched-account { color: #06742f; font-weight: 800; }
+.unmatched-account { color: #7a4d00; font-weight: 800; }
+@media (max-width: 760px) { .approval-head { flex-direction: column; } }
