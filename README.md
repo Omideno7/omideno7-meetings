@@ -63,3 +63,12 @@ The installed PWA now has working demo state for:
 - checklists
 
 This is localStorage demo behavior. Real backend integration comes later.
+
+## Step 20 — Supabase Backend Foundation
+
+Adds Supabase schema, RLS, storage setup, backend status page, and service files.
+
+
+## Full Build Steps 21 to 30
+
+This version includes the combined structure for Auth, Approvals, Roles, Meetings, LiveKit token placeholder, Recordings, Notifications, Reports, Testing Center and Release Readiness.

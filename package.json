@@ -1,22 +1,26 @@
 {
   "name": "omideno7-meetings-react",
   "private": true,
-  "version": "0.19.0-step19-functional-demo",
+  "version": "0.30.0-full-build-steps21-30",
   "type": "module",
   "description": "OmideNo7 Meetings \u2014 Vite + React + TypeScript conversion starter",
   "scripts": {
     "dev": "vite",
     "build": "vite build",
     "preview": "vite preview",
-    "lint:types": "echo 'Type check skipped for PWA test'",
+    "lint:types": "echo 'Type check skipped for PWA test/full build'",
     "audit:handoff": "cat docs/STEP16B_REACT_CONVERSION_HANDOFF.md",
     "pwa:check": "echo 'Check manifest.webmanifest, sw.js, icons and install page'",
     "build:pwa": "npm run build",
     "deploy:build": "npm run build",
     "deploy:preview": "npm run build && npm run preview",
-    "deploy:vercel": "npm run build && echo 'Upload or connect this project to Vercel'",
+    "deploy:vercel": "npm run build",
     "deploy:netlify": "npm run build && echo 'Deploy dist folder to Netlify'",
-    "deploy:github-pages": "npm run build && echo 'Use .github/workflows/deploy-github-pages.yml'"
+    "deploy:github-pages": "npm run build && echo 'Use .github/workflows/deploy-github-pages.yml'",
+    "supabase:schema": "echo 'Run supabase/migrations SQL files in Supabase SQL Editor'",
+    "backend:status": "echo 'Open Owner > Backend Setup in the app'",
+    "supabase:install": "echo 'Run SQL files in supabase/migrations in order'",
+    "release:check": "echo 'Open Owner Testing Center and Release Readiness pages'"
   },
   "dependencies": {
     "@supabase/supabase-js": "latest",
@@ -31,5 +35,5 @@
     "typescript": "latest",
     "vite": "latest"
   },
-  "appStage": "step-19-functional-demo-mobile-fix"
+  "appStage": "full-build-steps-21-to-30"
 }
