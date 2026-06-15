@@ -46,3 +46,20 @@ Prepared deployment files:
 Recommended first deployment: Vercel or Netlify.
 
 For phone testing, deploy to HTTPS, then install from Safari/Chrome.
+
+
+## Step 19 — Functional Demo + Mobile UI Fix
+
+The installed PWA now has working demo state for:
+
+- request access
+- owner approvals
+- waiting room
+- meeting controls
+- notifications
+- inbox
+- media library
+- reports
+- checklists
+
+This is localStorage demo behavior. Real backend integration comes later.

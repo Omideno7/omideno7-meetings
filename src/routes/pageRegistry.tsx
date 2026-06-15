@@ -10,7 +10,6 @@ import { WaitingRoomPage } from "../pages/WaitingRoomPage";
 import { LiveMeetingPage } from "../pages/LiveMeetingPage";
 import { SystemSetupPage } from "../pages/SystemSetupPage";
 import { InstallAppPage } from "../pages/InstallAppPage";
-import { DeployTestPage } from "../pages/DeployTestPage";
 import {
   NotificationsPage,
   InboxPage,
@@ -19,7 +18,8 @@ import {
   LiveKitSetupPage,
   ProductionRoadmapPage,
   PrototypeAuditPage,
-  SecurityTestPlanPage
+  SecurityTestPlanPage,
+  DeployTestPage
 } from "../pages/SimplePages";
 
 export const pageRegistry: Record<AppRouteKey, React.ComponentType> = {

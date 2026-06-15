@@ -293,3 +293,113 @@ p, li, small {
     grid-template-columns: 1fr;
   }
 }
+
+/* Step 19 Functional Demo + Mobile UI Polish */
+.dashboard-grid,
+.report-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+}
+
+.section-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  align-items: flex-start;
+}
+
+.status-pill {
+  display: inline-flex;
+  border-radius: 999px;
+  padding: 7px 10px;
+  font-size: .78rem;
+  font-weight: 900;
+  background: rgba(8,41,91,.08);
+  color: #06285a;
+  text-transform: uppercase;
+}
+
+.status-pill.pending,
+.status-pill.waiting,
+.status-pill.more_info {
+  background: rgba(250,204,21,.18);
+  color: #8a5a00;
+}
+
+.status-pill.approved,
+.status-pill.admitted {
+  background: rgba(9,164,64,.13);
+  color: #06742f;
+}
+
+.status-pill.rejected,
+.status-pill.blocked {
+  background: rgba(217,31,42,.10);
+  color: #9b1c24;
+}
+
+.highlight-card {
+  border-color: rgba(9,164,64,.25);
+  background: rgba(9,164,64,.04);
+}
+
+.muted-card {
+  opacity: .82;
+}
+
+.responsive-table {
+  overflow-x: auto;
+}
+
+.responsive-table table {
+  width: 100%;
+  border-collapse: collapse;
+  min-width: 640px;
+  margin-bottom: 14px;
+}
+
+.responsive-table th,
+.responsive-table td {
+  text-align: left;
+  border-bottom: 1px solid rgba(8,41,91,.10);
+  padding: 10px;
+}
+
+.interactive-checklist {
+  display: grid;
+  gap: 8px;
+}
+
+.interactive-checklist button {
+  border: 1px solid rgba(8,41,91,.12);
+  background: #fff;
+  color: #06285a;
+  border-radius: 14px;
+  padding: 12px;
+  display: flex;
+  gap: 10px;
+  text-align: left;
+  cursor: pointer;
+}
+
+.interactive-checklist span {
+  color: #09a440;
+  font-weight: 900;
+}
+
+.card h2 {
+  overflow-wrap: anywhere;
+}
+
+@media (max-width: 760px) {
+  .main-content { padding: 14px; }
+  .card { border-radius: 20px; padding: 18px; }
+  .dashboard-grid, .report-grid { grid-template-columns: 1fr; }
+  .section-row { flex-direction: column; }
+  .hero-card, .auth-card { padding: 22px; }
+  .hero-logo { width: 88px; height: 88px; }
+  .sidebar nav { grid-template-columns: 1fr; }
+  .button-row { width: 100%; }
+  .button-row .btn, .stack .btn { width: 100%; text-align: center; justify-content: center; }
+}
