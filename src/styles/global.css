@@ -545,3 +545,69 @@ p, li, small {
 .matched-account { color: #06742f; font-weight: 800; }
 .unmatched-account { color: #7a4d00; font-weight: 800; }
 @media (max-width: 760px) { .approval-head { flex-direction: column; } }
+
+/* Steps 23-30 Next Stable */
+.table-wrap {
+  width: 100%;
+  overflow-x: auto;
+}
+
+.admin-table {
+  width: 100%;
+  border-collapse: collapse;
+  min-width: 720px;
+}
+
+.admin-table th,
+.admin-table td {
+  padding: 11px 10px;
+  border-bottom: 1px solid rgba(8,41,91,.10);
+  text-align: left;
+  vertical-align: top;
+}
+
+.admin-table th {
+  color: #06285a;
+  font-size: .82rem;
+  text-transform: uppercase;
+  letter-spacing: .03em;
+}
+
+.small-note {
+  font-size: .92rem;
+  background: rgba(8,41,91,.06);
+  border-radius: 14px;
+  padding: 10px 12px;
+  color: #06285a;
+}
+
+.code-preview {
+  background: #06285a;
+  color: #fff;
+  border-radius: 14px;
+  padding: 12px;
+  white-space: pre-wrap;
+  overflow-x: auto;
+  font-size: .82rem;
+}
+
+.meeting-card {
+  border-left: 5px solid #09a440;
+}
+
+.status-opening,
+.status-live {
+  background: rgba(9,164,64,.12);
+  color: #06742f;
+}
+
+.status-ended,
+.status-cancelled {
+  background: rgba(217,31,42,.12);
+  color: #b71522;
+}
+
+.status-scheduled {
+  background: rgba(8,41,91,.08);
+  color: #06285a;
+}

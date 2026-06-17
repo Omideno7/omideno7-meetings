@@ -8,8 +8,13 @@ import { PendingApprovalPage } from "../pages/PendingApprovalPage";
 import { MemberHomePage } from "../pages/MemberHomePage";
 import { OwnerDashboardPage } from "../pages/OwnerDashboardPage";
 import { ApprovalsPage } from "../pages/ApprovalsPage";
+import { ServantDashboardPage } from "../pages/ServantDashboardPage";
+import { PermissionTemplatesPage } from "../pages/PermissionTemplatesPage";
+import { MeetingSchedulePage } from "../pages/MeetingSchedulePage";
 import { WaitingRoomPage } from "../pages/WaitingRoomPage";
 import { LiveMeetingPage } from "../pages/LiveMeetingPage";
+import { SecurityCenterPage } from "../pages/SecurityCenterPage";
+import { AuditLogsPage } from "../pages/AuditLogsPage";
 import { SystemSetupPage } from "../pages/SystemSetupPage";
 import { BackendSetupPage } from "../pages/BackendSetupPage";
 import { InstallAppPage } from "../pages/InstallAppPage";
@@ -38,8 +43,13 @@ export const pageRegistry: Record<AppRouteKey, ComponentType> = {
   memberHome: MemberHomePage,
   ownerDashboard: OwnerDashboardPage,
   approvals: ApprovalsPage,
+  servantDashboard: ServantDashboardPage,
+  permissionTemplates: PermissionTemplatesPage,
+  meetingSchedule: MeetingSchedulePage,
   waitingRoom: WaitingRoomPage,
   liveMeeting: LiveMeetingPage,
+  securityCenter: SecurityCenterPage,
+  auditLogs: AuditLogsPage,
   notifications: NotificationsPage,
   inbox: InboxPage,
   mediaLibrary: MediaLibraryPage,

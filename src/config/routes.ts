@@ -10,6 +10,8 @@ export const appRoutes: AppRoute[] = [
   { key: "pendingApproval", label: "Pending Approval", path: "/pending", allowedRoles: [roles.PENDING] },
 
   { key: "memberHome", label: "Home", path: "/home", allowedRoles: approvedRoles },
+  { key: "servantDashboard", label: "Servant Dashboard", path: "/servant", allowedRoles: hostRoles },
+  { key: "meetingSchedule", label: "Meeting Schedule", path: "/meetings", allowedRoles: approvedRoles },
   { key: "waitingRoom", label: "Waiting Room", path: "/waiting-room", allowedRoles: approvedRoles },
   { key: "liveMeeting", label: "Live Meeting", path: "/live", allowedRoles: approvedRoles },
   { key: "notifications", label: "Notifications", path: "/notifications", allowedRoles: approvedRoles },
@@ -19,6 +21,9 @@ export const appRoutes: AppRoute[] = [
 
   { key: "ownerDashboard", label: "Owner Dashboard", path: "/owner", allowedRoles: ownerOnly },
   { key: "approvals", label: "Approvals", path: "/owner/approvals", allowedRoles: ownerOnly },
+  { key: "permissionTemplates", label: "Permission Templates", path: "/owner/permissions", allowedRoles: ownerOnly },
+  { key: "securityCenter", label: "Security Center", path: "/owner/security", allowedRoles: ownerOnly },
+  { key: "auditLogs", label: "Audit Logs", path: "/owner/audit-logs", allowedRoles: ownerOnly },
   { key: "systemSetup", label: "System Setup", path: "/owner/system", allowedRoles: ownerOnly },
   { key: "backendSetup", label: "Backend Setup", path: "/owner/backend", allowedRoles: ownerOnly },
   { key: "liveKitSetup", label: "LiveKit Setup", path: "/owner/livekit", allowedRoles: ownerOnly },

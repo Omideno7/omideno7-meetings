@@ -8,14 +8,23 @@ export function LiveMeetingPage() {
   const { setRoute } = useAppState();
   useDemoStoreVersion();
   const state = demoStore.getMeetingState();
-  function toggle(key: string) { demoStore.setMeetingState({ [key]: !state[key] }); }
+
+  function toggle(key: string) {
+    demoStore.setMeetingState({ [key]: !state[key] });
+  }
 
   return (
     <div className="page-grid">
       <Card>
         <h1>Live Meeting</h1>
-        <p>This is a functional demo of the LiveKit room controls. Real video/audio will connect in the backend phase.</p>
-        <div className="meeting-stage"><strong>{state.camera ? "Camera Preview On" : "Audio-only Speaker Area"}</strong><span>{state.recording ? "Recording demo is ON" : "Recording demo is OFF"}</span><span>{state.lectureMode ? "Lecture Mode: members cannot unmute" : "Normal Mode"}</span></div>
+        <p>Production video/audio will use LiveKit token server. This screen already enforces the intended UX: mic/camera off by default and user-controlled camera consent.</p>
+        <div className="meeting-stage">
+          <strong>{state.camera ? "Camera Preview On" : "Audio-only Speaker Area"}</strong>
+          <span>{state.mic ? "Microphone on by user action" : "Microphone off by default"}</span>
+          <span>{state.recording ? "Recording demo is ON" : "Recording demo is OFF"}</span>
+          <span>{state.lectureMode ? "Lecture Mode: members cannot unmute" : "Normal Mode"}</span>
+          <span>{state.lowBandwidth ? "Low Bandwidth Mode: audio-first optimized" : "Standard quality mode"}</span>
+        </div>
         <div className="button-row">
           <Button variant={state.mic ? "primary" : "secondary"} onClick={() => toggle("mic")}>{state.mic ? "Mic On" : "Mic Off"}</Button>
           <Button variant={state.camera ? "primary" : "secondary"} onClick={() => toggle("camera")}>{state.camera ? "Camera On" : "Camera Off"}</Button>
