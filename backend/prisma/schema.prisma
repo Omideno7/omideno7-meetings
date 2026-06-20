@@ -1,0 +1,56 @@
+// Prisma schema (initial)
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id        String   @id @default(uuid())
+  fullName  String
+  email     String   @unique
+  phone     String?
+  country   String?
+  language  String?
+  isMember  Boolean  @default(false)
+  role      String?
+  status    String   @default("pending")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model AccessRequest {
+  id        String   @id @default(uuid())
+  fullName  String
+  email     String
+  phone     String?
+  country   String?
+  language  String?
+  reason    String
+  status    String   @default("pending")
+  createdAt DateTime @default(now())
+}
+
+model Meeting {
+  id            String   @id @default(uuid())
+  title         String
+  ownerId       String
+  type          String
+  startTime     DateTime?
+  endTime       DateTime?
+  livekitRoom   String?
+  status        String   @default("scheduled")
+  createdAt     DateTime @default(now())
+}
+
+model Recording {
+  id        String   @id @default(uuid())
+  meetingId String
+  s3Url     String
+  type      String
+  createdAt DateTime @default(now())
+}
