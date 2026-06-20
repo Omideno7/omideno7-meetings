@@ -1,20 +1,16 @@
 import { Injectable } from '@nestjs/common';
-
-export type RequestStatus = 'pending' | 'approved' | 'rejected' | 'blocked';
+import { PrismaService } from '../../prisma.service';
 
 @Injectable()
 export class RequestsService {
-  private items = [] as any[];
+  constructor(private prisma: PrismaService) {}
 
-  create(dto: any) {
-    const id = `${Date.now()}`;
-    const item = { id, ...dto, status: 'pending', createdAt: new Date().toISOString() };
-    this.items.push(item);
-    // TODO: persist to DB
-    return item;
+  async create(dto: any) {
+    const rec = await this.prisma.accessRequest.create({ data: dto });
+    return rec;
   }
 
-  findPending() {
-    return this.items.filter((i) => i.status === 'pending');
+  async findPending() {
+    return this.prisma.accessRequest.findMany({ where: { status: 'pending' }, orderBy: { createdAt: 'desc' } });
   }
 }
