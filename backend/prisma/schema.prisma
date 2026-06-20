@@ -1,5 +1,3 @@
-// Prisma schema (initial)
-
 generator client {
   provider = "prisma-client-js"
 }
@@ -45,6 +43,17 @@ model Meeting {
   livekitRoom   String?
   status        String   @default("scheduled")
   createdAt     DateTime @default(now())
+}
+
+model WaitingEntry {
+  id         String   @id @default(uuid())
+  meetingId  String
+  userId     String?
+  fullName   String
+  email      String
+  country    String?
+  status     String   @default("waiting")
+  createdAt  DateTime @default(now())
 }
 
 model Recording {
