@@ -1,0 +1,34 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 1000" width="800" height="1000">
+  <defs>
+    <filter id="ds" x="-50%" y="-50%" width="200%" height="200%">
+      <feDropShadow dx="6" dy="8" stdDeviation="10" flood-color="#000" flood-opacity="0.25"/>
+    </filter>
+    <style>
+      .blue { fill: #002366; filter: url(#ds); }
+      .green { fill: #00C83A; filter: url(#ds); }
+      .text-fa { fill: #002366; font-family: "Vazir", "Arial", sans-serif; font-size:90px; font-weight:700; filter: url(#ds); }
+      .seven { fill: #00C83A; font-family: "Vazir", "Arial", sans-serif; font-size:140px; font-weight:700; filter: url(#ds); }
+    </style>
+  </defs>
+
+  <rect class="blue" x="60" y="80" width="200" height="760" rx="10"/>
+  <rect class="blue" x="60" y="360" width="400" height="200" rx="10"/>
+
+  <path class="green" d="M260 120
+    C420 220, 520 220, 620 360
+    C680 440, 660 520, 520 600
+    C440 660, 380 700, 300 760
+    C280 740, 340 680, 380 640
+    C460 560, 380 500, 320 460
+    C280 430, 260 300, 260 120 Z" />
+
+  <path class="green" d="M520 320
+    C580 300, 640 340, 620 380
+    C600 420, 520 420, 480 380
+    C460 360, 480 340, 520 320 Z" />
+
+  <path fill="#FFFFFF" d="M555 335 C585 335, 605 350, 590 360 C570 375, 540 370, 555 335 Z" opacity="0.95"/>
+
+  <text x="280" y="860" class="text-fa">امیدنو</text>
+  <text x="380" y="930" class="seven">۷</text>
+</svg>

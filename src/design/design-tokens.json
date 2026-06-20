@@ -1,0 +1,17 @@
+{
+  "colors": {
+    "brandBlue": "#002366",
+    "brandGreen": "#00C83A",
+    "brandGreenDark": "#00A82B",
+    "bg": "#FFFFFF",
+    "text": "#0B1130",
+    "muted": "#6B7280",
+    "lightGreen": "#DFF8E6",
+    "shadow": "rgba(2,18,60,0.12)",
+    "success": "#0C9A32",
+    "error": "#E23D3D"
+  },
+  "spacing": { "xs": 4, "sm": 8, "md": 16, "lg": 24, "xl": 32 },
+  "radius": { "sm": 8, "md": 12, "lg": 16 },
+  "font": { "fa": "Vazir", "en": "Inter" }
+}
