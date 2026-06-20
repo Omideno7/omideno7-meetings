@@ -1,4 +1,4 @@
-# Supabase integration (notes added to .env.example)
+# Supabase envs (example)
 
 # Supabase
 SUPABASE_URL=https://<project>.supabase.co
