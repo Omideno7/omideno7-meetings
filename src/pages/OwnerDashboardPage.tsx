@@ -22,6 +22,7 @@ export function OwnerDashboardPage() {
         <Card><h2>Pending Requests</h2><p>{pending} local demo counter. Supabase requests are inside Approvals.</p><Button onClick={() => setRoute("approvals")}>Open Approvals</Button></Card>
         <Card><h2>Permission Templates</h2><p>Assign reusable powers to servants without sharing master credentials.</p><Button onClick={() => setRoute("permissionTemplates")}>Open Permissions</Button></Card>
         <Card><h2>Meeting Schedule</h2><p>Create church-owned meetings and open rooms for members.</p><Button onClick={() => setRoute("meetingSchedule")}>Open Meetings</Button></Card>
+        <Card><h2>Video / Audio Test</h2><p>Test local camera and microphone before real LiveKit calls.</p><Button variant="secondary" onClick={() => setRoute("deviceTest")}>Open Device Test</Button></Card>
         <Card><h2>Waiting Room</h2><p>{waiting} local demo counter. Real waiting room is Supabase-connected.</p><Button onClick={() => setRoute("waitingRoom")}>Open Waiting Room</Button></Card>
         <Card><h2>Servant Dashboard</h2><p>Preview role-based servant controls.</p><Button variant="secondary" onClick={() => setRoute("servantDashboard")}>Open Servant Panel</Button></Card>
         <Card><h2>Notifications</h2><p>{unread} unread local alerts.</p><Button variant="secondary" onClick={() => setRoute("notifications")}>Open Notifications</Button></Card>

@@ -17,6 +17,8 @@ export type PermissionTemplate = {
   can_publish_recordings: boolean;
 };
 
+export type PermissionInput = Omit<PermissionTemplate, "id">;
+
 export type ProfileRow = {
   id: string;
   full_name: string;
@@ -75,8 +77,38 @@ export const servantRoleOptions: { value: UserRole; label: string }[] = [
   { value: "chat_moderator", label: "Chat Moderator" }
 ];
 
+export const permissionFieldLabels: { key: keyof PermissionInput; label: string; description: string }[] = [
+  { key: "can_start_meeting", label: "Start meeting", description: "Can open or start scheduled meetings." },
+  { key: "can_admit_waiting_room", label: "Admit waiting room", description: "Can allow members into the room." },
+  { key: "can_reject_waiting_room", label: "Reject waiting room", description: "Can reject waiting room entries." },
+  { key: "can_remove_participant", label: "Remove participant", description: "Can remove disruptive users." },
+  { key: "can_mute_participants", label: "Mute participants", description: "Can mute members during meetings." },
+  { key: "can_activate_lecture_mode", label: "Lecture mode", description: "Can lock member microphones." },
+  { key: "can_start_recording", label: "Recording", description: "Can start/stop recording workflow." },
+  { key: "can_view_limited_reports", label: "Limited reports", description: "Can view basic attendance reports." },
+  { key: "can_view_full_reports", label: "Full reports", description: "Can view full reports." },
+  { key: "can_publish_recordings", label: "Publish recordings", description: "Can publish archive media." }
+];
+
 function errorMessage(error: any) {
   return error?.message || null;
+}
+
+function rpcPayload(template: PermissionInput) {
+  return {
+    p_name: template.name,
+    p_role: template.role,
+    p_can_start_meeting: template.can_start_meeting,
+    p_can_admit_waiting_room: template.can_admit_waiting_room,
+    p_can_reject_waiting_room: template.can_reject_waiting_room,
+    p_can_remove_participant: template.can_remove_participant,
+    p_can_mute_participants: template.can_mute_participants,
+    p_can_activate_lecture_mode: template.can_activate_lecture_mode,
+    p_can_start_recording: template.can_start_recording,
+    p_can_view_limited_reports: template.can_view_limited_reports,
+    p_can_view_full_reports: template.can_view_full_reports,
+    p_can_publish_recordings: template.can_publish_recordings
+  };
 }
 
 export const supabaseAdminService = {
@@ -94,6 +126,21 @@ export const supabaseAdminService = {
       .order("role", { ascending: true })
       .order("name", { ascending: true });
     return { data: (data || []) as PermissionTemplate[], error: errorMessage(error) };
+  },
+
+  async upsertTemplate(template: PermissionInput) {
+    if (!supabase) return { data: null, error: "Supabase not configured." };
+    const { data, error } = await supabase.rpc("upsert_permission_template", rpcPayload(template));
+    return { data, error: errorMessage(error) };
+  },
+
+  async createCustomTemplateAndAssign(profileId: string, template: PermissionInput) {
+    if (!supabase) return { data: null, error: "Supabase not configured." };
+    const { data, error } = await supabase.rpc("create_custom_template_and_assign", {
+      p_profile_id: profileId,
+      ...rpcPayload(template)
+    });
+    return { data, error: errorMessage(error) };
   },
 
   async listProfiles(): Promise<{ data: ProfileRow[]; error: string | null }> {

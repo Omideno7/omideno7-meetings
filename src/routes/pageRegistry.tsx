@@ -11,6 +11,7 @@ import { ApprovalsPage } from "../pages/ApprovalsPage";
 import { ServantDashboardPage } from "../pages/ServantDashboardPage";
 import { PermissionTemplatesPage } from "../pages/PermissionTemplatesPage";
 import { MeetingSchedulePage } from "../pages/MeetingSchedulePage";
+import { DeviceTestPage } from "../pages/DeviceTestPage";
 import { WaitingRoomPage } from "../pages/WaitingRoomPage";
 import { LiveMeetingPage } from "../pages/LiveMeetingPage";
 import { SecurityCenterPage } from "../pages/SecurityCenterPage";
@@ -46,6 +47,7 @@ export const pageRegistry: Record<AppRouteKey, ComponentType> = {
   servantDashboard: ServantDashboardPage,
   permissionTemplates: PermissionTemplatesPage,
   meetingSchedule: MeetingSchedulePage,
+  deviceTest: DeviceTestPage,
   waitingRoom: WaitingRoomPage,
   liveMeeting: LiveMeetingPage,
   securityCenter: SecurityCenterPage,

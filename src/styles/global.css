@@ -611,3 +611,155 @@ p, li, small {
   background: rgba(8,41,91,.08);
   color: #06285a;
 }
+
+/* Steps 31-35: independent scroll, editable permissions, device test */
+html, body, #root {
+  height: 100%;
+}
+
+body {
+  overflow: hidden;
+}
+
+.app-shell {
+  height: 100dvh;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.sidebar {
+  height: 100dvh;
+  min-height: 0;
+  overflow: hidden;
+  position: sticky;
+  top: 0;
+}
+
+.sidebar nav {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding-right: 3px;
+  overscroll-behavior: contain;
+}
+
+.main-content {
+  height: 100dvh;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scroll-behavior: smooth;
+}
+
+.permission-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+  margin: 14px 0;
+}
+
+.permission-check {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+  border: 1px solid rgba(8,41,91,.10);
+  border-radius: 16px;
+  padding: 12px;
+  background: rgba(8,41,91,.03);
+}
+
+.permission-check input {
+  margin-top: 4px;
+  width: 18px;
+  height: 18px;
+}
+
+.permission-check strong,
+.permission-check small {
+  display: block;
+}
+
+.permission-check small {
+  color: #607086;
+  font-size: .84rem;
+}
+
+.permission-table th,
+.permission-table td {
+  text-align: center;
+}
+
+.permission-table td:first-child,
+.permission-table th:first-child {
+  text-align: left;
+  min-width: 230px;
+}
+
+.table-input {
+  width: 100%;
+  border: 1px solid rgba(8,41,91,.14);
+  border-radius: 10px;
+  padding: 8px;
+}
+
+.mini-actions {
+  display: grid;
+  gap: 6px;
+  min-width: 110px;
+}
+
+.device-preview {
+  position: relative;
+  min-height: 320px;
+  border-radius: 22px;
+  overflow: hidden;
+  background: linear-gradient(135deg, rgba(8,41,91,.14), rgba(9,164,64,.12));
+  display: grid;
+  place-items: center;
+  margin: 16px 0;
+}
+
+.device-preview video {
+  width: 100%;
+  min-height: 320px;
+  max-height: 520px;
+  object-fit: cover;
+  background: #06285a;
+}
+
+.device-preview span {
+  color: #06285a;
+  font-weight: 900;
+}
+
+@media (max-width: 900px) {
+  body {
+    overflow: hidden;
+  }
+
+  .app-shell {
+    height: 100dvh;
+    grid-template-rows: auto minmax(0, 1fr);
+  }
+
+  .sidebar {
+    height: 38dvh;
+    max-height: 38dvh;
+    position: sticky;
+    top: 0;
+    z-index: 10;
+  }
+
+  .sidebar nav {
+    max-height: calc(38dvh - 112px);
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .main-content {
+    height: 62dvh;
+    overflow-y: auto;
+  }
+
+  .permission-grid {
+    grid-template-columns: 1fr;
+  }
+}

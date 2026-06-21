@@ -12,6 +12,7 @@ export const appRoutes: AppRoute[] = [
   { key: "memberHome", label: "Home", path: "/home", allowedRoles: approvedRoles },
   { key: "servantDashboard", label: "Servant Dashboard", path: "/servant", allowedRoles: hostRoles },
   { key: "meetingSchedule", label: "Meeting Schedule", path: "/meetings", allowedRoles: approvedRoles },
+  { key: "deviceTest", label: "Video / Audio Test", path: "/device-test", allowedRoles: approvedRoles },
   { key: "waitingRoom", label: "Waiting Room", path: "/waiting-room", allowedRoles: approvedRoles },
   { key: "liveMeeting", label: "Live Meeting", path: "/live", allowedRoles: approvedRoles },
   { key: "notifications", label: "Notifications", path: "/notifications", allowedRoles: approvedRoles },

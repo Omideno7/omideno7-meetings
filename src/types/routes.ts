@@ -11,6 +11,7 @@ export type AppRouteKey =
   | "servantDashboard"
   | "permissionTemplates"
   | "meetingSchedule"
+  | "deviceTest"
   | "waitingRoom"
   | "liveMeeting"
   | "securityCenter"
