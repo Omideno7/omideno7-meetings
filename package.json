@@ -1,7 +1,7 @@
 {
   "name": "omideno7-meetings-react",
   "private": true,
-  "version": "0.30.0-next-stable-steps23-30",
+  "version": "0.35.0-next-stable-steps31-35",
   "type": "module",
   "description": "OmideNo7 Meetings \u2014 Vite + React + TypeScript conversion starter",
   "scripts": {
@@ -35,5 +35,5 @@
     "typescript": "latest",
     "vite": "latest"
   },
-  "appStage": "steps-23-to-30-roles-templates-meetings-waiting-security-reports"
+  "appStage": "steps-31-to-35-independent-scroll-custom-permissions-device-test"
 }
