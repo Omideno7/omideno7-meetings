@@ -1,0 +1,61 @@
+name: Apply App Update Zip
+
+on:
+  push:
+    paths:
+      - "app-update.zip"
+      - ".github/workflows/app-update.yml"
+
+permissions:
+  contents: write
+
+jobs:
+  apply-update:
+    if: ${{ !contains(github.event.head_commit.message, '[skip-unpack]') }}
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Stop if no update zip
+        run: |
+          if [ ! -f "app-update.zip" ]; then
+            echo "No app-update.zip found. Nothing to unpack."
+            exit 0
+          fi
+
+      - name: Unzip update
+        run: |
+          rm -rf _app_update
+          mkdir _app_update
+          unzip -q app-update.zip -d _app_update
+
+      - name: Apply update to repository root
+        run: |
+          if [ -d "_app_update/omideno7-meetings-react" ]; then
+            SOURCE="_app_update/omideno7-meetings-react"
+          else
+            SOURCE="_app_update"
+          fi
+
+          rsync -a --delete \
+            --exclude ".git" \
+            --exclude ".github" \
+            --exclude "app-update.zip" \
+            "$SOURCE"/ ./
+
+          rm -rf _app_update
+          rm -f app-update.zip
+
+      - name: Commit applied update
+        run: |
+          git config user.name "OmideNo7 Auto Update"
+          git config user.email "actions@github.com"
+          git add -A
+          if git diff --cached --quiet; then
+            echo "No changes to commit."
+            exit 0
+          fi
+          git commit -m "Apply app update from zip [skip-unpack]"
+          git push
