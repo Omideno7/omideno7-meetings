@@ -6,6 +6,7 @@ export type AppRouteKey =
   | "requestAccess"
   | "pendingApproval"
   | "memberHome"
+  | "profile"
   | "ownerDashboard"
   | "approvals"
   | "servantDashboard"

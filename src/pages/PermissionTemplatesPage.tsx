@@ -12,6 +12,17 @@ import {
 } from "../services/supabaseAdminService";
 import type { UserRole } from "../types/roles";
 
+const coreTemplates = [
+  "Approved Member Basic",
+  "Senior Host Full Meeting Control",
+  "Meeting Host Standard",
+  "Co-host Lecture Assistant",
+  "Door Servant Waiting Room",
+  "Media Servant Recording",
+  "Prayer Servant Support",
+  "Chat Moderator"
+];
+
 const blankPermissions: Omit<PermissionInput, "name" | "role"> = {
   can_start_meeting: false,
   can_admit_waiting_room: false,
@@ -24,10 +35,6 @@ const blankPermissions: Omit<PermissionInput, "name" | "role"> = {
   can_view_full_reports: false,
   can_publish_recordings: false
 };
-
-function yes(value: boolean) {
-  return value ? "✅" : "—";
-}
 
 function cloneTemplate(template: PermissionTemplate): PermissionInput {
   return {
@@ -46,57 +53,48 @@ function cloneTemplate(template: PermissionTemplate): PermissionInput {
   };
 }
 
-type ActionKind = "idle" | "loading" | "success" | "error";
+function isCore(name: string) {
+  return coreTemplates.some((item) => item.toLowerCase() === name.toLowerCase());
+}
+
+type Toast = { kind: "idle" | "loading" | "success" | "error"; text: string };
 
 export function PermissionTemplatesPage() {
   const [templates, setTemplates] = useState<PermissionTemplate[]>([]);
   const [drafts, setDrafts] = useState<Record<string, PermissionInput>>({});
   const [profiles, setProfiles] = useState<ProfileRow[]>([]);
-  const [message, setMessage] = useState("Ready");
-  const [actionKind, setActionKind] = useState<ActionKind>("idle");
+  const [toast, setToast] = useState<Toast>({ kind: "idle", text: "Ready" });
   const [loadingAction, setLoadingAction] = useState("");
-  const [lastSavedTemplate, setLastSavedTemplate] = useState("");
   const [selectedProfileId, setSelectedProfileId] = useState("");
   const [selectedRole, setSelectedRole] = useState<UserRole>("approved_member");
   const [selectedTemplate, setSelectedTemplate] = useState("Approved Member Basic");
-
   const [customTemplate, setCustomTemplate] = useState<PermissionInput>({
     name: "Custom Servant Template",
     role: "door_servant",
     ...blankPermissions
   });
 
-  const selectedProfile = useMemo(
-    () => profiles.find((profile) => profile.id === selectedProfileId),
-    [profiles, selectedProfileId]
-  );
+  const selectedProfile = useMemo(() => profiles.find((profile) => profile.id === selectedProfileId), [profiles, selectedProfileId]);
+  const isBusy = Boolean(loadingAction);
 
-  function start(action: string, text: string) {
+  useEffect(() => {
+    if (toast.kind === "success" || toast.kind === "error") {
+      const timer = window.setTimeout(() => setToast({ kind: "idle", text: "Ready" }), 4500);
+      return () => window.clearTimeout(timer);
+    }
+  }, [toast.kind, toast.text]);
+
+  function show(kind: Toast["kind"], text: string, action = "") {
+    setToast({ kind, text });
     setLoadingAction(action);
-    setActionKind("loading");
-    setMessage(text);
-  }
-
-  function done(text: string, savedName = "") {
-    setLoadingAction("");
-    setActionKind("success");
-    setMessage(text);
-    if (savedName) setLastSavedTemplate(savedName);
-  }
-
-  function fail(text: string) {
-    setLoadingAction("");
-    setActionKind("error");
-    setMessage(text);
   }
 
   function label(action: string, normal: string, busy: string) {
     return loadingAction === action ? busy : normal;
   }
 
-  async function load(show = true) {
-    if (show) start("refresh", "Refreshing templates and profiles...");
-
+  async function load(showFeedback = true) {
+    if (showFeedback) show("loading", "Refreshing templates and profiles...", "refresh");
     const templateResult = await supabaseAdminService.listTemplates();
     const profileResult = await supabaseAdminService.listProfiles();
 
@@ -106,180 +104,155 @@ export function PermissionTemplatesPage() {
 
     const error = templateResult.error || profileResult.error;
     if (error) {
-      fail(`Supabase error: ${error}`);
+      show("error", `Supabase error: ${error}`);
       return;
     }
-
-    if (show) {
-      done(`Refresh complete. ${templateResult.data.length} templates loaded.`);
-    } else {
-      setLoadingAction("");
-      setActionKind("idle");
-      setMessage("Ready");
-    }
+    show(showFeedback ? "success" : "idle", showFeedback ? `Loaded ${templateResult.data.length} templates.` : "Ready");
   }
 
   async function seed() {
-    start("seed", "Creating or repairing default templates...");
+    show("loading", "Creating or repairing default templates...", "seed");
     const result = await supabaseAdminService.seedDefaultTemplates();
-
     if (result.error) {
-      fail(`Seed failed: ${result.error}`);
+      show("error", `Seed failed: ${result.error}`);
       return;
     }
-
-    const templateResult = await supabaseAdminService.listTemplates();
-    const profileResult = await supabaseAdminService.listProfiles();
-
-    setTemplates(templateResult.data);
-    setDrafts(Object.fromEntries(templateResult.data.map((template) => [template.id, cloneTemplate(template)])));
-    setProfiles(profileResult.data.filter((item) => item.role !== "owner"));
-
-    const error = templateResult.error || profileResult.error;
-    if (error) {
-      fail(`Templates repaired, but reload failed: ${error}`);
-      return;
-    }
-
-    done(`Default templates are ready. ${templateResult.data.length} templates loaded.`);
+    await load(false);
+    show("success", "Default templates are ready and duplicates are prevented.");
   }
 
   async function assign() {
     if (!selectedProfileId) {
-      fail("Choose a profile first, then press Apply to Profile.");
+      show("error", "Choose a profile first.");
       return;
     }
-
-    start("assign", "Applying role and template to selected profile...");
+    show("loading", "Applying role/template to selected profile...", "assign");
     const result = await supabaseAdminService.assignProfileRole(selectedProfileId, selectedRole, selectedTemplate);
-
     if (result.error) {
-      fail(`Apply failed: ${result.error}`);
+      show("error", `Apply failed: ${result.error}`);
       return;
     }
-
     await load(false);
-    done(`Applied ${selectedRole.replaceAll("_", " ")} with "${selectedTemplate}" to ${selectedProfile?.email || "selected profile"}.`);
+    show("success", `Applied ${selectedRole.replaceAll("_", " ")} to ${selectedProfile?.email || "selected profile"}.`);
   }
 
   function updateDraft(id: string, field: keyof PermissionInput, value: boolean | string) {
-    setDrafts((current) => ({
-      ...current,
-      [id]: { ...current[id], [field]: value }
-    }));
-    setActionKind("idle");
-    setMessage("Unsaved changes. Press Save on this row.");
+    setDrafts((current) => ({ ...current, [id]: { ...current[id], [field]: value } }));
+    show("idle", "Unsaved changes. Press Save on this row.");
   }
 
   async function saveTemplate(id: string) {
     const draft = drafts[id];
-    if (!draft) {
-      fail("Template draft was not found.");
-      return;
-    }
-
-    start(`save-${id}`, `Saving template "${draft.name}"...`);
+    if (!draft) return;
+    show("loading", `Saving "${draft.name}"...`, `save-${id}`);
     const result = await supabaseAdminService.upsertTemplate(draft);
-
     if (result.error) {
-      fail(`Save failed: ${result.error}`);
+      show("error", `Save failed: ${result.error}`);
       return;
     }
-
-    const templateResult = await supabaseAdminService.listTemplates();
-    if (templateResult.error) {
-      fail(`Saved, but reload failed: ${templateResult.error}`);
-      return;
-    }
-
-    setTemplates(templateResult.data);
-    setDrafts(Object.fromEntries(templateResult.data.map((template) => [template.id, cloneTemplate(template)])));
-    done(`Template saved: ${draft.name}`, draft.name);
+    await load(false);
+    show("success", `Template saved: ${draft.name}`);
   }
 
   function updateCustom(field: keyof PermissionInput, value: boolean | string) {
     setCustomTemplate((current) => ({ ...current, [field]: value }));
-    setActionKind("idle");
-    setMessage("Custom permission changed. Press Save Custom Template.");
-  }
-
-  function loadTemplateIntoCustom(template: PermissionTemplate) {
-    const customName = `Custom - ${template.name}`;
-    setCustomTemplate({ ...cloneTemplate(template), name: customName });
-    setSelectedRole(template.role);
-    setSelectedTemplate(template.name);
-    done(`Template cloned into custom editor: ${customName}`);
+    show("idle", "Custom permissions changed. Press Save Custom Template.");
   }
 
   async function saveCustomOnly() {
     const name = customTemplate.name.trim();
     if (!name) {
-      fail("Custom template name is required.");
+      show("error", "Custom template name is required.");
       return;
     }
-
-    start("save-custom", `Saving custom template "${name}"...`);
+    show("loading", `Saving custom template "${name}"...`, "save-custom");
     const result = await supabaseAdminService.upsertTemplate({ ...customTemplate, name });
-
     if (result.error) {
-      fail(`Custom save failed: ${result.error}`);
+      show("error", `Custom save failed: ${result.error}`);
       return;
     }
-
-    const templateResult = await supabaseAdminService.listTemplates();
-    if (templateResult.error) {
-      fail(`Saved, but reload failed: ${templateResult.error}`);
-      return;
-    }
-
-    setTemplates(templateResult.data);
-    setDrafts(Object.fromEntries(templateResult.data.map((template) => [template.id, cloneTemplate(template)])));
-    done(`Custom template saved: ${name}`, name);
+    await load(false);
+    show("success", `Custom template saved: ${name}`);
   }
 
   async function createCustomAndAssign() {
     if (!selectedProfileId) {
-      fail("Choose a profile first before using Save + Apply.");
+      show("error", "Choose a profile first.");
       return;
     }
-
     const name = customTemplate.name.trim() || `Custom - ${selectedProfile?.email || "servant"}`;
-    const finalTemplate: PermissionInput = { ...customTemplate, name, role: customTemplate.role };
-
-    start("save-apply-custom", `Saving custom template and applying it to ${selectedProfile?.email || "selected profile"}...`);
-    const result = await supabaseAdminService.createCustomTemplateAndAssign(selectedProfileId, finalTemplate);
-
+    show("loading", "Saving custom template and applying it...", "save-apply-custom");
+    const result = await supabaseAdminService.createCustomTemplateAndAssign(selectedProfileId, { ...customTemplate, name });
     if (result.error) {
-      fail(`Save + Apply failed: ${result.error}`);
+      show("error", `Save + Apply failed: ${result.error}`);
       return;
     }
-
     await load(false);
-    done(`Custom permissions saved and applied to ${selectedProfile?.email || "selected profile"}.`, name);
+    show("success", `Custom permissions saved and applied to ${selectedProfile?.email || "selected profile"}.`);
+  }
+
+  function cloneIntoCustom(template: PermissionTemplate) {
+    setCustomTemplate({ ...cloneTemplate(template), name: `Custom - ${template.name}` });
+    show("success", `Cloned "${template.name}" into custom editor.`);
+  }
+
+  async function deleteTemplate(template: PermissionTemplate) {
+    if (isCore(template.name)) {
+      show("error", "Core/default templates are protected. Clone it first, then delete the custom clone if needed.");
+      return;
+    }
+    const ok = window.confirm(`Delete template "${template.name}"? This cannot be undone.`);
+    if (!ok) return;
+    show("loading", `Deleting "${template.name}"...`, `delete-${template.id}`);
+    const result = await supabaseAdminService.deletePermissionTemplate(template.id);
+    if (result.error) {
+      show("error", `Delete failed: ${result.error}`);
+      return;
+    }
+    await load(false);
+    show("success", `Template deleted: ${template.name}`);
+  }
+
+  async function deleteTestTemplates() {
+    const candidates = templates.filter((template) =>
+      !isCore(template.name) &&
+      (template.name.toLowerCase().includes("test") || template.name.toLowerCase().includes("custom"))
+    );
+    if (!candidates.length) {
+      show("error", "No custom/test templates found to delete.");
+      return;
+    }
+    const ok = window.confirm(`Delete ${candidates.length} custom/test templates? Core templates will be protected.`);
+    if (!ok) return;
+    show("loading", "Deleting custom/test templates...", "delete-tests");
+    for (const template of candidates) {
+      await supabaseAdminService.deletePermissionTemplate(template.id);
+    }
+    await load(false);
+    show("success", `${candidates.length} custom/test templates deleted.`);
   }
 
   useEffect(() => {
     void load(false);
   }, []);
 
-  const isBusy = Boolean(loadingAction);
-
   return (
     <div className="page-grid">
-      <div className={`action-toast action-${actionKind}`}>
-        <strong>{actionKind === "loading" ? "Working" : actionKind === "success" ? "Done" : actionKind === "error" ? "Error" : "Status"}</strong>
-        <span>{message}</span>
+      <div className={`action-toast action-${toast.kind}`}>
+        <strong>{toast.kind === "loading" ? "Working" : toast.kind === "success" ? "Done" : toast.kind === "error" ? "Error" : "Status"}</strong>
+        <span>{toast.text}</span>
+        <button className="toast-close" onClick={() => setToast({ kind: "idle", text: "Ready" })}>×</button>
       </div>
 
       <Card>
         <h1>Permission Templates</h1>
-        <p>Templates are reusable permission presets. Owner can also edit each permission manually or create a custom template for one person.</p>
+        <p>Templates are reusable permission presets. Owner can edit each permission manually or create a custom template for one person.</p>
         <p className="small-note">Data mode: {dataMode}</p>
         <div className="button-row">
           <Button onClick={seed} disabled={isBusy}>{label("seed", "Seed / Repair Default Templates", "Repairing...")}</Button>
           <Button variant="secondary" onClick={() => load(true)} disabled={isBusy}>{label("refresh", "Refresh", "Refreshing...")}</Button>
+          <Button variant="danger" onClick={deleteTestTemplates} disabled={isBusy}>{label("delete-tests", "Delete Test / Custom Templates", "Deleting...")}</Button>
         </div>
-        <p className={`auth-message message-${actionKind}`}>{message}</p>
       </Card>
 
       <Card>
@@ -304,7 +277,6 @@ export function PermissionTemplatesPage() {
 
       <Card>
         <h2>Create Custom Permissions</h2>
-        <p>Use this when a servant needs special permissions that are not exactly one of the default templates.</p>
         <div className="form-grid">
           <input value={customTemplate.name} onChange={(event) => updateCustom("name", event.target.value)} placeholder="Custom template name" />
           <select value={customTemplate.role} onChange={(event) => updateCustom("role", event.target.value as UserRole)}>
@@ -334,7 +306,7 @@ export function PermissionTemplatesPage() {
 
       <Card>
         <h2>Editable Template Matrix</h2>
-        <p>You can change a template by ticking permissions and pressing Save. These changes are stored in Supabase.</p>
+        <p>Default/core templates are protected from accidental deletion. Clone them if you need a custom version.</p>
         <div className="table-wrap">
           <table className="admin-table permission-table">
             <thead>
@@ -348,18 +320,10 @@ export function PermissionTemplatesPage() {
             <tbody>
               {templates.map((template) => {
                 const draft = drafts[template.id] || cloneTemplate(template);
-                const rowSaved = lastSavedTemplate && lastSavedTemplate.toLowerCase() === draft.name.toLowerCase();
-
+                const protectedRow = isCore(template.name);
                 return (
-                  <tr key={template.id} className={rowSaved ? "row-saved" : ""}>
-                    <td>
-                      <input
-                        className="table-input"
-                        value={draft.name}
-                        onChange={(event) => updateDraft(template.id, "name", event.target.value)}
-                      />
-                      {rowSaved && <small className="saved-label">Saved ✓</small>}
-                    </td>
+                  <tr key={template.id}>
+                    <td><input className="table-input" value={draft.name} onChange={(event) => updateDraft(template.id, "name", event.target.value)} /></td>
                     <td>
                       <select value={draft.role} onChange={(event) => updateDraft(template.id, "role", event.target.value as UserRole)}>
                         {servantRoleOptions.map((role) => <option key={role.value} value={role.value}>{role.label}</option>)}
@@ -367,61 +331,19 @@ export function PermissionTemplatesPage() {
                     </td>
                     {permissionFieldLabels.map((field) => (
                       <td key={field.key}>
-                        <input
-                          type="checkbox"
-                          aria-label={field.label}
-                          checked={Boolean(draft[field.key])}
-                          onChange={(event) => updateDraft(template.id, field.key, event.target.checked)}
-                        />
+                        <input type="checkbox" checked={Boolean(draft[field.key])} onChange={(event) => updateDraft(template.id, field.key, event.target.checked)} />
                       </td>
                     ))}
                     <td>
                       <div className="mini-actions">
-                        <Button variant="secondary" onClick={() => saveTemplate(template.id)} disabled={isBusy}>
-                          {label(`save-${template.id}`, "Save", "Saving...")}
-                        </Button>
-                        <Button variant="ghost" onClick={() => loadTemplateIntoCustom(template)} disabled={isBusy}>Clone</Button>
+                        <Button variant="secondary" onClick={() => saveTemplate(template.id)} disabled={isBusy}>{label(`save-${template.id}`, "Save", "Saving...")}</Button>
+                        <Button variant="ghost" onClick={() => cloneIntoCustom(template)} disabled={isBusy}>Clone</Button>
+                        <Button variant={protectedRow ? "ghost" : "danger"} onClick={() => deleteTemplate(template)} disabled={isBusy}>{protectedRow ? "Protected" : label(`delete-${template.id}`, "Delete", "Deleting...")}</Button>
                       </div>
                     </td>
                   </tr>
                 );
               })}
-            </tbody>
-          </table>
-        </div>
-      </Card>
-
-      <Card>
-        <h2>Simple View</h2>
-        <div className="table-wrap">
-          <table className="admin-table">
-            <thead>
-              <tr>
-                <th>Template</th>
-                <th>Role</th>
-                <th>Start</th>
-                <th>Admit</th>
-                <th>Remove</th>
-                <th>Lecture</th>
-                <th>Record</th>
-                <th>Reports</th>
-                <th>Publish</th>
-              </tr>
-            </thead>
-            <tbody>
-              {templates.map((template) => (
-                <tr key={template.id}>
-                  <td>{template.name}</td>
-                  <td>{template.role.replaceAll("_", " ")}</td>
-                  <td>{yes(template.can_start_meeting)}</td>
-                  <td>{yes(template.can_admit_waiting_room)}</td>
-                  <td>{yes(template.can_remove_participant)}</td>
-                  <td>{yes(template.can_activate_lecture_mode)}</td>
-                  <td>{yes(template.can_start_recording)}</td>
-                  <td>{yes(template.can_view_full_reports || template.can_view_limited_reports)}</td>
-                  <td>{yes(template.can_publish_recordings)}</td>
-                </tr>
-              ))}
             </tbody>
           </table>
         </div>

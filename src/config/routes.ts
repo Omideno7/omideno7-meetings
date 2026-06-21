@@ -10,6 +10,7 @@ export const appRoutes: AppRoute[] = [
   { key: "pendingApproval", label: "Pending Approval", path: "/pending", allowedRoles: [roles.PENDING] },
 
   { key: "memberHome", label: "Home", path: "/home", allowedRoles: approvedRoles },
+  { key: "profile", label: "Profile", path: "/profile", allowedRoles: approvedRoles },
   { key: "servantDashboard", label: "Servant Dashboard", path: "/servant", allowedRoles: hostRoles },
   { key: "meetingSchedule", label: "Meeting Schedule", path: "/meetings", allowedRoles: approvedRoles },
   { key: "deviceTest", label: "Video / Audio Test", path: "/device-test", allowedRoles: approvedRoles },
@@ -17,7 +18,7 @@ export const appRoutes: AppRoute[] = [
   { key: "liveMeeting", label: "Live Meeting", path: "/live", allowedRoles: approvedRoles },
   { key: "notifications", label: "Notifications", path: "/notifications", allowedRoles: approvedRoles },
   { key: "inbox", label: "Inbox", path: "/inbox", allowedRoles: approvedRoles },
-  { key: "mediaLibrary", label: "Media Library", path: "/media", allowedRoles: approvedRoles },
+  { key: "mediaLibrary", label: "Recordings", path: "/media", allowedRoles: approvedRoles },
   { key: "reports", label: "Reports", path: "/reports", allowedRoles: hostRoles },
 
   { key: "ownerDashboard", label: "Owner Dashboard", path: "/owner", allowedRoles: ownerOnly },

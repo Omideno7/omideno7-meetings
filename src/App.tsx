@@ -13,9 +13,10 @@ export function App() {
     queueMicrotask(() => setRoute(safeRoute));
   }
 
-  const isPublic = !profile;
+  if (!profile) return <Page />;
+  if (safeRoute === "liveMeeting") return <Page />;
 
-  return isPublic ? <Page /> : (
+  return (
     <AppShell>
       <Page />
     </AppShell>

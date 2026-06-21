@@ -3,7 +3,13 @@ import { canOpenRoute } from "../../services/routeGuard";
 import { useAppState } from "../../app/AppState";
 import type { AppRouteKey } from "../../types/routes";
 
-const hiddenFromSidebar: AppRouteKey[] = ["landing", "login", "requestAccess", "pendingApproval", "liveMeeting"];
+const hiddenFromSidebar: AppRouteKey[] = [
+  "landing",
+  "login",
+  "requestAccess",
+  "pendingApproval",
+  "liveMeeting"
+];
 
 export function Sidebar() {
   const { profile, route, setRoute, logout } = useAppState();

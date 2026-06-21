@@ -143,6 +143,18 @@ export const supabaseAdminService = {
     return { data, error: errorMessage(error) };
   },
 
+
+  async deletePermissionTemplate(templateId: string) {
+    if (!supabase) return { data: null, error: "Supabase not configured." };
+    const { data, error } = await supabase
+      .from("permission_templates")
+      .delete()
+      .eq("id", templateId)
+      .select()
+      .single();
+    return { data, error: errorMessage(error) };
+  },
+
   async listProfiles(): Promise<{ data: ProfileRow[]; error: string | null }> {
     if (!supabase) return { data: [], error: "Supabase not configured." };
     const { data, error } = await supabase

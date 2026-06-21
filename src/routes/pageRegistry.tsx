@@ -6,6 +6,7 @@ import { LoginPage } from "../pages/LoginPage";
 import { RequestAccessPage } from "../pages/RequestAccessPage";
 import { PendingApprovalPage } from "../pages/PendingApprovalPage";
 import { MemberHomePage } from "../pages/MemberHomePage";
+import { ProfilePage } from "../pages/ProfilePage";
 import { OwnerDashboardPage } from "../pages/OwnerDashboardPage";
 import { ApprovalsPage } from "../pages/ApprovalsPage";
 import { ServantDashboardPage } from "../pages/ServantDashboardPage";
@@ -42,6 +43,7 @@ export const pageRegistry: Record<AppRouteKey, ComponentType> = {
   requestAccess: RequestAccessPage,
   pendingApproval: PendingApprovalPage,
   memberHome: MemberHomePage,
+  profile: ProfilePage,
   ownerDashboard: OwnerDashboardPage,
   approvals: ApprovalsPage,
   servantDashboard: ServantDashboardPage,
