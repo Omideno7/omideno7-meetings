@@ -101,6 +101,7 @@ export function MeetingSchedulePage() {
 
           <div className="button-row">
             <Button onClick={() => setRoute("waitingRoom")}>Join Waiting Room</Button>
+            <Button variant="secondary" onClick={() => setRoute("liveMeeting")}>Open Live Meeting UI</Button>
             {isHost && (
               <>
                 <Button variant="secondary" onClick={() => setState(meeting, { status: "opening" })}>Open Room</Button>

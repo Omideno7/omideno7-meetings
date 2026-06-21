@@ -1513,3 +1513,99 @@ button:disabled { opacity: .65; cursor: not-allowed; }
     height: 72px;
   }
 }
+
+/* UI navigation fix 0.50.0 */
+.simplified-sidebar nav {
+  padding-bottom: 80px;
+}
+
+.sidebar-section-title {
+  margin: 14px 6px 6px;
+  color: rgba(255,255,255,.58);
+  font-size: .72rem;
+  font-weight: 900;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+}
+
+.home-action-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 14px;
+}
+
+.home-action-card {
+  border: 1px solid rgba(8,41,91,.10);
+  border-radius: 22px;
+  padding: 18px;
+  display: grid;
+  gap: 7px;
+  text-align: left;
+  background: #fff;
+  color: #06285a;
+  cursor: pointer;
+  box-shadow: 0 10px 25px rgba(8,41,91,.06);
+}
+
+.home-action-card span {
+  width: 48px;
+  height: 48px;
+  display: grid;
+  place-items: center;
+  border-radius: 16px;
+  background: rgba(36,118,169,.10);
+  font-size: 1.35rem;
+}
+
+.home-action-card strong {
+  font-size: 1.1rem;
+}
+
+.home-action-card small {
+  color: #607086;
+  line-height: 1.35;
+}
+
+.owner-shortcuts .home-action-card span {
+  background: rgba(9,164,64,.12);
+}
+
+.backup-info {
+  margin: 0 20px 18px;
+  border: 1px solid rgba(8,41,91,.10);
+  border-radius: 18px;
+  padding: 14px;
+  background: rgba(8,41,91,.04);
+}
+
+.backup-info strong,
+.backup-info p {
+  color: #06285a;
+}
+
+.simple-modal {
+  width: min(520px, 92vw);
+  background: #fff;
+  color: #06285a;
+  border-radius: 22px;
+  padding: 28px;
+  position: relative;
+  box-shadow: 0 30px 80px rgba(0,0,0,.22);
+}
+
+.simple-modal h2,
+.simple-modal p {
+  color: #06285a;
+}
+
+@media (max-width: 900px) {
+  .home-action-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 560px) {
+  .home-action-grid {
+    grid-template-columns: 1fr;
+  }
+}
