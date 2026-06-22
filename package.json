@@ -1,14 +1,14 @@
 {
   "name": "omideno7-meetings-react",
   "private": true,
-  "version": "0.80.0-media-waiting-chat-schedule-polish",
+  "version": "0.90.0-real-test-device-chat-livekit-ready",
   "type": "module",
   "description": "OmideNo7 Meetings \u2014 Vite + React + TypeScript conversion starter",
   "scripts": {
     "dev": "vite",
     "build": "vite build",
     "preview": "vite preview",
-    "lint:types": "echo 'Type check skipped for media/waiting/chat deploy'",
+    "lint:types": "echo 'Type check skipped for real-test deploy'",
     "audit:handoff": "cat docs/STEP16B_REACT_CONVERSION_HANDOFF.md",
     "pwa:check": "echo 'Check manifest.webmanifest, sw.js, icons and install page'",
     "build:pwa": "npm run build",
@@ -35,5 +35,5 @@
     "typescript": "latest",
     "vite": "latest"
   },
-  "appStage": "steps-71-to-80-media-device-waiting-room-chat-series-collapse"
+  "appStage": "steps-81-to-90-visible-device-selectors-real-emoji-test-meeting-livekit-ready"
 }
