@@ -87,6 +87,7 @@ export function MemberHomePage() {
 
       <section className="home-action-grid">
         <ActionCard title="Live Meeting" desc="Open meeting room UI" icon="▣" onClick={() => setRoute("liveMeeting")} />
+        <ActionCard title="Test Meeting" desc="Practice with servants" icon="🧪" onClick={() => setRoute("liveMeeting")} />
         <ActionCard title="Waiting Room" desc="Enter or manage waiting room" icon="⏳" onClick={() => setRoute("waitingRoom")} />
         <ActionCard title="Video / Audio Test" desc="Camera and microphone check" icon="🎙" onClick={() => setRoute("deviceTest")} />
         <ActionCard title="Recordings" desc="Media library and archives" icon="◉" onClick={() => setRoute("mediaLibrary")} />

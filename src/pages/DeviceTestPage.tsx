@@ -10,9 +10,9 @@ type DeviceInfo = {
 
 const qualityPresets = {
   auto: {},
+  low: { width: 640, height: 360 },
   hd: { width: 1280, height: 720 },
-  fullhd: { width: 1920, height: 1080 },
-  low: { width: 640, height: 360 }
+  fullhd: { width: 1920, height: 1080 }
 };
 
 export function DeviceTestPage() {
@@ -21,7 +21,7 @@ export function DeviceTestPage() {
   const streamRef = useRef<MediaStream | null>(null);
   const audioContextRef = useRef<AudioContext | null>(null);
   const animationRef = useRef<number | null>(null);
-  const [message, setMessage] = useState("");
+  const [message, setMessage] = useState("Choose your camera, microphone and speaker, then press Test.");
   const [devices, setDevices] = useState<DeviceInfo[]>([]);
   const [cameraOn, setCameraOn] = useState(false);
   const [micOn, setMicOn] = useState(false);
@@ -36,6 +36,7 @@ export function DeviceTestPage() {
   const [autoGainControl, setAutoGainControl] = useState(true);
   const [micMode, setMicMode] = useState<"auto" | "manual">("auto");
   const [backgroundMode, setBackgroundMode] = useState("none");
+  const [permissionGranted, setPermissionGranted] = useState(false);
 
   const videoInputs = useMemo(() => devices.filter((device) => device.kind === "videoinput"), [devices]);
   const audioInputs = useMemo(() => devices.filter((device) => device.kind === "audioinput"), [devices]);
@@ -58,6 +59,22 @@ export function DeviceTestPage() {
     setVideoDeviceId((current) => current || mapped.find((device) => device.kind === "videoinput")?.id || "");
     setAudioInputId((current) => current || mapped.find((device) => device.kind === "audioinput")?.id || "");
     setAudioOutputId((current) => current || mapped.find((device) => device.kind === "audiooutput")?.id || "");
+
+    if (!mapped.length) {
+      setMessage("No devices visible yet. Press Allow / Refresh Devices and allow camera/microphone permission.");
+    }
+  }
+
+  async function requestPermissionAndRefresh() {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+      stream.getTracks().forEach((track) => track.stop());
+      setPermissionGranted(true);
+      await loadDevices();
+      setMessage("Permission granted. Device names should now appear in the selectors.");
+    } catch (error: any) {
+      setMessage(error?.message || "Permission was not granted. Please allow camera/microphone access in the browser.");
+    }
   }
 
   async function applyAudioOutput(deviceId: string) {
@@ -71,7 +88,7 @@ export function DeviceTestPage() {
         setMessage(error?.message || "Could not change audio output in this browser.");
       }
     } else {
-      setMessage("This browser may not support manual speaker/headset selection. Use system audio settings.");
+      setMessage("This browser may not support manual speaker/headset selection. Use system audio settings if needed.");
     }
   }
 
@@ -149,9 +166,10 @@ export function DeviceTestPage() {
         audioRef.current.muted = true;
       }
 
+      setPermissionGranted(true);
       setCameraOn(video);
       setMicOn(audio);
-      setMessage("Device test is active. External camera/mic works if your OS/browser exposes it as a device.");
+      setMessage("Device test is active. If external devices are connected and visible to the browser, they will work here.");
       if (audio) startAudioMeter(stream);
       if (!audio) setMicStatus("Microphone is off.");
       await loadDevices();
@@ -195,21 +213,16 @@ export function DeviceTestPage() {
   }, []);
 
   return (
-    <div className="page-grid">
-      <Card>
+    <div className="page-grid device-test-page">
+      <Card className="device-selector-card">
         <h1>Video / Audio Test</h1>
-        <p>Choose camera, microphone, speaker/headset, quality and noise controls before joining a meeting.</p>
+        <p className="device-warning">
+          First press <strong>Allow / Refresh Devices</strong>. After browser permission is granted, camera/microphone names will appear here.
+        </p>
 
-        <div className={`device-preview background-${backgroundMode}`}>
-          <video ref={videoRef} playsInline muted />
-          {!cameraOn && <span>Camera preview is off</span>}
-          {backgroundMode !== "none" && <em className="background-label">Background: {backgroundMode}</em>}
-        </div>
-        <audio ref={audioRef} />
-
-        <div className="media-control-grid">
+        <div className="device-selectors-top">
           <label>
-            Camera / external webcam
+            <strong>1. Camera / External webcam</strong>
             <select value={videoDeviceId} onChange={(event) => setVideoDeviceId(event.target.value)}>
               <option value="">Auto camera</option>
               {videoInputs.map((device) => <option key={device.id} value={device.id}>{device.label}</option>)}
@@ -217,7 +230,7 @@ export function DeviceTestPage() {
           </label>
 
           <label>
-            Microphone / external mic
+            <strong>2. Microphone / External mic</strong>
             <select value={audioInputId} onChange={(event) => setAudioInputId(event.target.value)}>
               <option value="">Auto microphone</option>
               {audioInputs.map((device) => <option key={device.id} value={device.id}>{device.label}</option>)}
@@ -225,13 +238,48 @@ export function DeviceTestPage() {
           </label>
 
           <label>
-            Speaker / headphones
+            <strong>3. Speaker / Headphones</strong>
             <select value={audioOutputId} onChange={(event) => applyAudioOutput(event.target.value)}>
               <option value="">System default</option>
               {audioOutputs.map((device) => <option key={device.id} value={device.id}>{device.label}</option>)}
             </select>
           </label>
+        </div>
 
+        <div className="button-row">
+          <Button onClick={requestPermissionAndRefresh}>Allow / Refresh Devices</Button>
+          <Button variant="secondary" onClick={() => startTest(true, true)}>Test Camera + Mic</Button>
+          <Button variant="secondary" onClick={() => startTest(false, true)}>Test Mic Only</Button>
+          <Button variant="ghost" onClick={stopTest}>Stop Test</Button>
+        </div>
+
+        <p className={`auth-message ${permissionGranted ? "message-success" : ""}`}>{message}</p>
+      </Card>
+
+      <Card>
+        <h2>Preview</h2>
+        <div className={`device-preview background-${backgroundMode}`}>
+          <video ref={videoRef} playsInline muted />
+          {!cameraOn && <span>Camera preview is off</span>}
+          {backgroundMode !== "none" && <em className="background-label">Background: {backgroundMode}</em>}
+        </div>
+        <audio ref={audioRef} />
+
+        <div className="audio-meter-card">
+          <div className="audio-meter-head">
+            <strong>Microphone level</strong>
+            <span>{micStatus}</span>
+          </div>
+          <div className="audio-meter-track">
+            <div className="audio-meter-fill" style={{ width: `${micLevel}%` }} />
+          </div>
+          <p>{micOn ? "Speak now. The green bar should move if the microphone is working." : "Press Test Mic Only or Test Camera + Mic."}</p>
+        </div>
+      </Card>
+
+      <Card>
+        <h2>Advanced Media Controls</h2>
+        <div className="media-control-grid always-visible">
           <label>
             Video quality
             <select value={quality} onChange={(event) => setQuality(event.target.value as keyof typeof qualityPresets)}>
@@ -266,33 +314,9 @@ export function DeviceTestPage() {
           <label><input type="checkbox" checked={echoCancellation} onChange={(event) => setEchoCancellation(event.target.checked)} /> Echo cancellation</label>
           <label><input type="checkbox" checked={autoGainControl} onChange={(event) => setAutoGainControl(event.target.checked)} /> Auto gain control</label>
         </div>
-
-        <div className="audio-meter-card">
-          <div className="audio-meter-head">
-            <strong>Microphone level</strong>
-            <span>{micStatus}</span>
-          </div>
-          <div className="audio-meter-track">
-            <div className="audio-meter-fill" style={{ width: `${micLevel}%` }} />
-          </div>
-          <p>{micOn ? "Speak now. The green bar should move if the microphone is working." : "Press Test Mic Only or Test Camera + Mic."}</p>
-        </div>
-
-        <div className="button-row">
-          <Button onClick={() => startTest(true, true)}>Test Camera + Mic</Button>
-          <Button variant="secondary" onClick={() => startTest(false, true)}>Test Mic Only</Button>
-          <Button variant="secondary" onClick={() => startTest(true, false)}>Test Camera Only</Button>
-          <Button variant="ghost" onClick={stopTest}>Stop Test</Button>
-        </div>
-        {message && <p className="auth-message">{message}</p>}
       </Card>
 
       <div className="dashboard-grid">
-        <Card>
-          <h2>External device note</h2>
-          <p>Bluetooth/cable microphones and cameras appear here when the operating system and browser expose them as media devices.</p>
-          <p>Phone-as-webcam also depends on the computer OS or a dedicated camera bridge app.</p>
-        </Card>
         <Card>
           <h2>Detected Devices</h2>
           {devices.length ? (
@@ -302,15 +326,15 @@ export function DeviceTestPage() {
               ))}
             </ul>
           ) : (
-            <p>No devices listed yet. Press Test Camera + Mic and allow permissions.</p>
+            <p>No devices listed yet. Press Allow / Refresh Devices and allow permissions.</p>
           )}
         </Card>
+        <Card>
+          <h2>External device note</h2>
+          <p>Bluetooth/cable microphones and cameras appear here when the operating system and browser expose them as media devices.</p>
+          <p>Phone-as-webcam depends on the computer OS or a dedicated camera bridge app.</p>
+        </Card>
       </div>
-
-      <Card>
-        <h2>Background replacement note</h2>
-        <p>The controls are ready. True background blur/replacement in live calls needs the LiveKit/WebRTC media processor phase.</p>
-      </Card>
     </div>
   );
 }

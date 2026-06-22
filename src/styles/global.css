@@ -2239,3 +2239,68 @@ button:disabled { opacity: .65; cursor: not-allowed; }
     align-items: flex-start;
   }
 }
+
+/* Real test 0.90.0 */
+.device-selector-card {
+  border: 2px solid rgba(36,118,169,.18);
+}
+
+.device-warning {
+  background: rgba(36,118,169,.08);
+  border: 1px solid rgba(36,118,169,.16);
+  border-radius: 16px;
+  padding: 12px;
+  color: #06285a;
+}
+
+.device-selectors-top {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 14px;
+  margin: 18px 0;
+}
+
+.device-selectors-top label {
+  display: grid;
+  gap: 8px;
+  color: #06285a;
+}
+
+.device-selectors-top select {
+  min-height: 46px;
+  border: 2px solid rgba(36,118,169,.20);
+  border-radius: 14px;
+  padding: 10px;
+  background: #fff;
+  color: #06285a;
+  font-weight: 800;
+}
+
+.always-visible select {
+  min-height: 44px;
+}
+
+.main-chat-emoji-row {
+  padding: 6px 0;
+  border-top: 1px solid rgba(8,41,91,.08);
+  border-bottom: 1px solid rgba(8,41,91,.08);
+}
+
+.chat-emoji-row button {
+  cursor: pointer;
+}
+
+.reactions-panel button span,
+.chat-emoji-row button {
+  font-family: "Apple Color Emoji", "Segoe UI Emoji", "Noto Color Emoji", system-ui, sans-serif;
+}
+
+.compact-message p {
+  font-family: "Apple Color Emoji", "Segoe UI Emoji", "Noto Color Emoji", system-ui, sans-serif;
+}
+
+@media (max-width: 900px) {
+  .device-selectors-top {
+    grid-template-columns: 1fr;
+  }
+}

@@ -67,14 +67,14 @@ const initialParticipants: Participant[] = [
 ];
 
 const reactionOptions = [
-  { label: "Amen", icon: "Amen" },
-  { label: "Raise hand", icon: "✋" },
-  { label: "Heart", icon: "♥" },
-  { label: "Thanks", icon: "🙏" },
-  { label: "Hallelujah", icon: "✝" }
+  { label: "Amen", icon: "🙏", message: "🙏 Amen" },
+  { label: "Raise hand", icon: "✋", message: "✋ Raise hand" },
+  { label: "Heart", icon: "♥", message: "♥" },
+  { label: "Thanks", icon: "🙏", message: "🙏 Thanks" },
+  { label: "Hallelujah", icon: "✝", message: "✝ Hallelujah" }
 ];
 
-const chatEmojiOptions = ["♥", "👍", "⛪", "Amen", "✋", "🙏", "✝", "🔥"];
+const chatEmojiOptions = ["♥", "👍", "⛪", "🙏", "✋", "Amen", "✝", "🔥"];
 
 function ToolbarButton({ icon, label, active, danger, onClick }: { icon: string; label: string; active?: boolean; danger?: boolean; onClick: () => void }) {
   return (
@@ -281,10 +281,12 @@ export function LiveMeetingPage() {
   }
 
   function sendReaction(label: string) {
-    notify(`Reaction sent: ${label}`);
+    const reaction = reactionOptions.find((item) => item.label === label);
+    const text = reaction?.message || label;
+    notify(`Reaction sent: ${text}`);
     setChatMessages((current) => [
       ...current,
-      { id: crypto.randomUUID(), from: profile?.displayName || "You", to: "Everyone", text: `Reaction: ${label}`, time: new Date().toLocaleTimeString() }
+      { id: crypto.randomUUID(), from: profile?.displayName || "You", to: "Everyone", text, time: new Date().toLocaleTimeString() }
     ]);
   }
 
@@ -443,6 +445,11 @@ export function LiveMeetingPage() {
                 </div>
 
                 <div className="chat-compose">
+                  <div className="chat-emoji-row main-chat-emoji-row">
+                    {chatEmojiOptions.map((emoji) => (
+                      <button key={emoji} type="button" onClick={() => setChatInput((current) => `${current}${current ? " " : ""}${emoji}`)}>{emoji}</button>
+                    ))}
+                  </div>
                   <select value={chatScope} onChange={(event) => setChatScope(event.target.value as typeof chatScope)}>
                     <option value="everyone">Everyone</option>
                     <option value="hosts">Hosts/Admins only</option>
