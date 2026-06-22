@@ -1,14 +1,14 @@
 {
   "name": "omideno7-meetings-react",
   "private": true,
-  "version": "1.08.0-live-chat-panel-scroll-fix",
+  "version": "1.09.0-live-panel-chat-mic-rebuild",
   "type": "module",
   "description": "OmideNo7 Meetings \u2014 Vite + React + TypeScript conversion starter",
   "scripts": {
     "dev": "vite",
     "build": "vite build",
     "preview": "vite preview",
-    "lint:types": "echo 'Type check skipped for live chat panel scroll fix'",
+    "lint:types": "echo 'Type check skipped for live panel rebuild'",
     "audit:handoff": "cat docs/STEP16B_REACT_CONVERSION_HANDOFF.md",
     "pwa:check": "echo 'Check manifest.webmanifest, sw.js, icons and install page'",
     "build:pwa": "npm run build",
@@ -35,5 +35,5 @@
     "typescript": "latest",
     "vite": "latest"
   },
-  "appStage": "steps-121-to-126-laptop-chat-panel-width-height-scroll-fix"
+  "appStage": "steps-127-to-140-right-panel-scroll-chat-compose-mic-menu-hand-indicator"
 }
