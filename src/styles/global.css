@@ -2350,3 +2350,111 @@ button:disabled { opacity: .65; cursor: not-allowed; }
 .device-selectors-top { grid-template-columns: repeat(3, minmax(0, 1fr)); }
 .noise-control-panel select { margin-left: 8px; border: 1px solid #dfe8f1; border-radius: 10px; padding: 6px; }
 @media (max-width: 900px) { .top-app-nav { grid-template-columns: 1fr; } .top-logout { display: none; } .top-app-nav nav { padding-bottom: 4px; } .top-app-nav nav button { font-size: .82rem; } .device-selectors-top { grid-template-columns: 1fr; } }
+
+/* Focused fix 1.06.0 */
+.improved-chat {
+  display: grid !important;
+  grid-template-rows: auto minmax(160px, 1fr) auto !important;
+  min-height: 520px;
+}
+
+.chat-messages {
+  display: grid;
+  align-content: start;
+  gap: 8px;
+  overflow-y: auto !important;
+  max-height: 320px;
+  min-height: 180px;
+  padding: 8px;
+  background: rgba(8,41,91,.035);
+  border-radius: 14px;
+}
+
+.empty-chat {
+  color: #607086 !important;
+  text-align: center;
+  padding: 18px;
+  font-weight: 800;
+}
+
+.chat-compose {
+  display: grid;
+  gap: 8px;
+  padding-top: 8px;
+}
+
+.main-chat-emoji-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  padding: 8px 0;
+}
+
+.main-chat-emoji-row button {
+  min-width: 36px;
+  min-height: 34px;
+  border: 1px solid #dfe8f1;
+  background: #fff;
+  border-radius: 999px;
+  font-family: "Apple Color Emoji", "Segoe UI Emoji", "Noto Color Emoji", system-ui, sans-serif;
+  font-weight: 900;
+  cursor: pointer;
+}
+
+.main-chat-emoji-row button:first-child {
+  color: #d91f2a;
+}
+
+.compact-message {
+  background: #fff;
+  border: 1px solid #e5edf5;
+  border-radius: 12px;
+  padding: 8px 10px;
+}
+
+.compact-message-head {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  align-items: center;
+}
+
+.compact-message-head strong {
+  font-size: .76rem;
+  color: #607086;
+}
+
+.compact-message-head small {
+  font-size: .66rem;
+  color: #8b98aa;
+}
+
+.compact-message p {
+  margin: 3px 0 0;
+  color: #06285a;
+  font-size: .95rem;
+  line-height: 1.35;
+  font-family: "Apple Color Emoji", "Segoe UI Emoji", "Noto Color Emoji", system-ui, sans-serif;
+}
+
+.panel-tabs {
+  grid-template-columns: repeat(5, 1fr) !important;
+}
+
+.waiting-top-badge {
+  background: #d91f2a !important;
+  color: #fff !important;
+  cursor: pointer;
+}
+
+.id-reaction {
+  font-style: normal;
+  margin-left: 4px;
+  background: rgba(255,255,255,.25);
+  padding: 1px 6px;
+  border-radius: 999px;
+}
+
+.mini-context-menu {
+  z-index: 120;
+}

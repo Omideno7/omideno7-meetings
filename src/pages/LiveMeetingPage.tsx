@@ -37,18 +37,20 @@ const initialParticipants: Participant[] = [
   { id: "prayer-servant-demo", name: "Prayer Servant", role: "prayer servant", status: "online", mic: false, camera: false, canUnmute: false, room: "Main Room", symbol: "🙏" }
 ];
 
-const waitingPeople = [{ id: "wait-1", name: "Member waiting", note: "Entered waiting room now" }];
-
-const reactionOptions = [
-  { label: "Amen", icon: "🙏", message: "🙏 Amen", sticky: false },
-  { label: "Raise hand", icon: "✋", message: "✋ Raise hand", sticky: true },
-  { label: "Heart", icon: "❤️", message: "❤️", sticky: false },
-  { label: "Like", icon: "👍", message: "👍", sticky: false },
-  { label: "Thanks", icon: "🙏", message: "🙏 Thanks", sticky: false },
-  { label: "Hallelujah", icon: "✝️", message: "✝️ Hallelujah", sticky: false }
+const waitingPeople = [
+  { id: "wait-1", name: "Member waiting", note: "Entered waiting room now" }
 ];
 
-const chatEmojiOptions = ["❤️", "👍", "⛪", "🙏", "✋", "Amen", "✝️", "🔥", "🙌", "🕊️", "📖", "😊"];
+const reactionOptions = [
+  { label: "Amen", icon: "🙏", message: "🙏 Amen" },
+  { label: "Raise hand", icon: "✋", message: "✋ Raise hand" },
+  { label: "Heart", icon: "❤️", message: "❤️" },
+  { label: "Like", icon: "👍", message: "👍" },
+  { label: "Thanks", icon: "🙏", message: "🙏 Thanks" },
+  { label: "Hallelujah", icon: "✝️", message: "✝️ Hallelujah" }
+];
+
+const chatEmojiOptions = ["❤️", "👍", "⛪", "🙏", "Amen", "✝️", "🔥", "🙌", "🕊️", "📖", "😊"];
 
 function ToolbarButton({ icon, label, active, danger, onClick }: { icon: string; label: string; active?: boolean; danger?: boolean; onClick: () => void }) {
   return (
@@ -62,7 +64,10 @@ function ToolbarButton({ icon, label, active, danger, onClick }: { icon: string;
 function MiniParticipantMenu({ participant, canHost, onClose, onAction }: { participant: Participant; canHost: boolean; onClose: () => void; onAction: (action: string, patch?: Partial<Participant>) => void }) {
   return (
     <div className="mini-context-menu">
-      <div className="mini-menu-head"><strong>{participant.name}</strong><button onClick={onClose}>×</button></div>
+      <div className="mini-menu-head">
+        <strong>{participant.name}</strong>
+        <button onClick={onClose}>×</button>
+      </div>
       <button onClick={() => onAction("Direct message")}>Message</button>
       {canHost && (
         <>
@@ -70,7 +75,9 @@ function MiniParticipantMenu({ participant, canHost, onClose, onAction }: { part
           <button onClick={() => onAction("Moved to Main Room", { room: "Main Room" })}>Move: Main</button>
           <button onClick={() => onAction("Moved to Prayer Room", { room: "Prayer Room" })}>Move: Prayer</button>
           <button onClick={() => onAction("Moved to Bible Class Room", { room: "Bible Class Room" })}>Move: Bible</button>
-          <button onClick={() => onAction(participant.canUnmute ? "Mic permission removed" : "Mic allowed", { canUnmute: !participant.canUnmute })}>{participant.canUnmute ? "Remove mic permission" : "Allow mic"}</button>
+          <button onClick={() => onAction(participant.canUnmute ? "Mic permission removed" : "Mic allowed", { canUnmute: !participant.canUnmute })}>
+            {participant.canUnmute ? "Remove mic permission" : "Allow mic"}
+          </button>
           <button onClick={() => onAction("Participant removed", { status: "removed" })}>Remove</button>
           <button className="danger" onClick={() => onAction("Account blocked", { status: "blocked" })}>Block</button>
           {participant.status === "blocked" && <button onClick={() => onAction("Account unblocked", { status: "online" })}>Unblock</button>}
@@ -87,8 +94,18 @@ function PreferencesModal({ onClose }: { onClose: () => void }) {
     <div className="modal-backdrop">
       <section className="preferences-modal">
         <button className="modal-close" onClick={onClose}>×</button>
-        <aside><h2>Preferences</h2>{tabs.map((item) => <button key={item} className={tab === item ? "active" : ""} onClick={() => setTab(item)}>{item}</button>)}</aside>
-        <main><h2>{tab}</h2><div className="pref-form"><p>Preferences UI is ready. Real device/server settings are connected in the LiveKit phase.</p><label>Mode<select><option>Automatic</option><option>Low bandwidth</option><option>Audio first</option></select></label><label className="toggle-line"><input type="checkbox" defaultChecked /> Approved users only</label></div></main>
+        <aside>
+          <h2>Preferences</h2>
+          {tabs.map((item) => <button key={item} className={tab === item ? "active" : ""} onClick={() => setTab(item)}>{item}</button>)}
+        </aside>
+        <main>
+          <h2>{tab}</h2>
+          <div className="pref-form">
+            <p>Preferences UI is ready. Real device/server settings are connected in the LiveKit phase.</p>
+            <label>Mode<select><option>Automatic</option><option>Low bandwidth</option><option>Audio first</option></select></label>
+            <label className="toggle-line"><input type="checkbox" defaultChecked /> Approved users only</label>
+          </div>
+        </main>
       </section>
     </div>
   );
@@ -118,13 +135,13 @@ export function LiveMeetingPage() {
 
   function notify(text: string) {
     setToast(text);
-    window.setTimeout(() => setToast("Ready"), 3200);
+    window.setTimeout(() => setToast("Ready"), 3000);
   }
 
   function addFloating(icon: string) {
     const item = { id: crypto.randomUUID(), icon };
     setFloatingReactions((current) => [...current, item]);
-    window.setTimeout(() => setFloatingReactions((current) => current.filter((r) => r.id !== item.id)), 2400);
+    window.setTimeout(() => setFloatingReactions((current) => current.filter((reaction) => reaction.id !== item.id)), 2400);
   }
 
   const people = useMemo(() => {
@@ -160,48 +177,107 @@ export function LiveMeetingPage() {
   }
 
   function actOnParticipant(participant: Participant, action: string, patch?: Partial<Participant>) {
-    if (patch) setParticipants((current) => current.map((item) => item.id === participant.id ? { ...item, ...patch } : item));
+    if (patch) {
+      setParticipants((current) => current.map((item) => item.id === participant.id ? { ...item, ...patch } : item));
+    }
     if (action === "Direct message") {
       setPanel("chat");
       setChatScope("direct");
       setDirectTargetId(participant.id);
       setSidebarOpen(true);
       notify(`Direct message selected for ${participant.name}.`);
-    } else notify(`${action}: ${participant.name}`);
+    } else {
+      notify(`${action}: ${participant.name}`);
+    }
     setMenuFor(null);
   }
 
   function sendReaction(label: string) {
     const reaction = reactionOptions.find((item) => item.label === label);
     if (!reaction) return;
+
     if (reaction.label === "Raise hand") {
       setSelfHandRaised((current) => !current);
       notify(!selfHandRaised ? "Hand raised. Host can see it beside your ID." : "Hand lowered.");
       return;
     }
+
     addFloating(reaction.icon);
-    setChatMessages((current) => [...current, { id: crypto.randomUUID(), from: profile?.displayName || "You", to: "Everyone", text: reaction.message, time: new Date().toLocaleTimeString() }]);
+    setChatMessages((current) => [
+      ...current,
+      {
+        id: crypto.randomUUID(),
+        from: profile?.displayName || "You",
+        to: "Everyone",
+        text: reaction.message,
+        time: new Date().toLocaleTimeString()
+      }
+    ]);
     notify(`Reaction sent: ${reaction.message}`);
+  }
+
+  function appendEmoji(emoji: string) {
+    setChatInput((current) => `${current}${current ? " " : ""}${emoji}`);
   }
 
   function sendChat() {
     const text = chatInput.trim();
-    if (!text) return notify("Write a message first.");
-    if (chatLocked && !canUseHostControls) return notify("Chat is closed by host.");
-    if (adminOnlyChat && !canUseHostControls && chatScope === "everyone") return notify("Public chat is host/admin-only right now.");
+    if (!text) {
+      notify("Write a message first.");
+      return;
+    }
+    if (chatLocked && !canUseHostControls) {
+      notify("Chat is closed by host.");
+      return;
+    }
+    if (adminOnlyChat && !canUseHostControls && chatScope === "everyone") {
+      notify("Public chat is host/admin-only right now.");
+      return;
+    }
+
     const directTarget = participants.find((item) => item.id === directTargetId);
     const to = chatScope === "hosts" ? "Hosts/Admins" : chatScope === "direct" ? directTarget?.name || "Selected person" : "Everyone";
-    setChatMessages((current) => [...current, { id: crypto.randomUUID(), from: profile?.displayName || "You", to, text, time: new Date().toLocaleTimeString(), private: chatScope !== "everyone" }]);
+
+    setChatMessages((current) => [
+      ...current,
+      {
+        id: crypto.randomUUID(),
+        from: profile?.displayName || "You",
+        to,
+        text,
+        time: new Date().toLocaleTimeString(),
+        private: chatScope !== "everyone"
+      }
+    ]);
     setChatInput("");
     notify(`Message sent to ${to}.`);
+  }
+
+  function sendChatWithKeyboard(event: React.KeyboardEvent<HTMLTextAreaElement>) {
+    if (event.key === "Enter" && !event.shiftKey) {
+      event.preventDefault();
+      sendChat();
+    }
   }
 
   return (
     <div className="live-shell refined-live control-live polished-live">
       <header className="live-topbar">
-        <div><strong>OmideNo7 Main Room</strong><span>{state.lowBandwidth ? "Audio-first low bandwidth mode" : "Secure internal app meeting UI"}</span></div>
-        <div className="live-status-line"><span className={state.mic ? "ok" : ""}>{state.mic ? "Mic on" : "Muted"}</span><span className={state.camera ? "ok" : ""}>{state.camera ? "Camera on" : "Camera off"}</span><span className={state.recording ? "rec" : ""}>{state.recording ? "Recording" : "Not recording"}</span><span className="waiting-top-badge" onClick={() => { setSidebarOpen(true); setPanel("waiting"); }}>Waiting {waitingPeople.length}</span></div>
-        <div className="live-topbar-actions">{canUseHostControls && <button className={state.lectureMode ? "danger" : ""} onClick={() => toggle("lectureMode", "Lecture Mode enabled.", "Lecture Mode disabled.")}>Lecture</button>}{canUseHostControls && <button onClick={() => toggle("lowBandwidth", "Low Bandwidth Mode enabled.", "Low Bandwidth Mode disabled.")}>Low BW</button>}<button onClick={() => setSidebarOpen(!sidebarOpen)}>{sidebarOpen ? "Hide panel" : "Show panel"}</button></div>
+        <div>
+          <strong>OmideNo7 Main Room</strong>
+          <span>{state.lowBandwidth ? "Audio-first low bandwidth mode" : "Secure internal app meeting UI"}</span>
+        </div>
+        <div className="live-status-line">
+          <span className={state.mic ? "ok" : ""}>{state.mic ? "Mic on" : "Muted"}</span>
+          <span className={state.camera ? "ok" : ""}>{state.camera ? "Camera on" : "Camera off"}</span>
+          <span className={state.recording ? "rec" : ""}>{state.recording ? "Recording" : "Not recording"}</span>
+          <span className="waiting-top-badge" onClick={() => { setSidebarOpen(true); setPanel("waiting"); }}>Waiting {waitingPeople.length}</span>
+        </div>
+        <div className="live-topbar-actions">
+          {canUseHostControls && <button className={state.lectureMode ? "danger" : ""} onClick={() => toggle("lectureMode", "Lecture Mode enabled.", "Lecture Mode disabled.")}>Lecture</button>}
+          {canUseHostControls && <button onClick={() => toggle("lowBandwidth", "Low Bandwidth Mode enabled.", "Low Bandwidth Mode disabled.")}>Low BW</button>}
+          <button onClick={() => setSidebarOpen(!sidebarOpen)}>{sidebarOpen ? "Hide panel" : "Show panel"}</button>
+        </div>
       </header>
 
       <main className="live-main">
@@ -209,33 +285,171 @@ export function LiveMeetingPage() {
           {people.map((person) => (
             <article key={person.id} className={`participant-tile ${person.id === "me" ? "speaking" : ""} ${person.status === "blocked" ? "blocked-tile" : ""}`}>
               <button className="participant-click-zone" onClick={() => person.id !== "me" ? setMenuFor(person) : notify("This is your tile.")}>
-                <div className="participant-avatar clean-avatar">{person.camera && person.id === "me" ? <span className="camera-placeholder">Camera on</span> : <span>{person.symbol}</span>}</div>
+                <div className="participant-avatar clean-avatar">
+                  {person.camera && person.id === "me" ? <span className="camera-placeholder">Camera on</span> : <span>{person.symbol}</span>}
+                </div>
                 <strong>{person.name} {person.handRaised || person.reaction ? <em className="id-reaction">{person.reaction || "✋"}</em> : null}</strong>
                 <span>{person.role} · {person.room}</span>
                 <em className={person.mic ? "mic-on" : "mic-off"}>{person.mic ? "Mic on" : person.canUnmute ? "Can unmute" : "Muted"}</em>
                 <div className={`mini-eq ${person.mic ? "active" : ""}`}><i></i><i></i><i></i><i></i></div>
               </button>
-              {menuFor?.id === person.id && <MiniParticipantMenu participant={person} canHost={canUseHostControls} onClose={() => setMenuFor(null)} onAction={(action, patch) => actOnParticipant(person, action, patch)} />}
+              {menuFor?.id === person.id && (
+                <MiniParticipantMenu
+                  participant={person}
+                  canHost={canUseHostControls}
+                  onClose={() => setMenuFor(null)}
+                  onAction={(action, patch) => actOnParticipant(person, action, patch)}
+                />
+              )}
             </article>
           ))}
         </section>
 
         {sidebarOpen && (
           <aside className="attendees-panel polished-side-panel">
-            <div className="attendees-head"><strong>{panel === "rooms" ? "Breakout rooms" : panel === "chat" ? `Chat (${chatMessages.length})` : panel === "reactions" ? "Reactions" : panel === "waiting" ? `Waiting Room (${waitingPeople.length})` : "Attendees"}</strong><button onClick={() => setSidebarOpen(false)}>×</button></div>
-            {canUseHostControls && <div className="host-mini-controls host-grid-3"><button onClick={() => changeAllParticipants({ mic: false, canUnmute: false }, "All microphones muted and locked.")}>Mute all</button><button onClick={() => changeAllParticipants({ canUnmute: true }, "All members may unmute when allowed.")}>Allow all mic</button><button onClick={() => changeAllParticipants({ canUnmute: false }, "Mic permission removed from all members.")}>Lock mics</button><button onClick={() => { setChatLocked(!chatLocked); notify(!chatLocked ? "Chat closed by host." : "Chat opened by host."); }}>{chatLocked ? "Open chat" : "Close chat"}</button><button onClick={() => { setAdminOnlyChat(!adminOnlyChat); notify(!adminOnlyChat ? "Chat is host/admin-only." : "Public chat is allowed."); }}>{adminOnlyChat ? "Public chat" : "Admin chat"}</button><button onClick={() => notify("Click participant tile for individual controls.")}>Controls</button></div>}
-            <div className="panel-tabs"><button className={panel === "attendees" ? "active" : ""} onClick={() => setPanel("attendees")}>All</button><button className={panel === "waiting" ? "active" : ""} onClick={() => setPanel("waiting")}>Waiting</button><button className={panel === "chat" ? "active" : ""} onClick={() => setPanel("chat")}>Chat</button><button className={panel === "reactions" ? "active" : ""} onClick={() => setPanel("reactions")}>React</button><button className={panel === "rooms" ? "active" : ""} onClick={() => setPanel("rooms")}>Rooms</button></div>
-            {panel === "waiting" && <div className="waiting-live-list">{waitingPeople.map((person) => <article key={person.id} className="waiting-live-card"><strong>{person.name}</strong><span>{person.note}</span><div className="button-row compact-row"><button onClick={() => notify(`${person.name} admitted to meeting.`)}>Admit</button><button onClick={() => notify(`Message opened for ${person.name}.`)}>Message</button><button onClick={() => notify(`${person.name} rejected.`)}>Reject</button></div></article>)}</div>}
-            {panel === "attendees" && <div className="attendee-list"><input placeholder="Search participants" />{people.map((person) => <button className="attendee-row attendee-button" key={`${person.id}-row`} onClick={() => person.id !== "me" ? setMenuFor(person) : notify("You selected yourself.")}><span>{person.name} {person.handRaised ? "✋" : ""}</span><small>{person.role} · {person.room}</small><em>{person.status === "blocked" ? "⛔" : person.mic ? "🎙" : "🔇"}</em></button>)}</div>}
-            {panel === "rooms" && <div className="rooms-panel">{["Main Room", "Prayer Room", "Bible Class Room", "Leadership Room"].map((room) => <div className="room-card" key={room}><strong>{room}</strong><span>{people.filter((person) => person.room === room).length} participant(s)</span></div>)}</div>}
-            {panel === "chat" && <div className="chat-panel improved-chat"><div className="chat-rules"><span>{chatLocked ? "Chat closed" : adminOnlyChat ? "Host/Admin-only public chat" : "Chat open"}</span></div><div className="chat-messages">{chatMessages.length === 0 ? <p className="empty-chat">No messages yet.</p> : chatMessages.map((msg) => <article key={msg.id} className={msg.private ? "private-message compact-message" : "compact-message"}><div className="compact-message-head"><strong>{msg.from}</strong><small>{msg.to} · {msg.time}</small></div><p>{msg.text}</p></article>)}</div><div className="chat-compose"><select value={chatScope} onChange={(event) => setChatScope(event.target.value as typeof chatScope)}><option value="everyone">Everyone</option><option value="hosts">Hosts/Admins only</option><option value="direct">Direct message</option></select>{chatScope === "direct" && <select value={directTargetId} onChange={(event) => setDirectTargetId(event.target.value)}><option value="">Choose person</option>{participants.filter((item) => item.status !== "removed").map((person) => <option key={person.id} value={person.id}>{person.name}</option>)}</select>}<div className="chat-emoji-row main-chat-emoji-row">{chatEmojiOptions.map((emoji) => <button key={emoji} type="button" onClick={() => setChatInput((current) => `${current}${current ? " " : ""}${emoji}`)}>{emoji}</button>)}</div><textarea value={chatInput} onChange={(event) => setChatInput(event.target.value)} placeholder="Write a message..." /><button onClick={sendChat}>Send message</button></div></div>}
-            {panel === "reactions" && <div className="reactions-panel">{reactionOptions.map((reaction) => <button key={reaction.label} onClick={() => sendReaction(reaction.label)}><span>{reaction.icon}</span><strong>{reaction.label}</strong></button>)}</div>}
+            <div className="attendees-head">
+              <strong>{panel === "rooms" ? "Breakout rooms" : panel === "chat" ? `Chat (${chatMessages.length})` : panel === "reactions" ? "Reactions" : panel === "waiting" ? `Waiting Room (${waitingPeople.length})` : "Attendees"}</strong>
+              <button onClick={() => setSidebarOpen(false)}>×</button>
+            </div>
+
+            {canUseHostControls && (
+              <div className="host-mini-controls host-grid-3">
+                <button onClick={() => changeAllParticipants({ mic: false, canUnmute: false }, "All microphones muted and locked.")}>Mute all</button>
+                <button onClick={() => changeAllParticipants({ canUnmute: true }, "All members may unmute when allowed.")}>Allow all mic</button>
+                <button onClick={() => changeAllParticipants({ canUnmute: false }, "Mic permission removed from all members.")}>Lock mics</button>
+                <button onClick={() => { setChatLocked(!chatLocked); notify(!chatLocked ? "Chat closed by host." : "Chat opened by host."); }}>{chatLocked ? "Open chat" : "Close chat"}</button>
+                <button onClick={() => { setAdminOnlyChat(!adminOnlyChat); notify(!adminOnlyChat ? "Chat is host/admin-only." : "Public chat is allowed."); }}>{adminOnlyChat ? "Public chat" : "Admin chat"}</button>
+                <button onClick={() => notify("Click participant tile for individual controls.")}>Controls</button>
+              </div>
+            )}
+
+            <div className="panel-tabs">
+              <button className={panel === "attendees" ? "active" : ""} onClick={() => setPanel("attendees")}>All</button>
+              <button className={panel === "waiting" ? "active" : ""} onClick={() => setPanel("waiting")}>Waiting</button>
+              <button className={panel === "chat" ? "active" : ""} onClick={() => setPanel("chat")}>Chat</button>
+              <button className={panel === "reactions" ? "active" : ""} onClick={() => setPanel("reactions")}>React</button>
+              <button className={panel === "rooms" ? "active" : ""} onClick={() => setPanel("rooms")}>Rooms</button>
+            </div>
+
+            {panel === "waiting" && (
+              <div className="waiting-live-list">
+                {waitingPeople.map((person) => (
+                  <article key={person.id} className="waiting-live-card">
+                    <strong>{person.name}</strong>
+                    <span>{person.note}</span>
+                    <div className="button-row compact-row">
+                      <button onClick={() => notify(`${person.name} admitted to meeting.`)}>Admit</button>
+                      <button onClick={() => notify(`Message opened for ${person.name}.`)}>Message</button>
+                      <button onClick={() => notify(`${person.name} rejected.`)}>Reject</button>
+                    </div>
+                  </article>
+                ))}
+              </div>
+            )}
+
+            {panel === "attendees" && (
+              <div className="attendee-list">
+                <input placeholder="Search participants" />
+                {people.map((person) => (
+                  <button className="attendee-row attendee-button" key={`${person.id}-row`} onClick={() => person.id !== "me" ? setMenuFor(person) : notify("You selected yourself.")}>
+                    <span>{person.name} {person.handRaised ? "✋" : ""}</span>
+                    <small>{person.role} · {person.room}</small>
+                    <em>{person.status === "blocked" ? "⛔" : person.mic ? "🎙" : "🔇"}</em>
+                  </button>
+                ))}
+              </div>
+            )}
+
+            {panel === "rooms" && (
+              <div className="rooms-panel">
+                {["Main Room", "Prayer Room", "Bible Class Room", "Leadership Room"].map((room) => (
+                  <div className="room-card" key={room}>
+                    <strong>{room}</strong>
+                    <span>{people.filter((person) => person.room === room).length} participant(s)</span>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {panel === "chat" && (
+              <div className="chat-panel improved-chat">
+                <div className="chat-rules">
+                  <span>{chatLocked ? "Chat closed" : adminOnlyChat ? "Host/Admin-only public chat" : "Chat open"}</span>
+                </div>
+                <div className="chat-messages">
+                  {chatMessages.length === 0 ? (
+                    <p className="empty-chat">No messages yet.</p>
+                  ) : (
+                    chatMessages.map((msg) => (
+                      <article key={msg.id} className={msg.private ? "private-message compact-message" : "compact-message"}>
+                        <div className="compact-message-head">
+                          <strong>{msg.from}</strong>
+                          <small>{msg.to} · {msg.time}</small>
+                        </div>
+                        <p>{msg.text}</p>
+                      </article>
+                    ))
+                  )}
+                </div>
+                <div className="chat-compose">
+                  <select value={chatScope} onChange={(event) => setChatScope(event.target.value as typeof chatScope)}>
+                    <option value="everyone">Everyone</option>
+                    <option value="hosts">Hosts/Admins only</option>
+                    <option value="direct">Direct message</option>
+                  </select>
+
+                  {chatScope === "direct" && (
+                    <select value={directTargetId} onChange={(event) => setDirectTargetId(event.target.value)}>
+                      <option value="">Choose person</option>
+                      {participants.filter((item) => item.status !== "removed").map((person) => <option key={person.id} value={person.id}>{person.name}</option>)}
+                    </select>
+                  )}
+
+                  <div className="chat-emoji-row main-chat-emoji-row">
+                    {chatEmojiOptions.map((emoji) => (
+                      <button key={emoji} type="button" onClick={() => appendEmoji(emoji)}>{emoji}</button>
+                    ))}
+                  </div>
+
+                  <textarea
+                    value={chatInput}
+                    onChange={(event) => setChatInput(event.target.value)}
+                    onKeyDown={sendChatWithKeyboard}
+                    placeholder="Write a message... Enter sends, Shift+Enter makes a new line."
+                  />
+                  <button onClick={sendChat}>Send message</button>
+                </div>
+              </div>
+            )}
+
+            {panel === "reactions" && (
+              <div className="reactions-panel">
+                {reactionOptions.map((reaction) => (
+                  <button key={reaction.label} onClick={() => sendReaction(reaction.label)}>
+                    <span>{reaction.icon}</span>
+                    <strong>{reaction.label}</strong>
+                  </button>
+                ))}
+              </div>
+            )}
           </aside>
         )}
       </main>
 
-      <footer className="live-toolbar clean-toolbar"><ToolbarButton icon={state.mic ? "🎙" : "🔇"} label={state.mic ? "Mute" : "Unmute"} active={state.mic} onClick={() => toggle("mic", "Microphone unmuted.", "Microphone muted.")} /><ToolbarButton icon={state.camera ? "📷" : "🚫"} label={state.camera ? "Video on" : "Video off"} active={state.camera} onClick={() => toggle("camera", "Camera preview placeholder enabled. Real live video connects in LiveKit phase.", "Camera turned off.")} /><ToolbarButton icon="☷" label="Attendees" onClick={() => { setSidebarOpen(true); setPanel("attendees"); }} /><ToolbarButton icon="⏳" label="Waiting" onClick={() => { setSidebarOpen(true); setPanel("waiting"); }} /><ToolbarButton icon="💬" label="Chat" onClick={() => { setSidebarOpen(true); setPanel("chat"); }} /><ToolbarButton icon="❤️" label="Reactions" onClick={() => { setSidebarOpen(true); setPanel("reactions"); }} />{canUsePreferences && <ToolbarButton icon="⚙" label="Settings" onClick={() => setPreferencesOpen(true)} />}<button className="toolbar-pill leave" onClick={() => setRoute("memberHome")}><span>⏻</span><small>Leave</small></button></footer>
-      <div className="floating-reaction-layer">{floatingReactions.map((item) => <span key={item.id}>{item.icon}</span>)}</div>
+      <footer className="live-toolbar clean-toolbar">
+        <ToolbarButton icon={state.mic ? "🎙" : "🔇"} label={state.mic ? "Mute" : "Unmute"} active={state.mic} onClick={() => toggle("mic", "Microphone unmuted.", "Microphone muted.")} />
+        <ToolbarButton icon={state.camera ? "📷" : "🚫"} label={state.camera ? "Video on" : "Video off"} active={state.camera} onClick={() => toggle("camera", "Camera preview placeholder enabled. Real live video connects in LiveKit phase.", "Camera turned off.")} />
+        <ToolbarButton icon="☷" label="Attendees" onClick={() => { setSidebarOpen(true); setPanel("attendees"); }} />
+        <ToolbarButton icon="⏳" label="Waiting" onClick={() => { setSidebarOpen(true); setPanel("waiting"); }} />
+        <ToolbarButton icon="💬" label="Chat" onClick={() => { setSidebarOpen(true); setPanel("chat"); }} />
+        <ToolbarButton icon="❤️" label="Reactions" onClick={() => { setSidebarOpen(true); setPanel("reactions"); }} />
+        {canUsePreferences && <ToolbarButton icon="⚙" label="Settings" onClick={() => setPreferencesOpen(true)} />}
+        <button className="toolbar-pill leave" onClick={() => setRoute("memberHome")}><span>⏻</span><small>Leave</small></button>
+      </footer>
+
+      <div className="floating-reaction-layer">
+        {floatingReactions.map((item) => <span key={item.id}>{item.icon}</span>)}
+      </div>
       <div className="live-toast">{toast}</div>
       {preferencesOpen && canUsePreferences && <PreferencesModal onClose={() => setPreferencesOpen(false)} />}
     </div>
