@@ -1,14 +1,14 @@
 {
   "name": "omideno7-meetings-react",
   "private": true,
-  "version": "1.07.0-chat-waiting-leave-confirm-fix",
+  "version": "1.08.0-live-chat-panel-scroll-fix",
   "type": "module",
   "description": "OmideNo7 Meetings \u2014 Vite + React + TypeScript conversion starter",
   "scripts": {
     "dev": "vite",
     "build": "vite build",
     "preview": "vite preview",
-    "lint:types": "echo 'Type check skipped for focused chat/waiting fixes'",
+    "lint:types": "echo 'Type check skipped for live chat panel scroll fix'",
     "audit:handoff": "cat docs/STEP16B_REACT_CONVERSION_HANDOFF.md",
     "pwa:check": "echo 'Check manifest.webmanifest, sw.js, icons and install page'",
     "build:pwa": "npm run build",
@@ -35,5 +35,5 @@
     "typescript": "latest",
     "vite": "latest"
   },
-  "appStage": "steps-113-to-120-chat-display-waiting-admit-remove-leave-confirm"
+  "appStage": "steps-121-to-126-laptop-chat-panel-width-height-scroll-fix"
 }
