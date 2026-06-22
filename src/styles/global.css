@@ -2548,3 +2548,239 @@ button:disabled { opacity: .65; cursor: not-allowed; }
 .compact-message p {
   word-break: break-word;
 }
+
+/* Live chat panel scroll fix 1.08.0 */
+.live-shell,
+.refined-live,
+.control-live,
+.polished-live {
+  width: 100%;
+  max-width: 100vw;
+  height: 100dvh;
+  overflow: hidden;
+}
+
+.live-main {
+  min-width: 0;
+  width: 100%;
+  height: calc(100dvh - 138px);
+  max-height: calc(100dvh - 138px);
+  overflow: hidden;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) clamp(300px, 30vw, 360px);
+  gap: 10px;
+  padding: 8px;
+  box-sizing: border-box;
+}
+
+.participants-grid,
+.participants-grid.with-panel {
+  min-width: 0;
+  width: 100%;
+  height: 100%;
+  overflow: auto;
+  box-sizing: border-box;
+}
+
+.attendees-panel,
+.polished-side-panel {
+  width: 100% !important;
+  max-width: clamp(300px, 30vw, 360px) !important;
+  min-width: 0 !important;
+  height: 100% !important;
+  max-height: 100% !important;
+  overflow: hidden !important;
+  display: flex !important;
+  flex-direction: column !important;
+  box-sizing: border-box !important;
+  border-radius: 18px !important;
+}
+
+.attendees-head {
+  flex: 0 0 auto;
+}
+
+.host-mini-controls {
+  flex: 0 0 auto;
+  display: grid !important;
+  grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+  gap: 6px !important;
+  padding: 8px !important;
+}
+
+.host-mini-controls button {
+  min-width: 0 !important;
+  padding: 8px 5px !important;
+  font-size: .74rem !important;
+  line-height: 1.1 !important;
+  white-space: normal !important;
+  border-radius: 10px !important;
+}
+
+.panel-tabs {
+  flex: 0 0 auto;
+  display: grid !important;
+  grid-template-columns: repeat(5, minmax(0, 1fr)) !important;
+  gap: 4px !important;
+  padding: 6px 8px !important;
+}
+
+.panel-tabs button {
+  min-width: 0 !important;
+  padding: 8px 4px !important;
+  font-size: .75rem !important;
+  white-space: normal !important;
+}
+
+.fixed-chat-panel,
+.improved-chat,
+.chat-panel {
+  flex: 1 1 auto !important;
+  min-height: 0 !important;
+  height: auto !important;
+  max-height: none !important;
+  overflow: hidden !important;
+  display: flex !important;
+  flex-direction: column !important;
+  gap: 7px !important;
+  padding: 8px !important;
+  box-sizing: border-box !important;
+}
+
+.chat-rules {
+  flex: 0 0 auto !important;
+  margin-bottom: 0 !important;
+}
+
+.fixed-chat-messages,
+.chat-messages {
+  flex: 1 1 auto !important;
+  min-height: 110px !important;
+  max-height: none !important;
+  overflow-y: auto !important;
+  overflow-x: hidden !important;
+  padding: 8px !important;
+  background: #f7fafc !important;
+  border: 1px solid rgba(8,41,91,.10) !important;
+  border-radius: 14px !important;
+  box-sizing: border-box !important;
+}
+
+.chat-compose {
+  flex: 0 0 auto !important;
+  display: grid !important;
+  gap: 6px !important;
+  padding: 6px 0 0 !important;
+  background: #fff !important;
+  box-sizing: border-box !important;
+}
+
+.chat-compose select {
+  min-height: 34px !important;
+  font-size: .82rem !important;
+}
+
+.main-chat-emoji-row {
+  max-height: 42px !important;
+  overflow-y: auto !important;
+  padding: 4px 0 !important;
+  gap: 4px !important;
+}
+
+.main-chat-emoji-row button {
+  min-width: 30px !important;
+  min-height: 28px !important;
+  padding: 3px 7px !important;
+  font-size: .9rem !important;
+}
+
+.chat-compose textarea {
+  min-height: 54px !important;
+  max-height: 72px !important;
+  resize: none !important;
+  font-size: .88rem !important;
+  line-height: 1.25 !important;
+  padding: 8px !important;
+  box-sizing: border-box !important;
+}
+
+.chat-compose > button {
+  min-height: 40px !important;
+  padding: 8px 10px !important;
+  border-radius: 13px !important;
+  font-size: .9rem !important;
+}
+
+.live-toolbar.clean-toolbar {
+  height: 74px;
+  max-height: 74px;
+  overflow-x: auto;
+  overflow-y: hidden;
+  padding: 8px 10px !important;
+  box-sizing: border-box;
+}
+
+.toolbar-pill {
+  min-height: 52px !important;
+  min-width: 64px !important;
+}
+
+.live-topbar {
+  min-height: 64px;
+  max-height: 64px;
+  overflow: hidden;
+  box-sizing: border-box;
+}
+
+@media (max-width: 1180px) {
+  .live-main {
+    grid-template-columns: minmax(0, 1fr) 300px;
+    gap: 8px;
+    padding: 6px;
+  }
+
+  .attendees-panel,
+  .polished-side-panel {
+    max-width: 300px !important;
+  }
+
+  .host-mini-controls button,
+  .panel-tabs button {
+    font-size: .68rem !important;
+  }
+
+  .toolbar-pill {
+    min-width: 58px !important;
+  }
+
+  .toolbar-pill small {
+    font-size: .66rem !important;
+  }
+}
+
+@media (max-width: 900px) {
+  .live-main {
+    display: block;
+    height: calc(100dvh - 134px);
+    max-height: calc(100dvh - 134px);
+    overflow: hidden;
+  }
+
+  .participants-grid,
+  .participants-grid.with-panel {
+    height: 100%;
+  }
+
+  .attendees-panel,
+  .polished-side-panel {
+    position: fixed;
+    right: 8px;
+    top: 76px;
+    bottom: 82px;
+    width: min(92vw, 360px) !important;
+    max-width: min(92vw, 360px) !important;
+    z-index: 95;
+    height: auto !important;
+    max-height: none !important;
+  }
+}
