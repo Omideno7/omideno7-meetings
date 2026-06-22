@@ -24,6 +24,14 @@ export const authService = {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(profile));
   },
 
+  updateLocalProfile(patch: Partial<UserProfile>): UserProfile | null {
+    const current = this.getCurrentProfile();
+    if (!current) return null;
+    const next = { ...current, ...patch };
+    this.saveProfile(next);
+    return next;
+  },
+
   async hydrateSupabaseProfile(): Promise<UserProfile | null> {
     if (dataMode !== "supabase" || !supabaseAuthService.isReady()) {
       return this.getCurrentProfile();

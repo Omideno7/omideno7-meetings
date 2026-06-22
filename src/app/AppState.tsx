@@ -15,6 +15,7 @@ type AppStateValue = {
   signIn: (email: string, password: string) => Promise<void>;
   signUp: (email: string, password: string, fullName: string) => Promise<void>;
   refreshProfile: () => Promise<void>;
+  updateProfile: (patch: Partial<UserProfile>) => void;
   logout: () => Promise<void>;
 };
 
@@ -85,6 +86,10 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
       setRoute(result.profile ? getDefaultRoute(result.profile) : "pendingApproval");
     },
     refreshProfile,
+    updateProfile(patch) {
+      const next = authService.updateLocalProfile(patch);
+      if (next) setProfile(next);
+    },
     async logout() {
       await authService.logout();
       setProfile(null);

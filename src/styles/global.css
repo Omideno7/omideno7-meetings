@@ -1609,3 +1609,241 @@ button:disabled { opacity: .65; cursor: not-allowed; }
     grid-template-columns: 1fr;
   }
 }
+
+/* Big update 0.60.0 */
+.meeting-form-grid label,
+.pref-form label {
+  color: #06285a;
+  font-weight: 800;
+}
+
+.meeting-form-grid label input,
+.meeting-form-grid label select,
+.meeting-form-grid label textarea {
+  width: 100%;
+  margin-top: 6px;
+}
+
+.meeting-form-grid textarea {
+  min-height: 90px;
+  resize: vertical;
+}
+
+.form-span-2 {
+  grid-column: 1 / -1;
+}
+
+.meeting-preview {
+  margin: 14px 0;
+  padding: 14px;
+  border-radius: 16px;
+  background: rgba(36,118,169,.08);
+  color: #06285a;
+  font-weight: 800;
+}
+
+.meeting-list {
+  display: grid;
+  gap: 16px;
+}
+
+.refined-live .participants-grid {
+  gap: 8px;
+  padding: 10px;
+}
+
+.refined-live .participant-tile {
+  border-radius: 16px;
+  min-height: 210px;
+  background: linear-gradient(135deg, #4f5560, #69717d);
+  border: 1px solid rgba(255,255,255,.20);
+}
+
+.refined-live .participant-tile.speaking {
+  border-color: #b6ff38;
+  box-shadow: 0 0 0 2px rgba(182,255,56,.65);
+}
+
+.clean-avatar {
+  background: rgba(255,255,255,.96);
+}
+
+.clean-avatar span {
+  font-size: 2.3rem;
+  color: #06285a;
+}
+
+.live-status-line {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.live-status-line span {
+  border-radius: 999px;
+  background: rgba(255,255,255,.10);
+  padding: 5px 8px;
+  color: #fff;
+  font-size: .78rem;
+  font-weight: 900;
+}
+
+.live-status-line span.ok {
+  background: rgba(9,164,64,.65);
+}
+
+.live-status-line span.rec {
+  background: rgba(217,31,42,.80);
+}
+
+.clean-toolbar {
+  gap: 8px;
+  justify-content: center;
+  padding: 10px;
+  overflow-x: auto;
+}
+
+.toolbar-pill {
+  min-width: 78px;
+  min-height: 58px;
+  border-radius: 14px !important;
+  display: grid;
+  place-items: center;
+  align-content: center;
+  gap: 3px;
+  background: rgba(255,255,255,.12) !important;
+  color: #fff !important;
+}
+
+.toolbar-pill span {
+  font-size: 1.2rem;
+}
+
+.toolbar-pill small {
+  font-size: .72rem;
+  color: #fff;
+  font-weight: 900;
+}
+
+.toolbar-pill.active {
+  background: rgba(9,164,64,.82) !important;
+}
+
+.toolbar-pill.danger,
+.toolbar-pill.leave {
+  background: #d91f2a !important;
+}
+
+.live-toast {
+  position: fixed;
+  left: 50%;
+  bottom: 86px;
+  transform: translateX(-50%);
+  z-index: 90;
+  background: rgba(0,0,0,.78);
+  color: #fff;
+  border-radius: 999px;
+  padding: 9px 14px;
+  font-weight: 900;
+  max-width: min(520px, 88vw);
+  text-align: center;
+}
+
+.reactions-panel {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+  padding: 12px;
+}
+
+.reactions-panel button {
+  border: 1px solid #e6edf4;
+  border-radius: 16px;
+  background: #fff;
+  color: #06285a;
+  padding: 14px;
+  display: grid;
+  gap: 6px;
+  place-items: center;
+}
+
+.reactions-panel button span {
+  font-size: 1.5rem;
+}
+
+.audio-meter-card {
+  border: 1px solid rgba(8,41,91,.10);
+  border-radius: 18px;
+  padding: 14px;
+  margin-top: 14px;
+  background: #fff;
+}
+
+.audio-meter-head {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  color: #06285a;
+  flex-wrap: wrap;
+}
+
+.audio-meter-track {
+  height: 18px;
+  border-radius: 999px;
+  background: #edf2f7;
+  overflow: hidden;
+  margin: 12px 0;
+}
+
+.audio-meter-fill {
+  height: 100%;
+  background: linear-gradient(90deg, #09a440, #86e16d);
+  transition: width .12s ease;
+}
+
+.avatar-preview {
+  width: 96px;
+  height: 96px;
+  object-fit: cover;
+  border-radius: 50%;
+  border: 3px solid #e5edf5;
+}
+
+.profile-identity img {
+  object-fit: cover;
+  border-radius: 50%;
+}
+
+.info-grid {
+  grid-template-columns: minmax(120px, 1fr) minmax(160px, 1fr);
+}
+
+@media (max-width: 900px) {
+  .refined-live .participants-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    padding-bottom: 88px;
+  }
+
+  .toolbar-pill {
+    min-width: 70px;
+    min-height: 54px;
+  }
+
+  .live-toast {
+    bottom: 92px;
+  }
+}
+
+@media (max-width: 560px) {
+  .refined-live .participants-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .live-topbar {
+    align-items: flex-start;
+  }
+
+  .live-status-line {
+    width: 100%;
+  }
+}

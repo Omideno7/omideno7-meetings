@@ -21,4 +21,5 @@ export type UserProfile = {
   role: UserRole;
   status: UserStatus;
   twoFactorRequired?: boolean;
+  avatarUrl?: string;
 };

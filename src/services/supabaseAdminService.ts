@@ -41,6 +41,10 @@ export type MeetingRow = {
   lecture_mode: boolean;
   low_bandwidth_mode: boolean;
   livekit_room_name?: string | null;
+  notes?: string | null;
+  recurrence_group_id?: string | null;
+  recurrence_label?: string | null;
+  recurrence_frequency?: string | null;
   created_at?: string;
 };
 
@@ -191,6 +195,75 @@ export const supabaseAdminService = {
       p_meeting_type: input.meetingType,
       p_scheduled_start: input.start || null,
       p_scheduled_end: input.end || null
+    });
+    return { data, error: errorMessage(error) };
+  },
+
+  async createMeetingAdvanced(input: {
+    title: string;
+    meetingType: string;
+    start?: string;
+    end?: string;
+    recurrenceFrequency?: string;
+    repeatCount?: number;
+    recurrenceLabel?: string;
+    notes?: string;
+  }): Promise<{ data: MeetingRow[]; error: string | null }> {
+    if (!supabase) return { data: [], error: "Supabase not configured." };
+    const { data, error } = await supabase.rpc("create_meeting_advanced_admin", {
+      p_title: input.title,
+      p_meeting_type: input.meetingType,
+      p_scheduled_start: input.start || null,
+      p_scheduled_end: input.end || null,
+      p_recurrence_frequency: input.recurrenceFrequency || "once",
+      p_repeat_count: input.repeatCount || 1,
+      p_recurrence_label: input.recurrenceLabel || null,
+      p_notes: input.notes || null
+    });
+
+    if (error) {
+      const fallback = await this.createMeeting({
+        title: input.title,
+        meetingType: input.meetingType,
+        start: input.start,
+        end: input.end
+      });
+      return { data: fallback.data ? [fallback.data as MeetingRow] : [], error: fallback.error || errorMessage(error) };
+    }
+
+    return { data: (data || []) as MeetingRow[], error: null };
+  },
+
+  async updateMeetingDetails(input: {
+    id: string;
+    title: string;
+    meetingType: string;
+    start?: string;
+    end?: string;
+    recurrenceFrequency?: string;
+    recurrenceLabel?: string;
+    notes?: string;
+  }) {
+    if (!supabase) return { data: null, error: "Supabase not configured." };
+    const { data, error } = await supabase.rpc("update_meeting_details_admin", {
+      p_meeting_id: input.id,
+      p_title: input.title,
+      p_meeting_type: input.meetingType,
+      p_scheduled_start: input.start || null,
+      p_scheduled_end: input.end || null,
+      p_recurrence_frequency: input.recurrenceFrequency || null,
+      p_recurrence_label: input.recurrenceLabel || null,
+      p_notes: input.notes || null
+    });
+    return { data, error: errorMessage(error) };
+  },
+
+  async deleteMeeting(input: { id: string; scope?: "single" | "series"; recurrenceGroupId?: string | null }) {
+    if (!supabase) return { data: null, error: "Supabase not configured." };
+    const { data, error } = await supabase.rpc("delete_meeting_admin", {
+      p_meeting_id: input.id,
+      p_scope: input.scope || "single",
+      p_recurrence_group_id: input.recurrenceGroupId || null
     });
     return { data, error: errorMessage(error) };
   },

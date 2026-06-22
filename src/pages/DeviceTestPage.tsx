@@ -11,10 +11,14 @@ type DeviceInfo = {
 export function DeviceTestPage() {
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
+  const audioContextRef = useRef<AudioContext | null>(null);
+  const animationRef = useRef<number | null>(null);
   const [message, setMessage] = useState("");
   const [devices, setDevices] = useState<DeviceInfo[]>([]);
   const [cameraOn, setCameraOn] = useState(false);
   const [micOn, setMicOn] = useState(false);
+  const [micLevel, setMicLevel] = useState(0);
+  const [micStatus, setMicStatus] = useState("Microphone is off.");
 
   async function loadDevices() {
     if (!navigator.mediaDevices?.enumerateDevices) {
@@ -28,6 +32,44 @@ export function DeviceTestPage() {
       kind: device.kind,
       id: device.deviceId
     })));
+  }
+
+  function startAudioMeter(stream: MediaStream) {
+    const audioTracks = stream.getAudioTracks();
+    if (!audioTracks.length) {
+      setMicStatus("No microphone track found.");
+      return;
+    }
+
+    const AudioContextClass = window.AudioContext || (window as any).webkitAudioContext;
+    if (!AudioContextClass) {
+      setMicStatus("Audio meter is not supported in this browser, but microphone permission was granted.");
+      return;
+    }
+
+    const audioContext = new AudioContextClass();
+    audioContextRef.current = audioContext;
+    const source = audioContext.createMediaStreamSource(stream);
+    const analyser = audioContext.createAnalyser();
+    analyser.fftSize = 256;
+    source.connect(analyser);
+
+    const data = new Uint8Array(analyser.frequencyBinCount);
+
+    const tick = () => {
+      analyser.getByteFrequencyData(data);
+      const average = data.reduce((sum, value) => sum + value, 0) / data.length;
+      const level = Math.min(100, Math.round((average / 120) * 100));
+      setMicLevel(level);
+      if (level > 12) {
+        setMicStatus("Microphone is receiving sound.");
+      } else {
+        setMicStatus("Microphone is active. Speak to test the level.");
+      }
+      animationRef.current = requestAnimationFrame(tick);
+    };
+
+    tick();
   }
 
   async function startTest(video: boolean, audio: boolean) {
@@ -49,16 +91,30 @@ export function DeviceTestPage() {
 
       setCameraOn(video);
       setMicOn(audio);
-      setMessage("Device test is active. This is a local browser camera/microphone test, not yet a real group call.");
+      setMessage("Device test is active. This is a local browser test.");
+      if (audio) startAudioMeter(stream);
+      if (!audio) setMicStatus("Microphone is off.");
       await loadDevices();
     } catch (error: any) {
       setMessage(error?.message || "Could not access camera/microphone. Check browser permissions.");
       setCameraOn(false);
       setMicOn(false);
+      setMicLevel(0);
+      setMicStatus("Microphone test failed.");
     }
   }
 
   function stopTest() {
+    if (animationRef.current) {
+      cancelAnimationFrame(animationRef.current);
+      animationRef.current = null;
+    }
+
+    if (audioContextRef.current) {
+      void audioContextRef.current.close();
+      audioContextRef.current = null;
+    }
+
     if (streamRef.current) {
       streamRef.current.getTracks().forEach((track) => track.stop());
       streamRef.current = null;
@@ -70,6 +126,8 @@ export function DeviceTestPage() {
 
     setCameraOn(false);
     setMicOn(false);
+    setMicLevel(0);
+    setMicStatus("Microphone is off.");
   }
 
   useEffect(() => {
@@ -81,11 +139,23 @@ export function DeviceTestPage() {
     <div className="page-grid">
       <Card>
         <h1>Video / Audio Test</h1>
-        <p>This page tests the phone or computer camera and microphone inside the app. Real multi-person calls need the LiveKit token server in the next backend phase.</p>
+        <p>This page tests the phone or computer camera and microphone inside the app before joining a meeting.</p>
         <div className="device-preview">
           <video ref={videoRef} playsInline muted />
           {!cameraOn && <span>Camera preview is off</span>}
         </div>
+
+        <div className="audio-meter-card">
+          <div className="audio-meter-head">
+            <strong>Microphone level</strong>
+            <span>{micStatus}</span>
+          </div>
+          <div className="audio-meter-track">
+            <div className="audio-meter-fill" style={{ width: `${micLevel}%` }} />
+          </div>
+          <p>{micOn ? "Speak now. The green bar should move if the microphone is working." : "Press Test Mic Only or Test Camera + Mic."}</p>
+        </div>
+
         <div className="button-row">
           <Button onClick={() => startTest(true, true)}>Test Camera + Mic</Button>
           <Button variant="secondary" onClick={() => startTest(false, true)}>Test Mic Only</Button>
@@ -99,6 +169,7 @@ export function DeviceTestPage() {
           <h2>Current Status</h2>
           <p>Camera: {cameraOn ? "On" : "Off"}</p>
           <p>Microphone: {micOn ? "On" : "Off"}</p>
+          <p>Microphone level: {micLevel}%</p>
         </Card>
         <Card>
           <h2>Detected Devices</h2>
@@ -116,8 +187,7 @@ export function DeviceTestPage() {
 
       <Card>
         <h2>Real Video Call Requirement</h2>
-        <p>For a real church meeting with many people, the app must connect to LiveKit or another WebRTC server. Frontend preview alone cannot host secure multi-person meetings.</p>
-        <p>Next backend phase: LiveKit Cloud/self-host, secure token endpoint, room creation, participant permissions, recording service, TURN/SFU configuration.</p>
+        <p>For a real church meeting with many people, the app must connect to LiveKit or another WebRTC server. This test only proves the user device is ready.</p>
       </Card>
     </div>
   );

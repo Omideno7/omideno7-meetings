@@ -36,10 +36,28 @@ function Modal({ title, children, onClose }: { title: string; children: React.Re
 }
 
 export function ProfilePage() {
-  const { profile, setRoute, logout } = useAppState();
+  const { profile, setRoute, logout, updateProfile } = useAppState();
   const [modal, setModal] = useState<"edit" | "switch" | "problem" | "about" | null>(null);
+  const [displayName, setDisplayName] = useState(profile?.displayName || "");
+  const [avatarUrl, setAvatarUrl] = useState(profile?.avatarUrl || "");
+  const [saved, setSaved] = useState("");
   const isHost = profile ? hostSettingsRoles.includes(profile.role) : false;
   const isOwner = profile?.role === "owner";
+
+  function saveProfile() {
+    updateProfile({ displayName: displayName.trim() || profile?.displayName || "OmideNo7 Member", avatarUrl });
+    setSaved("Profile updated locally. Supabase profile sync will be connected in the next backend step.");
+    window.setTimeout(() => setModal(null), 1200);
+  }
+
+  function readAvatar(file?: File) {
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = () => setAvatarUrl(String(reader.result || ""));
+    reader.readAsDataURL(file);
+  }
+
+  const avatar = profile?.avatarUrl || avatarUrl;
 
   return (
     <div className="profile-mobile-page">
@@ -49,7 +67,7 @@ export function ProfilePage() {
           <button onClick={() => setModal("edit")}>Edit</button>
         </div>
         <div className="profile-identity">
-          <img src="/omideno7-logo.png" alt="OmideNo7" onError={(event) => { event.currentTarget.style.display = "none"; }} />
+          {avatar ? <img src={avatar} alt="Profile" /> : <img src="/omideno7-logo.png" alt="OmideNo7" onError={(event) => { event.currentTarget.style.display = "none"; }} />}
           <div>
             <strong>{profile?.displayName || "OmideNo7 Member"}</strong>
             <span>{profile?.email}</span>
@@ -62,15 +80,12 @@ export function ProfilePage() {
         <section className="profile-info-block">
           <h2>My meeting info</h2>
           <div className="info-grid">
-            <span>OmideNo7 Meeting ID</span><strong>omideno7-main-room</strong>
-            <span>Status</span><strong>Internal app room</strong>
-            <span>Security</span><strong>Approved users only</strong>
-            <span>Host</span><strong>Apostle Yuhana</strong>
-          </div>
-          <div className="backup-info">
-            <strong>Backup FreeConferenceCall access</strong>
-            <p>Link: fccdl.in/i/omideno7church</p>
-            <p>Access code: 2452236# · Security code: 789987</p>
+            <span>Internal room</span><strong>OmideNo7 Main Room</strong>
+            <span>Room type</span><strong>Secure approved-member room</strong>
+            <span>Owner</span><strong>Apostle Yuhana</strong>
+            <span>Access rule</span><strong>Approved users only + Waiting Room</strong>
+            <span>Default join</span><strong>Mic off · Camera off</strong>
+            <span>Meeting engine</span><strong>LiveKit/WebRTC backend phase</strong>
           </div>
           <button className="share-invite" onClick={() => setRoute("meetingSchedule")}>Open meeting schedule</button>
         </section>
@@ -113,15 +128,18 @@ export function ProfilePage() {
 
       <Card>
         <Button variant="danger" onClick={logout}>Log out</Button>
-        <p className="version-label">Version 0.50.0</p>
+        <p className="version-label">Version 0.60.0</p>
       </Card>
 
       {modal === "edit" && (
         <Modal title="Edit profile" onClose={() => setModal(null)}>
-          <p>Profile editing will be connected to Supabase profile fields in the next backend step.</p>
-          <p><strong>Current name:</strong> {profile?.displayName}</p>
-          <p><strong>Email:</strong> {profile?.email}</p>
-          <Button onClick={() => setModal(null)}>Close</Button>
+          <div className="pref-form">
+            <label>Display name<input value={displayName} onChange={(event) => setDisplayName(event.target.value)} /></label>
+            <label>Profile picture<input type="file" accept="image/*" onChange={(event) => readAvatar(event.target.files?.[0])} /></label>
+            {avatarUrl && <img className="avatar-preview" src={avatarUrl} alt="Preview" />}
+            <Button onClick={saveProfile}>Save profile</Button>
+            {saved && <p className="auth-message message-success">{saved}</p>}
+          </div>
         </Modal>
       )}
 
@@ -145,7 +163,7 @@ export function ProfilePage() {
         <Modal title="About OmideNo7 Meetings" onClose={() => setModal(null)}>
           <p><strong>OmideNo7 Meetings</strong></p>
           <p>Secure church meetings app for approved members, hosts, servants, and Owner controls.</p>
-          <p>Version 0.50.0 — UI navigation and profile fix.</p>
+          <p>Version 0.60.0 — meeting scheduling, live UI cleanup, profile edit and audio test upgrade.</p>
           <Button onClick={() => setModal(null)}>Close</Button>
         </Modal>
       )}
