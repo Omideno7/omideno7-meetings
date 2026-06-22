@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useMemo, useState, type KeyboardEvent } from "react";
 import { demoStore } from "../services/demoStore";
 import { useDemoStoreVersion } from "../hooks/useDemoStoreVersion";
 import { useAppState } from "../app/AppState";
@@ -16,6 +16,12 @@ type Participant = {
   symbol: string;
   reaction?: string;
   handRaised?: boolean;
+};
+
+type WaitingPerson = {
+  id: string;
+  name: string;
+  note: string;
 };
 
 type ChatMessage = {
@@ -37,7 +43,7 @@ const initialParticipants: Participant[] = [
   { id: "prayer-servant-demo", name: "Prayer Servant", role: "prayer servant", status: "online", mic: false, camera: false, canUnmute: false, room: "Main Room", symbol: "🙏" }
 ];
 
-const waitingPeople = [
+const initialWaitingPeople: WaitingPerson[] = [
   { id: "wait-1", name: "Member waiting", note: "Entered waiting room now" }
 ];
 
@@ -61,7 +67,17 @@ function ToolbarButton({ icon, label, active, danger, onClick }: { icon: string;
   );
 }
 
-function MiniParticipantMenu({ participant, canHost, onClose, onAction }: { participant: Participant; canHost: boolean; onClose: () => void; onAction: (action: string, patch?: Partial<Participant>) => void }) {
+function MiniParticipantMenu({
+  participant,
+  canHost,
+  onClose,
+  onAction
+}: {
+  participant: Participant;
+  canHost: boolean;
+  onClose: () => void;
+  onAction: (action: string, patch?: Partial<Participant>) => void;
+}) {
   return (
     <div className="mini-context-menu">
       <div className="mini-menu-head">
@@ -90,6 +106,7 @@ function MiniParticipantMenu({ participant, canHost, onClose, onAction }: { part
 function PreferencesModal({ onClose }: { onClose: () => void }) {
   const [tab, setTab] = useState("General");
   const tabs = ["General", "Profile", "Audio", "Video", "Meeting settings", "Security", "Advanced", "Updates"];
+
   return (
     <div className="modal-backdrop">
       <section className="preferences-modal">
@@ -111,15 +128,42 @@ function PreferencesModal({ onClose }: { onClose: () => void }) {
   );
 }
 
+function LeaveMeetingDialog({
+  onClose,
+  onLeaveOnly,
+  onEndMeeting
+}: {
+  onClose: () => void;
+  onLeaveOnly: () => void;
+  onEndMeeting: () => void;
+}) {
+  return (
+    <div className="modal-backdrop">
+      <section className="leave-confirm-modal">
+        <button className="modal-close" onClick={onClose}>×</button>
+        <h2>Leave meeting?</h2>
+        <p>Choose whether you only want to leave, or close the whole meeting for everyone.</p>
+        <div className="leave-choice-grid">
+          <button onClick={onLeaveOnly}>Leave only me</button>
+          <button className="danger" onClick={onEndMeeting}>End meeting for everyone</button>
+          <button className="ghost" onClick={onClose}>Cancel</button>
+        </div>
+      </section>
+    </div>
+  );
+}
+
 export function LiveMeetingPage() {
   const { profile, setRoute } = useAppState();
   useDemoStoreVersion();
   const state = demoStore.getMeetingState();
+
   const [panel, setPanel] = useState<"attendees" | "waiting" | "rooms" | "chat" | "reactions">("chat");
   const [preferencesOpen, setPreferencesOpen] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [toast, setToast] = useState("Ready");
   const [participants, setParticipants] = useState<Participant[]>(initialParticipants);
+  const [waitingList, setWaitingList] = useState<WaitingPerson[]>(initialWaitingPeople);
   const [menuFor, setMenuFor] = useState<Participant | null>(null);
   const [chatScope, setChatScope] = useState<"everyone" | "hosts" | "direct">("everyone");
   const [directTargetId, setDirectTargetId] = useState("");
@@ -129,6 +173,7 @@ export function LiveMeetingPage() {
   const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
   const [floatingReactions, setFloatingReactions] = useState<FloatingReaction[]>([]);
   const [selfHandRaised, setSelfHandRaised] = useState(false);
+  const [leaveDialogOpen, setLeaveDialogOpen] = useState(false);
 
   const canUsePreferences = profile ? hostPreferenceRoles.includes(profile.role) : false;
   const canUseHostControls = profile ? hostControlRoles.includes(profile.role) : false;
@@ -158,6 +203,7 @@ export function LiveMeetingPage() {
       reaction: selfHandRaised ? "✋" : undefined,
       handRaised: selfHandRaised
     };
+
     return [me, ...participants.filter((item) => item.status !== "removed")];
   }, [profile, participants, state.mic, state.camera, selfHandRaised]);
 
@@ -177,9 +223,8 @@ export function LiveMeetingPage() {
   }
 
   function actOnParticipant(participant: Participant, action: string, patch?: Partial<Participant>) {
-    if (patch) {
-      setParticipants((current) => current.map((item) => item.id === participant.id ? { ...item, ...patch } : item));
-    }
+    if (patch) setParticipants((current) => current.map((item) => item.id === participant.id ? { ...item, ...patch } : item));
+
     if (action === "Direct message") {
       setPanel("chat");
       setChatScope("direct");
@@ -190,6 +235,37 @@ export function LiveMeetingPage() {
       notify(`${action}: ${participant.name}`);
     }
     setMenuFor(null);
+  }
+
+  function admitWaitingPerson(person: WaitingPerson) {
+    const newParticipant: Participant = {
+      id: `admitted-${person.id}`,
+      name: person.name,
+      role: "member",
+      status: "online",
+      mic: false,
+      camera: false,
+      canUnmute: false,
+      room: "Main Room",
+      symbol: "👤"
+    };
+
+    setParticipants((current) => [...current, newParticipant]);
+    setWaitingList((current) => current.filter((item) => item.id !== person.id));
+    notify(`${person.name} admitted to meeting.`);
+  }
+
+  function rejectWaitingPerson(person: WaitingPerson) {
+    setWaitingList((current) => current.filter((item) => item.id !== person.id));
+    notify(`${person.name} rejected from waiting room.`);
+  }
+
+  function messageWaitingPerson(person: WaitingPerson) {
+    setPanel("chat");
+    setChatScope("direct");
+    setDirectTargetId("");
+    setChatInput(`Message to ${person.name}: `);
+    notify(`Write a message for ${person.name}.`);
   }
 
   function sendReaction(label: string) {
@@ -205,13 +281,7 @@ export function LiveMeetingPage() {
     addFloating(reaction.icon);
     setChatMessages((current) => [
       ...current,
-      {
-        id: crypto.randomUUID(),
-        from: profile?.displayName || "You",
-        to: "Everyone",
-        text: reaction.message,
-        time: new Date().toLocaleTimeString()
-      }
+      { id: crypto.randomUUID(), from: profile?.displayName || "You", to: "Everyone", text: reaction.message, time: new Date().toLocaleTimeString() }
     ]);
     notify(`Reaction sent: ${reaction.message}`);
   }
@@ -240,24 +310,28 @@ export function LiveMeetingPage() {
 
     setChatMessages((current) => [
       ...current,
-      {
-        id: crypto.randomUUID(),
-        from: profile?.displayName || "You",
-        to,
-        text,
-        time: new Date().toLocaleTimeString(),
-        private: chatScope !== "everyone"
-      }
+      { id: crypto.randomUUID(), from: profile?.displayName || "You", to, text, time: new Date().toLocaleTimeString(), private: chatScope !== "everyone" }
     ]);
     setChatInput("");
     notify(`Message sent to ${to}.`);
   }
 
-  function sendChatWithKeyboard(event: React.KeyboardEvent<HTMLTextAreaElement>) {
+  function sendChatWithKeyboard(event: KeyboardEvent<HTMLTextAreaElement>) {
     if (event.key === "Enter" && !event.shiftKey) {
       event.preventDefault();
       sendChat();
     }
+  }
+
+  function leaveOnly() {
+    setLeaveDialogOpen(false);
+    setRoute("memberHome");
+  }
+
+  function endMeetingForEveryone() {
+    setLeaveDialogOpen(false);
+    updateMeetingState({ mic: false, camera: false, recording: false }, "Meeting ended for everyone.");
+    setRoute("memberHome");
   }
 
   return (
@@ -271,7 +345,7 @@ export function LiveMeetingPage() {
           <span className={state.mic ? "ok" : ""}>{state.mic ? "Mic on" : "Muted"}</span>
           <span className={state.camera ? "ok" : ""}>{state.camera ? "Camera on" : "Camera off"}</span>
           <span className={state.recording ? "rec" : ""}>{state.recording ? "Recording" : "Not recording"}</span>
-          <span className="waiting-top-badge" onClick={() => { setSidebarOpen(true); setPanel("waiting"); }}>Waiting {waitingPeople.length}</span>
+          <span className={waitingList.length ? "waiting-top-badge" : ""} onClick={() => { setSidebarOpen(true); setPanel("waiting"); }}>Waiting {waitingList.length}</span>
         </div>
         <div className="live-topbar-actions">
           {canUseHostControls && <button className={state.lectureMode ? "danger" : ""} onClick={() => toggle("lectureMode", "Lecture Mode enabled.", "Lecture Mode disabled.")}>Lecture</button>}
@@ -294,12 +368,7 @@ export function LiveMeetingPage() {
                 <div className={`mini-eq ${person.mic ? "active" : ""}`}><i></i><i></i><i></i><i></i></div>
               </button>
               {menuFor?.id === person.id && (
-                <MiniParticipantMenu
-                  participant={person}
-                  canHost={canUseHostControls}
-                  onClose={() => setMenuFor(null)}
-                  onAction={(action, patch) => actOnParticipant(person, action, patch)}
-                />
+                <MiniParticipantMenu participant={person} canHost={canUseHostControls} onClose={() => setMenuFor(null)} onAction={(action, patch) => actOnParticipant(person, action, patch)} />
               )}
             </article>
           ))}
@@ -308,7 +377,7 @@ export function LiveMeetingPage() {
         {sidebarOpen && (
           <aside className="attendees-panel polished-side-panel">
             <div className="attendees-head">
-              <strong>{panel === "rooms" ? "Breakout rooms" : panel === "chat" ? `Chat (${chatMessages.length})` : panel === "reactions" ? "Reactions" : panel === "waiting" ? `Waiting Room (${waitingPeople.length})` : "Attendees"}</strong>
+              <strong>{panel === "rooms" ? "Breakout rooms" : panel === "chat" ? `Chat (${chatMessages.length})` : panel === "reactions" ? "Reactions" : panel === "waiting" ? `Waiting Room (${waitingList.length})` : "Attendees"}</strong>
               <button onClick={() => setSidebarOpen(false)}>×</button>
             </div>
 
@@ -333,17 +402,22 @@ export function LiveMeetingPage() {
 
             {panel === "waiting" && (
               <div className="waiting-live-list">
-                {waitingPeople.map((person) => (
-                  <article key={person.id} className="waiting-live-card">
-                    <strong>{person.name}</strong>
-                    <span>{person.note}</span>
-                    <div className="button-row compact-row">
-                      <button onClick={() => notify(`${person.name} admitted to meeting.`)}>Admit</button>
-                      <button onClick={() => notify(`Message opened for ${person.name}.`)}>Message</button>
-                      <button onClick={() => notify(`${person.name} rejected.`)}>Reject</button>
-                    </div>
-                  </article>
-                ))}
+                {waitingList.length === 0 ? (
+                  <p className="empty-chat">No one is waiting now.</p>
+                ) : (
+                  waitingList.map((person) => (
+                    <article key={person.id} className="waiting-live-card visible-waiting-card">
+                      <strong>{person.name}</strong>
+                      <span>{person.note}</span>
+                      <small>ID: {person.id}</small>
+                      <div className="button-row compact-row">
+                        <button onClick={() => admitWaitingPerson(person)}>Admit</button>
+                        <button onClick={() => messageWaitingPerson(person)}>Message</button>
+                        <button onClick={() => rejectWaitingPerson(person)}>Reject</button>
+                      </div>
+                    </article>
+                  ))
+                )}
               </div>
             )}
 
@@ -372,13 +446,11 @@ export function LiveMeetingPage() {
             )}
 
             {panel === "chat" && (
-              <div className="chat-panel improved-chat">
-                <div className="chat-rules">
-                  <span>{chatLocked ? "Chat closed" : adminOnlyChat ? "Host/Admin-only public chat" : "Chat open"}</span>
-                </div>
-                <div className="chat-messages">
+              <div className="chat-panel improved-chat fixed-chat-panel">
+                <div className="chat-rules"><span>{chatLocked ? "Chat closed" : adminOnlyChat ? "Host/Admin-only public chat" : "Chat open"}</span></div>
+                <div className="chat-messages fixed-chat-messages">
                   {chatMessages.length === 0 ? (
-                    <p className="empty-chat">No messages yet.</p>
+                    <p className="empty-chat">No messages yet. Write below and press Enter or Send.</p>
                   ) : (
                     chatMessages.map((msg) => (
                       <article key={msg.id} className={msg.private ? "private-message compact-message" : "compact-message"}>
@@ -406,9 +478,7 @@ export function LiveMeetingPage() {
                   )}
 
                   <div className="chat-emoji-row main-chat-emoji-row">
-                    {chatEmojiOptions.map((emoji) => (
-                      <button key={emoji} type="button" onClick={() => appendEmoji(emoji)}>{emoji}</button>
-                    ))}
+                    {chatEmojiOptions.map((emoji) => <button key={emoji} type="button" onClick={() => appendEmoji(emoji)}>{emoji}</button>)}
                   </div>
 
                   <textarea
@@ -444,14 +514,13 @@ export function LiveMeetingPage() {
         <ToolbarButton icon="💬" label="Chat" onClick={() => { setSidebarOpen(true); setPanel("chat"); }} />
         <ToolbarButton icon="❤️" label="Reactions" onClick={() => { setSidebarOpen(true); setPanel("reactions"); }} />
         {canUsePreferences && <ToolbarButton icon="⚙" label="Settings" onClick={() => setPreferencesOpen(true)} />}
-        <button className="toolbar-pill leave" onClick={() => setRoute("memberHome")}><span>⏻</span><small>Leave</small></button>
+        <button className="toolbar-pill leave" onClick={() => setLeaveDialogOpen(true)}><span>⏻</span><small>Leave</small></button>
       </footer>
 
-      <div className="floating-reaction-layer">
-        {floatingReactions.map((item) => <span key={item.id}>{item.icon}</span>)}
-      </div>
+      <div className="floating-reaction-layer">{floatingReactions.map((item) => <span key={item.id}>{item.icon}</span>)}</div>
       <div className="live-toast">{toast}</div>
       {preferencesOpen && canUsePreferences && <PreferencesModal onClose={() => setPreferencesOpen(false)} />}
+      {leaveDialogOpen && <LeaveMeetingDialog onClose={() => setLeaveDialogOpen(false)} onLeaveOnly={leaveOnly} onEndMeeting={endMeetingForEveryone} />}
     </div>
   );
 }

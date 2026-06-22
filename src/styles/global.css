@@ -2458,3 +2458,93 @@ button:disabled { opacity: .65; cursor: not-allowed; }
 .mini-context-menu {
   z-index: 120;
 }
+
+/* Live fix 1.07.0 */
+.fixed-chat-panel {
+  display: grid !important;
+  grid-template-rows: auto minmax(190px, 240px) auto !important;
+  min-height: 560px !important;
+  gap: 8px;
+}
+
+.fixed-chat-messages {
+  display: grid !important;
+  align-content: start !important;
+  gap: 8px !important;
+  overflow-y: auto !important;
+  min-height: 190px !important;
+  max-height: 240px !important;
+  padding: 10px !important;
+  background: #f7fafc !important;
+  border: 1px solid rgba(8,41,91,.10) !important;
+  border-radius: 16px !important;
+}
+
+.visible-waiting-card {
+  background: #fff !important;
+  border: 2px solid rgba(217,31,42,.18) !important;
+  box-shadow: 0 10px 24px rgba(8,41,91,.08);
+}
+
+.visible-waiting-card strong {
+  display: block !important;
+  font-size: 1.05rem !important;
+  color: #06285a !important;
+  margin-bottom: 5px;
+}
+
+.visible-waiting-card span,
+.visible-waiting-card small {
+  display: block !important;
+  color: #607086 !important;
+  margin-bottom: 4px;
+}
+
+.leave-confirm-modal {
+  width: min(480px, 92vw);
+  background: #fff;
+  color: #06285a;
+  border-radius: 24px;
+  padding: 26px;
+  position: relative;
+  box-shadow: 0 30px 90px rgba(0,0,0,.26);
+}
+
+.leave-confirm-modal h2,
+.leave-confirm-modal p {
+  color: #06285a;
+}
+
+.leave-choice-grid {
+  display: grid;
+  gap: 10px;
+  margin-top: 18px;
+}
+
+.leave-choice-grid button {
+  border: 0;
+  border-radius: 14px;
+  padding: 13px 14px;
+  font-weight: 900;
+  background: #edf2f7;
+  color: #06285a;
+  cursor: pointer;
+}
+
+.leave-choice-grid button.danger {
+  background: #d91f2a;
+  color: #fff;
+}
+
+.leave-choice-grid button.ghost {
+  background: transparent;
+  border: 1px solid #dfe8f1;
+}
+
+.chat-compose textarea {
+  min-height: 72px !important;
+}
+
+.compact-message p {
+  word-break: break-word;
+}
