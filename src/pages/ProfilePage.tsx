@@ -135,7 +135,10 @@ export function ProfilePage() {
         <Modal title="Edit profile" onClose={() => setModal(null)}>
           <div className="pref-form">
             <label>Display name<input value={displayName} onChange={(event) => setDisplayName(event.target.value)} /></label>
-            <label>Profile picture<input type="file" accept="image/*" onChange={(event) => readAvatar(event.target.files?.[0])} /></label>
+            <label>Profile picture from phone gallery / computer
+              <input type="file" accept="image/*" onChange={(event) => readAvatar(event.target.files?.[0])} />
+              <small>On mobile this opens your gallery/photo picker.</small>
+            </label>
             {avatarUrl && <img className="avatar-preview" src={avatarUrl} alt="Preview" />}
             <Button onClick={saveProfile}>Save profile</Button>
             {saved && <p className="auth-message message-success">{saved}</p>}

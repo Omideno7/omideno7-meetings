@@ -74,6 +74,8 @@ const reactionOptions = [
   { label: "Hallelujah", icon: "✝" }
 ];
 
+const chatEmojiOptions = ["♥", "👍", "⛪", "Amen", "✋", "🙏", "✝", "🔥"];
+
 function ToolbarButton({ icon, label, active, danger, onClick }: { icon: string; label: string; active?: boolean; danger?: boolean; onClick: () => void }) {
   return (
     <button className={`toolbar-pill ${active ? "active" : ""} ${danger ? "danger" : ""}`} onClick={onClick}>
@@ -430,10 +432,12 @@ export function LiveMeetingPage() {
 
                 <div className="chat-messages">
                   {chatMessages.map((msg) => (
-                    <article key={msg.id} className={msg.private ? "private-message" : ""}>
-                      <strong>{msg.from} → {msg.to}</strong>
+                    <article key={msg.id} className={msg.private ? "private-message compact-message" : "compact-message"}>
+                      <div className="compact-message-head">
+                        <strong>{msg.from}</strong>
+                        <small>{msg.to} · {msg.time}</small>
+                      </div>
                       <p>{msg.text}</p>
-                      <small>{msg.time}</small>
                     </article>
                   ))}
                 </div>
@@ -453,6 +457,12 @@ export function LiveMeetingPage() {
                       ))}
                     </select>
                   )}
+
+                  <div className="chat-emoji-row">
+                    {chatEmojiOptions.map((emoji) => (
+                      <button key={emoji} type="button" onClick={() => setChatInput((current) => `${current}${current ? " " : ""}${emoji}`)}>{emoji}</button>
+                    ))}
+                  </div>
 
                   <textarea value={chatInput} onChange={(event) => setChatInput(event.target.value)} placeholder="Write a message..." />
                   <button onClick={sendChat}>Send message</button>

@@ -28,8 +28,14 @@ type MeetingForm = {
   start: string;
   end: string;
   recurrenceFrequency: string;
-  repeatCount: number;
   notes: string;
+};
+
+type MeetingGroup = {
+  key: string;
+  primary: MeetingRow;
+  items: MeetingRow[];
+  isSeries: boolean;
 };
 
 function pretty(value?: string | null) {
@@ -44,9 +50,33 @@ function defaultEnd(start: string) {
   return date.toISOString().slice(0, 16);
 }
 
+function groupMeetings(meetings: MeetingRow[]): MeetingGroup[] {
+  const map = new Map<string, MeetingRow[]>();
+
+  meetings.forEach((meeting) => {
+    const recurrence = meeting.recurrence_frequency || "once";
+    const key = meeting.recurrence_group_id || (recurrence !== "once" ? `series-${meeting.title}-${meeting.meeting_type}-${meeting.scheduled_start}` : meeting.id);
+    const current = map.get(key) || [];
+    current.push(meeting);
+    map.set(key, current);
+  });
+
+  return Array.from(map.entries()).map(([key, items]) => {
+    const sorted = [...items].sort((a, b) => String(a.scheduled_start || "").localeCompare(String(b.scheduled_start || "")));
+    const primary = sorted[0];
+    return {
+      key,
+      primary,
+      items: sorted,
+      isSeries: sorted.length > 1 || (primary.recurrence_frequency && primary.recurrence_frequency !== "once")
+    };
+  });
+}
+
 export function MeetingSchedulePage() {
   const { setRoute, profile } = useAppState();
   const [meetings, setMeetings] = useState<MeetingRow[]>([]);
+  const [expandedSeries, setExpandedSeries] = useState<Record<string, boolean>>({});
   const [message, setMessage] = useState("Ready");
   const [kind, setKind] = useState<"idle" | "loading" | "success" | "error">("idle");
   const [loading, setLoading] = useState(false);
@@ -58,11 +88,12 @@ export function MeetingSchedulePage() {
     start: "",
     end: "",
     recurrenceFrequency: "once",
-    repeatCount: 4,
     notes: ""
   });
 
   const isHost = profile?.role !== "approved_member";
+
+  const groups = useMemo(() => groupMeetings(meetings), [meetings]);
 
   const visibleTitle = useMemo(() => {
     if (form.meetingType === "custom") return form.customTitle.trim() || "Custom Meeting";
@@ -89,7 +120,7 @@ export function MeetingSchedulePage() {
     show("loading", "Loading meetings...");
     const result = await supabaseAdminService.listMeetings();
     setMeetings(result.data);
-    show(result.error ? "error" : "success", result.error || `Loaded ${result.data.length} meetings.`);
+    show(result.error ? "error" : "success", result.error || `Loaded ${result.data.length} meeting records. Recurring meetings are collapsed into clean series cards.`);
     setLoading(false);
   }
 
@@ -102,7 +133,6 @@ export function MeetingSchedulePage() {
       start: meeting.scheduled_start ? new Date(meeting.scheduled_start).toISOString().slice(0, 16) : "",
       end: meeting.scheduled_end ? new Date(meeting.scheduled_end).toISOString().slice(0, 16) : "",
       recurrenceFrequency: meeting.recurrence_frequency || "once",
-      repeatCount: 1,
       notes: meeting.notes || ""
     });
     window.scrollTo({ top: 0, behavior: "smooth" });
@@ -118,7 +148,6 @@ export function MeetingSchedulePage() {
       start: "",
       end: "",
       recurrenceFrequency: "once",
-      repeatCount: 4,
       notes: ""
     });
     show("idle", "Ready");
@@ -157,12 +186,12 @@ export function MeetingSchedulePage() {
       start: form.start,
       end: form.end,
       recurrenceFrequency: form.recurrenceFrequency,
-      repeatCount: form.recurrenceFrequency === "once" ? 1 : form.repeatCount,
+      repeatCount: 1,
       recurrenceLabel: recurrenceOptions.find((item) => item.value === form.recurrenceFrequency)?.label,
       notes: form.notes
     });
 
-    show(result.error ? "error" : "success", result.error || `Created ${result.data.length || 1} meeting${(result.data.length || 1) > 1 ? "s" : ""}.`);
+    show(result.error ? "error" : "success", result.error || `Created meeting: ${visibleTitle}. Recurring meetings now show as one series card.`);
     await load();
     setLoading(false);
   }
@@ -198,6 +227,10 @@ export function MeetingSchedulePage() {
     setLoading(false);
   }
 
+  function toggleSeries(key: string) {
+    setExpandedSeries((current) => ({ ...current, [key]: !current[key] }));
+  }
+
   useEffect(() => {
     void load();
   }, []);
@@ -212,7 +245,7 @@ export function MeetingSchedulePage() {
 
       <Card>
         <h1>Meeting Schedule</h1>
-        <p>Create one-time or recurring meetings. Meetings remain under the OmideNo7 church account.</p>
+        <p>Create one-time or recurring meetings. Recurring meetings are shown as one clean series card instead of filling the whole panel.</p>
         <p className="small-note">Data mode: {dataMode}</p>
         <div className="button-row">
           <Button onClick={load} disabled={loading}>Refresh</Button>
@@ -272,19 +305,6 @@ export function MeetingSchedulePage() {
               </select>
             </label>
 
-            {form.recurrenceFrequency !== "once" && !editing && (
-              <label>
-                Number of meetings to create
-                <input
-                  type="number"
-                  min={2}
-                  max={52}
-                  value={form.repeatCount}
-                  onChange={(event) => setForm({ ...form, repeatCount: Number(event.target.value) })}
-                />
-              </label>
-            )}
-
             <label className="form-span-2">
               Notes
               <textarea value={form.notes} onChange={(event) => setForm({ ...form, notes: event.target.value })} placeholder="Optional host notes" />
@@ -293,7 +313,7 @@ export function MeetingSchedulePage() {
 
           <div className="meeting-preview">
             <strong>Preview:</strong> {visibleTitle} · {recurrenceOptions.find((item) => item.value === form.recurrenceFrequency)?.label}
-            {form.recurrenceFrequency !== "once" && !editing ? ` · ${form.repeatCount} meetings` : ""}
+            {form.recurrenceFrequency !== "once" ? " · shown as one recurring series card" : ""}
           </div>
 
           <div className="button-row">
@@ -304,43 +324,61 @@ export function MeetingSchedulePage() {
       )}
 
       <div className="meeting-list">
-        {meetings.map((meeting) => (
-          <Card key={meeting.id} className="meeting-card">
-            <div className="section-row">
-              <div>
-                <h2>{meeting.title}</h2>
-                <p>
-                  {meeting.meeting_type?.replaceAll("_", " ")} · {pretty(meeting.scheduled_start)} · Status: {meeting.status}
-                </p>
-                <p>
-                  Recurrence: {meeting.recurrence_label || meeting.recurrence_frequency || "One-time"} ·
-                  Lecture: {meeting.lecture_mode ? "On" : "Off"} ·
-                  Low bandwidth: {meeting.low_bandwidth_mode ? "On" : "Off"} ·
-                  Recording: {meeting.recording_enabled ? "On" : "Off"}
-                </p>
-                {meeting.notes && <p className="small-note">Notes: {meeting.notes}</p>}
-              </div>
-              <span className={`status-badge status-${meeting.status}`}>{meeting.status.toUpperCase()}</span>
-            </div>
+        {groups.map((group) => {
+          const meeting = group.primary;
+          const expanded = Boolean(expandedSeries[group.key]);
 
-            <div className="button-row">
-              <Button onClick={() => setRoute("waitingRoom")}>Waiting Room</Button>
-              <Button variant="secondary" onClick={() => setRoute("liveMeeting")}>Live UI</Button>
-              {isHost && (
-                <>
-                  <Button variant="secondary" onClick={() => startEdit(meeting)}>Edit</Button>
-                  <Button variant="secondary" onClick={() => setState(meeting, { status: "opening" })}>Open</Button>
-                  <Button variant="secondary" onClick={() => setState(meeting, { status: "live" })}>Go Live</Button>
-                  <Button variant="secondary" onClick={() => setState(meeting, { lecture_mode: !meeting.lecture_mode })}>Lecture</Button>
-                  <Button variant="secondary" onClick={() => setState(meeting, { low_bandwidth_mode: !meeting.low_bandwidth_mode })}>Low BW</Button>
-                  <Button variant="secondary" onClick={() => setState(meeting, { recording_enabled: !meeting.recording_enabled })}>Record</Button>
-                  <Button variant="danger" onClick={() => deleteMeeting(meeting)}>Delete</Button>
-                  {meeting.recurrence_group_id && <Button variant="danger" onClick={() => deleteMeeting(meeting, "series")}>Delete Series</Button>}
-                </>
+          return (
+            <Card key={group.key} className="meeting-card">
+              <div className="section-row">
+                <div>
+                  <h2>{meeting.title}</h2>
+                  <p>
+                    {meeting.meeting_type?.replaceAll("_", " ")} · {pretty(meeting.scheduled_start)} · Status: {meeting.status}
+                  </p>
+                  <p>
+                    {group.isSeries ? `Series: ${meeting.recurrence_label || meeting.recurrence_frequency}` : "One-time meeting"} ·
+                    Records: {group.items.length} ·
+                    Lecture: {meeting.lecture_mode ? "On" : "Off"} ·
+                    Low bandwidth: {meeting.low_bandwidth_mode ? "On" : "Off"} ·
+                    Recording: {meeting.recording_enabled ? "On" : "Off"}
+                  </p>
+                  {meeting.notes && <p className="small-note">Notes: {meeting.notes}</p>}
+                </div>
+                <span className={`status-badge status-${meeting.status}`}>{group.isSeries ? "SERIES" : meeting.status.toUpperCase()}</span>
+              </div>
+
+              <div className="button-row">
+                <Button onClick={() => setRoute("waitingRoom")}>Waiting Room</Button>
+                <Button variant="secondary" onClick={() => setRoute("liveMeeting")}>Live UI</Button>
+                {group.items.length > 1 && <Button variant="ghost" onClick={() => toggleSeries(group.key)}>{expanded ? "Hide occurrences" : "Show occurrences"}</Button>}
+                {isHost && (
+                  <>
+                    <Button variant="secondary" onClick={() => startEdit(meeting)}>Edit</Button>
+                    <Button variant="secondary" onClick={() => setState(meeting, { status: "opening" })}>Open</Button>
+                    <Button variant="secondary" onClick={() => setState(meeting, { status: "live" })}>Go Live</Button>
+                    <Button variant="secondary" onClick={() => setState(meeting, { lecture_mode: !meeting.lecture_mode })}>Lecture</Button>
+                    <Button variant="secondary" onClick={() => setState(meeting, { low_bandwidth_mode: !meeting.low_bandwidth_mode })}>Low BW</Button>
+                    <Button variant="secondary" onClick={() => setState(meeting, { recording_enabled: !meeting.recording_enabled })}>Record</Button>
+                    <Button variant="danger" onClick={() => deleteMeeting(meeting)}>Delete</Button>
+                    {group.isSeries && <Button variant="danger" onClick={() => deleteMeeting(meeting, "series")}>Delete Series</Button>}
+                  </>
+                )}
+              </div>
+
+              {expanded && (
+                <div className="occurrence-list">
+                  {group.items.map((item) => (
+                    <div key={item.id} className="occurrence-row">
+                      <span>{pretty(item.scheduled_start)}</span>
+                      <strong>{item.status}</strong>
+                    </div>
+                  ))}
+                </div>
               )}
-            </div>
-          </Card>
-        ))}
+            </Card>
+          );
+        })}
       </div>
     </div>
   );

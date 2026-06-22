@@ -2010,3 +2010,232 @@ button:disabled { opacity: .65; cursor: not-allowed; }
     grid-template-columns: repeat(2, 1fr);
   }
 }
+
+/* Media waiting chat 0.80.0 */
+.occurrence-list {
+  margin-top: 14px;
+  border: 1px solid #e5edf5;
+  border-radius: 16px;
+  overflow: hidden;
+}
+
+.occurrence-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 12px;
+  border-bottom: 1px solid #edf2f7;
+  color: #06285a;
+}
+
+.occurrence-row:last-child {
+  border-bottom: 0;
+}
+
+.waiting-header,
+.waiting-person-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.waiting-badge {
+  width: 82px;
+  height: 82px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  align-content: center;
+  background: #edf2f7;
+  color: #06285a;
+  font-size: 1.5rem;
+  font-weight: 900;
+}
+
+.waiting-badge span {
+  font-size: .74rem;
+  text-transform: uppercase;
+}
+
+.waiting-badge.active {
+  background: #d91f2a;
+  color: #fff;
+  animation: pulseBadge 1.2s infinite;
+}
+
+@keyframes pulseBadge {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.06); }
+}
+
+.waiting-list {
+  display: grid;
+  gap: 14px;
+}
+
+.waiting-status {
+  padding: 8px 12px;
+  border-radius: 999px;
+  font-weight: 900;
+  text-transform: uppercase;
+  background: #edf2f7;
+}
+
+.waiting-waiting { background: rgba(217,31,42,.12); color: #d91f2a; }
+.waiting-admitted { background: rgba(9,164,64,.12); color: #06742f; }
+.waiting-rejected { background: rgba(8,41,91,.10); color: #06285a; }
+.waiting-blocked { background: #d91f2a; color: #fff; }
+
+.media-control-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+  margin-top: 14px;
+}
+
+.media-control-grid label {
+  color: #06285a;
+  font-weight: 900;
+}
+
+.media-control-grid select,
+.media-control-grid input {
+  width: 100%;
+  margin-top: 6px;
+  border: 1px solid #dfe8f1;
+  border-radius: 12px;
+  padding: 10px;
+}
+
+.noise-control-panel {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin: 14px 0;
+  padding: 12px;
+  border-radius: 16px;
+  background: rgba(36,118,169,.08);
+}
+
+.noise-control-panel label {
+  color: #06285a;
+  font-weight: 900;
+}
+
+.device-preview {
+  position: relative;
+  overflow: hidden;
+}
+
+.background-soft-blur video {
+  filter: saturate(1.08) contrast(1.04);
+}
+
+.background-church {
+  background: linear-gradient(135deg, #06285a, #09a440);
+}
+
+.background-blue {
+  background: radial-gradient(circle at top, #2476a9, #06285a);
+}
+
+.background-label {
+  position: absolute;
+  right: 12px;
+  bottom: 12px;
+  background: rgba(0,0,0,.58);
+  color: #fff;
+  border-radius: 999px;
+  padding: 6px 10px;
+  font-style: normal;
+  font-weight: 900;
+}
+
+.chat-panel,
+.attendees-panel {
+  min-height: 0;
+}
+
+.improved-chat {
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr) auto;
+  height: 100%;
+}
+
+.chat-messages {
+  min-height: 0;
+  max-height: none !important;
+  overflow-y: auto;
+  padding-right: 4px;
+}
+
+.compact-message {
+  padding: 8px 10px !important;
+}
+
+.compact-message-head {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  align-items: baseline;
+}
+
+.compact-message-head strong {
+  font-size: .78rem;
+  color: #607086;
+  font-weight: 900;
+}
+
+.compact-message-head small {
+  font-size: .68rem;
+  color: #8b98aa;
+}
+
+.compact-message p {
+  margin: 3px 0 0 !important;
+  color: #06285a;
+  font-size: .92rem;
+  line-height: 1.35;
+}
+
+.chat-emoji-row {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.chat-emoji-row button {
+  min-width: 38px;
+  border: 1px solid #dfe8f1;
+  border-radius: 999px;
+  padding: 6px 9px;
+  background: #fff;
+  color: #06285a;
+  font-weight: 900;
+}
+
+.simple-modal small,
+.pref-form small {
+  display: block;
+  margin-top: 6px;
+  color: #607086;
+  font-weight: 700;
+}
+
+@media (max-width: 900px) {
+  .media-control-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 560px) {
+  .media-control-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .waiting-header,
+  .waiting-person-row {
+    align-items: flex-start;
+  }
+}

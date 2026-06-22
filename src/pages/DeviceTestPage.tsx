@@ -1,15 +1,23 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Button } from "../components/ui/Button";
 import { Card } from "../components/ui/Card";
 
 type DeviceInfo = {
   label: string;
-  kind: string;
+  kind: MediaDeviceKind;
   id: string;
+};
+
+const qualityPresets = {
+  auto: {},
+  hd: { width: 1280, height: 720 },
+  fullhd: { width: 1920, height: 1080 },
+  low: { width: 640, height: 360 }
 };
 
 export function DeviceTestPage() {
   const videoRef = useRef<HTMLVideoElement | null>(null);
+  const audioRef = useRef<HTMLAudioElement | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
   const audioContextRef = useRef<AudioContext | null>(null);
   const animationRef = useRef<number | null>(null);
@@ -19,6 +27,19 @@ export function DeviceTestPage() {
   const [micOn, setMicOn] = useState(false);
   const [micLevel, setMicLevel] = useState(0);
   const [micStatus, setMicStatus] = useState("Microphone is off.");
+  const [videoDeviceId, setVideoDeviceId] = useState("");
+  const [audioInputId, setAudioInputId] = useState("");
+  const [audioOutputId, setAudioOutputId] = useState("");
+  const [quality, setQuality] = useState<keyof typeof qualityPresets>("hd");
+  const [noiseSuppression, setNoiseSuppression] = useState(true);
+  const [echoCancellation, setEchoCancellation] = useState(true);
+  const [autoGainControl, setAutoGainControl] = useState(true);
+  const [micMode, setMicMode] = useState<"auto" | "manual">("auto");
+  const [backgroundMode, setBackgroundMode] = useState("none");
+
+  const videoInputs = useMemo(() => devices.filter((device) => device.kind === "videoinput"), [devices]);
+  const audioInputs = useMemo(() => devices.filter((device) => device.kind === "audioinput"), [devices]);
+  const audioOutputs = useMemo(() => devices.filter((device) => device.kind === "audiooutput"), [devices]);
 
   async function loadDevices() {
     if (!navigator.mediaDevices?.enumerateDevices) {
@@ -27,11 +48,31 @@ export function DeviceTestPage() {
     }
 
     const list = await navigator.mediaDevices.enumerateDevices();
-    setDevices(list.map((device) => ({
+    const mapped = list.map((device) => ({
       label: device.label || `${device.kind} ${device.deviceId.slice(0, 6)}`,
       kind: device.kind,
       id: device.deviceId
-    })));
+    }));
+
+    setDevices(mapped);
+    setVideoDeviceId((current) => current || mapped.find((device) => device.kind === "videoinput")?.id || "");
+    setAudioInputId((current) => current || mapped.find((device) => device.kind === "audioinput")?.id || "");
+    setAudioOutputId((current) => current || mapped.find((device) => device.kind === "audiooutput")?.id || "");
+  }
+
+  async function applyAudioOutput(deviceId: string) {
+    setAudioOutputId(deviceId);
+    const element = audioRef.current || videoRef.current;
+    if (element && "setSinkId" in element && deviceId) {
+      try {
+        await (element as any).setSinkId(deviceId);
+        setMessage("Audio output changed. Headset/speaker selection applied.");
+      } catch (error: any) {
+        setMessage(error?.message || "Could not change audio output in this browser.");
+      }
+    } else {
+      setMessage("This browser may not support manual speaker/headset selection. Use system audio settings.");
+    }
   }
 
   function startAudioMeter(stream: MediaStream) {
@@ -61,11 +102,8 @@ export function DeviceTestPage() {
       const average = data.reduce((sum, value) => sum + value, 0) / data.length;
       const level = Math.min(100, Math.round((average / 120) * 100));
       setMicLevel(level);
-      if (level > 12) {
-        setMicStatus("Microphone is receiving sound.");
-      } else {
-        setMicStatus("Microphone is active. Speak to test the level.");
-      }
+      if (level > 12) setMicStatus("Microphone is receiving sound.");
+      else setMicStatus("Microphone is active. Speak to test the level.");
       animationRef.current = requestAnimationFrame(tick);
     };
 
@@ -81,7 +119,24 @@ export function DeviceTestPage() {
         return;
       }
 
-      const stream = await navigator.mediaDevices.getUserMedia({ video, audio });
+      const preset = qualityPresets[quality] as any;
+      const videoConstraints = video
+        ? {
+            deviceId: videoDeviceId ? { exact: videoDeviceId } : undefined,
+            ...preset
+          }
+        : false;
+
+      const audioConstraints = audio
+        ? {
+            deviceId: audioInputId ? { exact: audioInputId } : undefined,
+            noiseSuppression,
+            echoCancellation,
+            autoGainControl
+          }
+        : false;
+
+      const stream = await navigator.mediaDevices.getUserMedia({ video: videoConstraints, audio: audioConstraints });
       streamRef.current = stream;
 
       if (videoRef.current) {
@@ -89,9 +144,14 @@ export function DeviceTestPage() {
         await videoRef.current.play();
       }
 
+      if (audioRef.current) {
+        audioRef.current.srcObject = stream;
+        audioRef.current.muted = true;
+      }
+
       setCameraOn(video);
       setMicOn(audio);
-      setMessage("Device test is active. This is a local browser test.");
+      setMessage("Device test is active. External camera/mic works if your OS/browser exposes it as a device.");
       if (audio) startAudioMeter(stream);
       if (!audio) setMicStatus("Microphone is off.");
       await loadDevices();
@@ -120,9 +180,8 @@ export function DeviceTestPage() {
       streamRef.current = null;
     }
 
-    if (videoRef.current) {
-      videoRef.current.srcObject = null;
-    }
+    if (videoRef.current) videoRef.current.srcObject = null;
+    if (audioRef.current) audioRef.current.srcObject = null;
 
     setCameraOn(false);
     setMicOn(false);
@@ -139,10 +198,73 @@ export function DeviceTestPage() {
     <div className="page-grid">
       <Card>
         <h1>Video / Audio Test</h1>
-        <p>This page tests the phone or computer camera and microphone inside the app before joining a meeting.</p>
-        <div className="device-preview">
+        <p>Choose camera, microphone, speaker/headset, quality and noise controls before joining a meeting.</p>
+
+        <div className={`device-preview background-${backgroundMode}`}>
           <video ref={videoRef} playsInline muted />
           {!cameraOn && <span>Camera preview is off</span>}
+          {backgroundMode !== "none" && <em className="background-label">Background: {backgroundMode}</em>}
+        </div>
+        <audio ref={audioRef} />
+
+        <div className="media-control-grid">
+          <label>
+            Camera / external webcam
+            <select value={videoDeviceId} onChange={(event) => setVideoDeviceId(event.target.value)}>
+              <option value="">Auto camera</option>
+              {videoInputs.map((device) => <option key={device.id} value={device.id}>{device.label}</option>)}
+            </select>
+          </label>
+
+          <label>
+            Microphone / external mic
+            <select value={audioInputId} onChange={(event) => setAudioInputId(event.target.value)}>
+              <option value="">Auto microphone</option>
+              {audioInputs.map((device) => <option key={device.id} value={device.id}>{device.label}</option>)}
+            </select>
+          </label>
+
+          <label>
+            Speaker / headphones
+            <select value={audioOutputId} onChange={(event) => applyAudioOutput(event.target.value)}>
+              <option value="">System default</option>
+              {audioOutputs.map((device) => <option key={device.id} value={device.id}>{device.label}</option>)}
+            </select>
+          </label>
+
+          <label>
+            Video quality
+            <select value={quality} onChange={(event) => setQuality(event.target.value as keyof typeof qualityPresets)}>
+              <option value="auto">Auto</option>
+              <option value="low">Low 360p</option>
+              <option value="hd">HD 720p</option>
+              <option value="fullhd">Full HD 1080p</option>
+            </select>
+          </label>
+
+          <label>
+            Background
+            <select value={backgroundMode} onChange={(event) => setBackgroundMode(event.target.value)}>
+              <option value="none">None</option>
+              <option value="soft-blur">Soft blur preview</option>
+              <option value="church">Church background preview</option>
+              <option value="blue">OmideNo7 blue background</option>
+            </select>
+          </label>
+
+          <label>
+            Microphone mode
+            <select value={micMode} onChange={(event) => setMicMode(event.target.value as "auto" | "manual")}>
+              <option value="auto">Auto</option>
+              <option value="manual">Manual</option>
+            </select>
+          </label>
+        </div>
+
+        <div className="noise-control-panel">
+          <label><input type="checkbox" checked={noiseSuppression} onChange={(event) => setNoiseSuppression(event.target.checked)} /> Noise suppression</label>
+          <label><input type="checkbox" checked={echoCancellation} onChange={(event) => setEchoCancellation(event.target.checked)} /> Echo cancellation</label>
+          <label><input type="checkbox" checked={autoGainControl} onChange={(event) => setAutoGainControl(event.target.checked)} /> Auto gain control</label>
         </div>
 
         <div className="audio-meter-card">
@@ -159,6 +281,7 @@ export function DeviceTestPage() {
         <div className="button-row">
           <Button onClick={() => startTest(true, true)}>Test Camera + Mic</Button>
           <Button variant="secondary" onClick={() => startTest(false, true)}>Test Mic Only</Button>
+          <Button variant="secondary" onClick={() => startTest(true, false)}>Test Camera Only</Button>
           <Button variant="ghost" onClick={stopTest}>Stop Test</Button>
         </div>
         {message && <p className="auth-message">{message}</p>}
@@ -166,10 +289,9 @@ export function DeviceTestPage() {
 
       <div className="dashboard-grid">
         <Card>
-          <h2>Current Status</h2>
-          <p>Camera: {cameraOn ? "On" : "Off"}</p>
-          <p>Microphone: {micOn ? "On" : "Off"}</p>
-          <p>Microphone level: {micLevel}%</p>
+          <h2>External device note</h2>
+          <p>Bluetooth/cable microphones and cameras appear here when the operating system and browser expose them as media devices.</p>
+          <p>Phone-as-webcam also depends on the computer OS or a dedicated camera bridge app.</p>
         </Card>
         <Card>
           <h2>Detected Devices</h2>
@@ -186,8 +308,8 @@ export function DeviceTestPage() {
       </div>
 
       <Card>
-        <h2>Real Video Call Requirement</h2>
-        <p>For a real church meeting with many people, the app must connect to LiveKit or another WebRTC server. This test only proves the user device is ready.</p>
+        <h2>Background replacement note</h2>
+        <p>The controls are ready. True background blur/replacement in live calls needs the LiveKit/WebRTC media processor phase.</p>
       </Card>
     </div>
   );

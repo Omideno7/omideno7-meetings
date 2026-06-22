@@ -1,128 +1,109 @@
-import { useEffect, useState } from "react";
-import { Card } from "../components/ui/Card";
+import { useEffect, useMemo, useState } from "react";
 import { Button } from "../components/ui/Button";
+import { Card } from "../components/ui/Card";
 import { useAppState } from "../app/AppState";
-import { dataMode } from "../config/dataMode";
-import { demoStore } from "../services/demoStore";
-import { supabaseAdminService, type MeetingRow, type WaitingEntry } from "../services/supabaseAdminService";
-import { useDemoStoreVersion } from "../hooks/useDemoStoreVersion";
+import { roles } from "../config/roles";
+
+type WaitingPerson = {
+  id: string;
+  name: string;
+  status: "waiting" | "admitted" | "rejected" | "blocked";
+  reason: string;
+  risk: "normal" | "review" | "high";
+  joinedAt: string;
+};
+
+const initialWaiting: WaitingPerson[] = [
+  {
+    id: "w1",
+    name: "New approved member",
+    status: "waiting",
+    reason: "Waiting to join Sunday Service",
+    risk: "normal",
+    joinedAt: new Date().toLocaleTimeString()
+  }
+];
 
 export function WaitingRoomPage() {
-  const { setRoute, profile } = useAppState();
-  useDemoStoreVersion();
+  const { profile, setRoute } = useAppState();
+  const [people, setPeople] = useState<WaitingPerson[]>(initialWaiting);
+  const [message, setMessage] = useState("Waiting room ready.");
+  const isHost = profile?.role !== roles.APPROVED_MEMBER;
 
-  const [meetings, setMeetings] = useState<MeetingRow[]>([]);
-  const [entries, setEntries] = useState<WaitingEntry[]>([]);
-  const [message, setMessage] = useState("");
-  const [deviceLabel, setDeviceLabel] = useState("iPhone / Mobile");
-  const [loading, setLoading] = useState(false);
-  const isHost = profile?.role !== "approved_member";
-  const activeMeeting = meetings.find((item) => item.status === "live" || item.status === "opening") || meetings[0];
-
-  async function load() {
-    if (dataMode !== "supabase") return;
-    setLoading(true);
-    const meetingResult = await supabaseAdminService.listMeetings();
-    const waitingResult = await supabaseAdminService.listWaitingEntries();
-    setMeetings(meetingResult.data);
-    setEntries(waitingResult.data);
-    setMessage(meetingResult.error || waitingResult.error || "");
-    setLoading(false);
-  }
-
-  async function join() {
-    if (!activeMeeting || !profile) {
-      setMessage("No meeting is available yet. Owner or host must create/open a meeting first.");
-      return;
-    }
-    setLoading(true);
-    const result = await supabaseAdminService.joinWaitingRoom(activeMeeting.id, profile.displayName || profile.fullName, deviceLabel);
-    setMessage(result.error || "You entered the waiting room. A host must admit you.");
-    await load();
-    setLoading(false);
-  }
-
-  async function decide(id: string, status: "admitted" | "rejected" | "removed") {
-    setLoading(true);
-    const result = await supabaseAdminService.decideWaitingEntry(id, status);
-    setMessage(result.error || `Entry marked ${status}.`);
-    await load();
-    setLoading(false);
-  }
+  const waitingCount = useMemo(() => people.filter((item) => item.status === "waiting").length, [people]);
 
   useEffect(() => {
-    void load();
+    const timer = window.setInterval(() => {
+      setPeople((current) => {
+        if (current.some((item) => item.id === "w-auto")) return current;
+        return [
+          ...current,
+          {
+            id: "w-auto",
+            name: "Member waiting",
+            status: "waiting",
+            reason: "Entered waiting room",
+            risk: "review",
+            joinedAt: new Date().toLocaleTimeString()
+          }
+        ];
+      });
+      setMessage("New person entered the waiting room.");
+    }, 12000);
+
+    return () => window.clearInterval(timer);
   }, []);
 
-  if (dataMode !== "supabase") {
-    const localEntries = demoStore.listWaitingRoom();
-    return (
-      <div className="page-grid">
-        <Card>
-          <h1>Waiting Room</h1>
-          <p>Local demo mode. Supabase waiting room activates in production mode.</p>
-          <div className="button-row">
-            <Button onClick={() => setRoute("liveMeeting")}>Demo: Admit and Join</Button>
-            <Button variant="secondary" onClick={() => demoStore.resetWaitingDemo()}>Reset Waiting Demo</Button>
-          </div>
-        </Card>
-        {localEntries.map((entry) => (
-          <Card key={entry.id} className={`status-card status-${entry.status}`}>
-            <div className="section-row">
-              <div><h2>{entry.name}</h2><p>{entry.role} · {entry.device} · requested at {entry.requestedAt}</p></div>
-              <span className={`status-pill ${entry.status}`}>{entry.status}</span>
-            </div>
-          </Card>
-        ))}
-      </div>
-    );
+  function updatePerson(id: string, status: WaitingPerson["status"], text: string) {
+    setPeople((current) => current.map((item) => item.id === id ? { ...item, status } : item));
+    setMessage(text);
   }
 
   return (
     <div className="page-grid">
       <Card>
-        <h1>Waiting Room</h1>
-        <p>Every participant enters here first. Mic and camera stay off by default until the user chooses otherwise and host permissions allow it.</p>
-        <p className="small-note">Current meeting: {activeMeeting ? activeMeeting.title : "No meeting created yet"} · Data mode: {dataMode}</p>
-        <div className="form-grid">
-          <select value={deviceLabel} onChange={(event) => setDeviceLabel(event.target.value)}>
-            <option>iPhone / Mobile</option>
-            <option>iPad / Tablet</option>
-            <option>Laptop</option>
-            <option>Low Bandwidth Audio Only</option>
-          </select>
+        <div className="waiting-header">
+          <div>
+            <h1>Waiting Room</h1>
+            <p>Everyone enters here first. Host or Door Servant decides who can enter the meeting.</p>
+          </div>
+          <div className={`waiting-badge ${waitingCount ? "active" : ""}`}>
+            {waitingCount}
+            <span>waiting</span>
+          </div>
         </div>
+        <p className="auth-message">{message}</p>
         <div className="button-row">
-          <Button onClick={join} disabled={loading}>Enter Waiting Room</Button>
-          <Button variant="secondary" onClick={load} disabled={loading}>Refresh</Button>
-          <Button variant="ghost" onClick={() => setRoute("meetingSchedule")}>Meetings</Button>
+          <Button onClick={() => setRoute("liveMeeting")}>Open Live Meeting</Button>
+          <Button variant="secondary" onClick={() => setMessage(`Checked at ${new Date().toLocaleTimeString()}`)}>Check Now</Button>
         </div>
-        {message && <p className="auth-message">{message}</p>}
       </Card>
 
-      {entries.map((entry) => (
-        <Card key={entry.id} className={`status-card status-${entry.status}`}>
-          <div className="section-row">
-            <div>
-              <h2>{entry.display_name}</h2>
-              <p>{entry.device_label || "Unknown device"} · {entry.status} · {entry.created_at ? new Date(entry.created_at).toLocaleString() : ""}</p>
+      <div className="waiting-list">
+        {people.map((person) => (
+          <Card key={person.id}>
+            <div className="waiting-person-row">
+              <div>
+                <h2>{person.name}</h2>
+                <p>{person.reason}</p>
+                <p>Joined: {person.joinedAt} · Status: {person.status} · Risk: {person.risk}</p>
+              </div>
+              <span className={`waiting-status waiting-${person.status}`}>{person.status}</span>
             </div>
-            <span className={`status-pill ${entry.status}`}>{entry.status}</span>
-          </div>
-          {isHost && entry.status === "waiting" && (
-            <div className="button-row">
-              <Button onClick={() => decide(entry.id, "admitted")}>Admit</Button>
-              <Button variant="danger" onClick={() => decide(entry.id, "rejected")}>Reject</Button>
-              <Button variant="ghost" onClick={() => decide(entry.id, "removed")}>Remove</Button>
-            </div>
-          )}
-          {entry.status === "admitted" && (
-            <div className="button-row">
-              <Button onClick={() => setRoute("liveMeeting")}>Join Live Meeting</Button>
-            </div>
-          )}
-        </Card>
-      ))}
+
+            {isHost ? (
+              <div className="button-row">
+                <Button onClick={() => updatePerson(person.id, "admitted", `${person.name} admitted to the meeting.`)}>Admit</Button>
+                <Button variant="secondary" onClick={() => setMessage(`Direct message opened for ${person.name}.`)}>Message</Button>
+                <Button variant="ghost" onClick={() => updatePerson(person.id, "rejected", `${person.name} rejected from waiting room.`)}>Reject</Button>
+                <Button variant="danger" onClick={() => updatePerson(person.id, "blocked", `${person.name} blocked from this account.`)}>Block</Button>
+              </div>
+            ) : (
+              <p>Wait until a host admits you.</p>
+            )}
+          </Card>
+        ))}
+      </div>
     </div>
   );
 }
