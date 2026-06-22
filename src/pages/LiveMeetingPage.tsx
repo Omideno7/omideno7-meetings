@@ -104,23 +104,17 @@ function MiniParticipantMenu({
 }
 
 function PreferencesModal({ onClose }: { onClose: () => void }) {
-  const [tab, setTab] = useState("General");
-  const tabs = ["General", "Profile", "Audio", "Video", "Meeting settings", "Security", "Advanced", "Updates"];
-
   return (
     <div className="modal-backdrop">
-      <section className="preferences-modal">
+      <section className="preferences-modal small-preferences">
         <button className="modal-close" onClick={onClose}>×</button>
-        <aside>
-          <h2>Preferences</h2>
-          {tabs.map((item) => <button key={item} className={tab === item ? "active" : ""} onClick={() => setTab(item)}>{item}</button>)}
-        </aside>
         <main>
-          <h2>{tab}</h2>
+          <h2>Meeting Settings</h2>
+          <p>These settings are UI-ready. Real meeting engine settings are connected in the LiveKit phase.</p>
           <div className="pref-form">
-            <p>Preferences UI is ready. Real device/server settings are connected in the LiveKit phase.</p>
-            <label>Mode<select><option>Automatic</option><option>Low bandwidth</option><option>Audio first</option></select></label>
+            <label>Network mode<select><option>Automatic</option><option>Low bandwidth</option><option>Audio first</option></select></label>
             <label className="toggle-line"><input type="checkbox" defaultChecked /> Approved users only</label>
+            <label className="toggle-line"><input type="checkbox" defaultChecked /> Waiting room required</label>
           </div>
         </main>
       </section>
@@ -168,12 +162,12 @@ export function LiveMeetingPage() {
   const [chatScope, setChatScope] = useState<"everyone" | "hosts" | "direct">("everyone");
   const [directTargetId, setDirectTargetId] = useState("");
   const [chatInput, setChatInput] = useState("");
-  const [chatLocked, setChatLocked] = useState(false);
-  const [adminOnlyChat, setAdminOnlyChat] = useState(false);
+  const [chatMode, setChatMode] = useState<"public" | "admin" | "closed">("public");
   const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
   const [floatingReactions, setFloatingReactions] = useState<FloatingReaction[]>([]);
   const [selfHandRaised, setSelfHandRaised] = useState(false);
   const [leaveDialogOpen, setLeaveDialogOpen] = useState(false);
+  const [controlMenu, setControlMenu] = useState<"none" | "mic" | "chat">("none");
 
   const canUsePreferences = profile ? hostPreferenceRoles.includes(profile.role) : false;
   const canUseHostControls = profile ? hostControlRoles.includes(profile.role) : false;
@@ -296,11 +290,11 @@ export function LiveMeetingPage() {
       notify("Write a message first.");
       return;
     }
-    if (chatLocked && !canUseHostControls) {
+    if (chatMode === "closed" && !canUseHostControls) {
       notify("Chat is closed by host.");
       return;
     }
-    if (adminOnlyChat && !canUseHostControls && chatScope === "everyone") {
+    if (chatMode === "admin" && !canUseHostControls && chatScope === "everyone") {
       notify("Public chat is host/admin-only right now.");
       return;
     }
@@ -334,8 +328,16 @@ export function LiveMeetingPage() {
     setRoute("memberHome");
   }
 
+  function panelTitle() {
+    if (panel === "rooms") return "Breakout rooms";
+    if (panel === "chat") return `Chat (${chatMessages.length})`;
+    if (panel === "reactions") return "Reactions";
+    if (panel === "waiting") return `Waiting Room (${waitingList.length})`;
+    return "Attendees";
+  }
+
   return (
-    <div className="live-shell refined-live control-live polished-live">
+    <div className="live-shell refined-live control-live polished-live rebuilt-live">
       <header className="live-topbar">
         <div>
           <strong>OmideNo7 Main Room</strong>
@@ -354,8 +356,8 @@ export function LiveMeetingPage() {
         </div>
       </header>
 
-      <main className="live-main">
-        <section className={sidebarOpen ? "participants-grid with-panel" : "participants-grid"}>
+      <main className={sidebarOpen ? "live-main side-open" : "live-main side-closed"}>
+        <section className="participants-grid with-panel">
           {people.map((person) => (
             <article key={person.id} className={`participant-tile ${person.id === "me" ? "speaking" : ""} ${person.status === "blocked" ? "blocked-tile" : ""}`}>
               <button className="participant-click-zone" onClick={() => person.id !== "me" ? setMenuFor(person) : notify("This is your tile.")}>
@@ -375,24 +377,38 @@ export function LiveMeetingPage() {
         </section>
 
         {sidebarOpen && (
-          <aside className="attendees-panel polished-side-panel">
-            <div className="attendees-head">
-              <strong>{panel === "rooms" ? "Breakout rooms" : panel === "chat" ? `Chat (${chatMessages.length})` : panel === "reactions" ? "Reactions" : panel === "waiting" ? `Waiting Room (${waitingList.length})` : "Attendees"}</strong>
+          <aside className="attendees-panel polished-side-panel rebuilt-side-panel">
+            <div className="attendees-head compact-panel-head">
+              <strong>{panelTitle()}</strong>
               <button onClick={() => setSidebarOpen(false)}>×</button>
             </div>
 
             {canUseHostControls && (
-              <div className="host-mini-controls host-grid-3">
-                <button onClick={() => changeAllParticipants({ mic: false, canUnmute: false }, "All microphones muted and locked.")}>Mute all</button>
-                <button onClick={() => changeAllParticipants({ canUnmute: true }, "All members may unmute when allowed.")}>Allow all mic</button>
-                <button onClick={() => changeAllParticipants({ canUnmute: false }, "Mic permission removed from all members.")}>Lock mics</button>
-                <button onClick={() => { setChatLocked(!chatLocked); notify(!chatLocked ? "Chat closed by host." : "Chat opened by host."); }}>{chatLocked ? "Open chat" : "Close chat"}</button>
-                <button onClick={() => { setAdminOnlyChat(!adminOnlyChat); notify(!adminOnlyChat ? "Chat is host/admin-only." : "Public chat is allowed."); }}>{adminOnlyChat ? "Public chat" : "Admin chat"}</button>
-                <button onClick={() => notify("Click participant tile for individual controls.")}>Controls</button>
+              <div className="compact-host-controls">
+                <button onClick={() => setControlMenu(controlMenu === "mic" ? "none" : "mic")}>Mic controls</button>
+                <button onClick={() => setControlMenu(controlMenu === "chat" ? "none" : "chat")}>Chat mode</button>
+                <button onClick={() => notify("Click participant tile for individual controls.")}>User controls</button>
               </div>
             )}
 
-            <div className="panel-tabs">
+            {controlMenu === "mic" && (
+              <div className="host-control-dropdown">
+                <button onClick={() => changeAllParticipants({ mic: false, canUnmute: false }, "All microphones muted and locked.")}>Mute all + lock</button>
+                <button onClick={() => changeAllParticipants({ canUnmute: true }, "All members may unmute when allowed.")}>Allow all mics</button>
+                <button onClick={() => changeAllParticipants({ canUnmute: false }, "Mic permission removed from all members.")}>Lock all mics</button>
+                <button onClick={() => toggle("lectureMode", "Lecture Mode enabled.", "Lecture Mode disabled.")}>{state.lectureMode ? "Disable Lecture Mode" : "Enable Lecture Mode"}</button>
+              </div>
+            )}
+
+            {controlMenu === "chat" && (
+              <div className="host-control-dropdown">
+                <button onClick={() => { setChatMode("public"); notify("Chat is public."); }}>Public chat</button>
+                <button onClick={() => { setChatMode("admin"); notify("Chat is host/admin-only."); }}>Admin-only chat</button>
+                <button onClick={() => { setChatMode("closed"); notify("Chat is closed."); }}>Close chat</button>
+              </div>
+            )}
+
+            <div className="panel-tabs rebuilt-tabs">
               <button className={panel === "attendees" ? "active" : ""} onClick={() => setPanel("attendees")}>All</button>
               <button className={panel === "waiting" ? "active" : ""} onClick={() => setPanel("waiting")}>Waiting</button>
               <button className={panel === "chat" ? "active" : ""} onClick={() => setPanel("chat")}>Chat</button>
@@ -400,108 +416,110 @@ export function LiveMeetingPage() {
               <button className={panel === "rooms" ? "active" : ""} onClick={() => setPanel("rooms")}>Rooms</button>
             </div>
 
-            {panel === "waiting" && (
-              <div className="waiting-live-list">
-                {waitingList.length === 0 ? (
-                  <p className="empty-chat">No one is waiting now.</p>
-                ) : (
-                  waitingList.map((person) => (
-                    <article key={person.id} className="waiting-live-card visible-waiting-card">
-                      <strong>{person.name}</strong>
-                      <span>{person.note}</span>
-                      <small>ID: {person.id}</small>
-                      <div className="button-row compact-row">
-                        <button onClick={() => admitWaitingPerson(person)}>Admit</button>
-                        <button onClick={() => messageWaitingPerson(person)}>Message</button>
-                        <button onClick={() => rejectWaitingPerson(person)}>Reject</button>
-                      </div>
-                    </article>
-                  ))
-                )}
-              </div>
-            )}
-
-            {panel === "attendees" && (
-              <div className="attendee-list">
-                <input placeholder="Search participants" />
-                {people.map((person) => (
-                  <button className="attendee-row attendee-button" key={`${person.id}-row`} onClick={() => person.id !== "me" ? setMenuFor(person) : notify("You selected yourself.")}>
-                    <span>{person.name} {person.handRaised ? "✋" : ""}</span>
-                    <small>{person.role} · {person.room}</small>
-                    <em>{person.status === "blocked" ? "⛔" : person.mic ? "🎙" : "🔇"}</em>
-                  </button>
-                ))}
-              </div>
-            )}
-
-            {panel === "rooms" && (
-              <div className="rooms-panel">
-                {["Main Room", "Prayer Room", "Bible Class Room", "Leadership Room"].map((room) => (
-                  <div className="room-card" key={room}>
-                    <strong>{room}</strong>
-                    <span>{people.filter((person) => person.room === room).length} participant(s)</span>
-                  </div>
-                ))}
-              </div>
-            )}
-
-            {panel === "chat" && (
-              <div className="chat-panel improved-chat fixed-chat-panel">
-                <div className="chat-rules"><span>{chatLocked ? "Chat closed" : adminOnlyChat ? "Host/Admin-only public chat" : "Chat open"}</span></div>
-                <div className="chat-messages fixed-chat-messages">
-                  {chatMessages.length === 0 ? (
-                    <p className="empty-chat">No messages yet. Write below and press Enter or Send.</p>
+            <div className="side-panel-body">
+              {panel === "waiting" && (
+                <div className="waiting-live-list">
+                  {waitingList.length === 0 ? (
+                    <p className="empty-chat">No one is waiting now.</p>
                   ) : (
-                    chatMessages.map((msg) => (
-                      <article key={msg.id} className={msg.private ? "private-message compact-message" : "compact-message"}>
-                        <div className="compact-message-head">
-                          <strong>{msg.from}</strong>
-                          <small>{msg.to} · {msg.time}</small>
+                    waitingList.map((person) => (
+                      <article key={person.id} className="waiting-live-card visible-waiting-card">
+                        <strong>{person.name}</strong>
+                        <span>{person.note}</span>
+                        <small>ID: {person.id}</small>
+                        <div className="button-row compact-row">
+                          <button onClick={() => admitWaitingPerson(person)}>Admit</button>
+                          <button onClick={() => messageWaitingPerson(person)}>Message</button>
+                          <button onClick={() => rejectWaitingPerson(person)}>Reject</button>
                         </div>
-                        <p>{msg.text}</p>
                       </article>
                     ))
                   )}
                 </div>
-                <div className="chat-compose">
-                  <select value={chatScope} onChange={(event) => setChatScope(event.target.value as typeof chatScope)}>
-                    <option value="everyone">Everyone</option>
-                    <option value="hosts">Hosts/Admins only</option>
-                    <option value="direct">Direct message</option>
-                  </select>
+              )}
 
-                  {chatScope === "direct" && (
-                    <select value={directTargetId} onChange={(event) => setDirectTargetId(event.target.value)}>
-                      <option value="">Choose person</option>
-                      {participants.filter((item) => item.status !== "removed").map((person) => <option key={person.id} value={person.id}>{person.name}</option>)}
-                    </select>
-                  )}
-
-                  <div className="chat-emoji-row main-chat-emoji-row">
-                    {chatEmojiOptions.map((emoji) => <button key={emoji} type="button" onClick={() => appendEmoji(emoji)}>{emoji}</button>)}
-                  </div>
-
-                  <textarea
-                    value={chatInput}
-                    onChange={(event) => setChatInput(event.target.value)}
-                    onKeyDown={sendChatWithKeyboard}
-                    placeholder="Write a message... Enter sends, Shift+Enter makes a new line."
-                  />
-                  <button onClick={sendChat}>Send message</button>
+              {panel === "attendees" && (
+                <div className="attendee-list">
+                  <input placeholder="Search participants" />
+                  {people.map((person) => (
+                    <button className="attendee-row attendee-button" key={`${person.id}-row`} onClick={() => person.id !== "me" ? setMenuFor(person) : notify("You selected yourself.")}>
+                      <span>{person.name} {person.handRaised ? "✋" : ""}</span>
+                      <small>{person.role} · {person.room}</small>
+                      <em>{person.status === "blocked" ? "⛔" : person.mic ? "🎙" : "🔇"}</em>
+                    </button>
+                  ))}
                 </div>
-              </div>
-            )}
+              )}
 
-            {panel === "reactions" && (
-              <div className="reactions-panel">
-                {reactionOptions.map((reaction) => (
-                  <button key={reaction.label} onClick={() => sendReaction(reaction.label)}>
-                    <span>{reaction.icon}</span>
-                    <strong>{reaction.label}</strong>
-                  </button>
-                ))}
-              </div>
-            )}
+              {panel === "rooms" && (
+                <div className="rooms-panel">
+                  {["Main Room", "Prayer Room", "Bible Class Room", "Leadership Room"].map((room) => (
+                    <div className="room-card" key={room}>
+                      <strong>{room}</strong>
+                      <span>{people.filter((person) => person.room === room).length} participant(s)</span>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {panel === "chat" && (
+                <div className="chat-panel rebuilt-chat-panel">
+                  <div className="chat-rules"><span>{chatMode === "closed" ? "Chat closed" : chatMode === "admin" ? "Host/Admin-only public chat" : "Chat open"}</span></div>
+                  <div className="chat-messages rebuilt-chat-messages">
+                    {chatMessages.length === 0 ? (
+                      <p className="empty-chat">No messages yet. Write below and press Enter or Send.</p>
+                    ) : (
+                      chatMessages.map((msg) => (
+                        <article key={msg.id} className={msg.private ? "private-message compact-message" : "compact-message"}>
+                          <div className="compact-message-head">
+                            <strong>{msg.from}</strong>
+                            <small>{msg.to} · {msg.time}</small>
+                          </div>
+                          <p>{msg.text}</p>
+                        </article>
+                      ))
+                    )}
+                  </div>
+                  <div className="chat-compose rebuilt-chat-compose">
+                    <select value={chatScope} onChange={(event) => setChatScope(event.target.value as typeof chatScope)}>
+                      <option value="everyone">Everyone</option>
+                      <option value="hosts">Hosts/Admins only</option>
+                      <option value="direct">Direct message</option>
+                    </select>
+
+                    {chatScope === "direct" && (
+                      <select value={directTargetId} onChange={(event) => setDirectTargetId(event.target.value)}>
+                        <option value="">Choose person</option>
+                        {participants.filter((item) => item.status !== "removed").map((person) => <option key={person.id} value={person.id}>{person.name}</option>)}
+                      </select>
+                    )}
+
+                    <div className="chat-emoji-row main-chat-emoji-row">
+                      {chatEmojiOptions.map((emoji) => <button key={emoji} type="button" onClick={() => appendEmoji(emoji)}>{emoji}</button>)}
+                    </div>
+
+                    <textarea
+                      value={chatInput}
+                      onChange={(event) => setChatInput(event.target.value)}
+                      onKeyDown={sendChatWithKeyboard}
+                      placeholder="Write a message... Enter sends, Shift+Enter makes a new line."
+                    />
+                    <button onClick={sendChat}>Send message</button>
+                  </div>
+                </div>
+              )}
+
+              {panel === "reactions" && (
+                <div className="reactions-panel">
+                  {reactionOptions.map((reaction) => (
+                    <button key={reaction.label} onClick={() => sendReaction(reaction.label)}>
+                      <span>{reaction.icon}</span>
+                      <strong>{reaction.label}</strong>
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
           </aside>
         )}
       </main>

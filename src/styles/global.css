@@ -2784,3 +2784,283 @@ button:disabled { opacity: .65; cursor: not-allowed; }
     max-height: none !important;
   }
 }
+
+/* Live panel rebuild 1.09.0 */
+.rebuilt-live {
+  width: 100vw !important;
+  height: 100dvh !important;
+  overflow: hidden !important;
+  max-width: 100vw !important;
+}
+
+.rebuilt-live .live-topbar {
+  height: 62px !important;
+  min-height: 62px !important;
+  max-height: 62px !important;
+  padding: 8px 10px !important;
+  box-sizing: border-box !important;
+  overflow: hidden !important;
+}
+
+.rebuilt-live .live-main.side-open {
+  display: grid !important;
+  grid-template-columns: minmax(0, 1fr) 300px !important;
+  gap: 8px !important;
+  height: calc(100dvh - 136px) !important;
+  max-height: calc(100dvh - 136px) !important;
+  padding: 6px !important;
+  overflow: hidden !important;
+  box-sizing: border-box !important;
+}
+
+.rebuilt-live .live-main.side-closed {
+  display: grid !important;
+  grid-template-columns: 1fr !important;
+  height: calc(100dvh - 136px) !important;
+  max-height: calc(100dvh - 136px) !important;
+  padding: 6px !important;
+  overflow: hidden !important;
+  box-sizing: border-box !important;
+}
+
+.rebuilt-live .participants-grid {
+  height: 100% !important;
+  max-height: 100% !important;
+  min-width: 0 !important;
+  overflow: auto !important;
+  box-sizing: border-box !important;
+  padding-bottom: 6px !important;
+}
+
+.rebuilt-side-panel {
+  width: 300px !important;
+  min-width: 300px !important;
+  max-width: 300px !important;
+  height: 100% !important;
+  max-height: 100% !important;
+  min-height: 0 !important;
+  overflow-y: auto !important;
+  overflow-x: hidden !important;
+  display: flex !important;
+  flex-direction: column !important;
+  border-radius: 16px !important;
+  background: #ffffff !important;
+  box-sizing: border-box !important;
+}
+
+.compact-panel-head {
+  flex: 0 0 auto !important;
+  padding: 8px 10px !important;
+}
+
+.compact-host-controls {
+  flex: 0 0 auto !important;
+  display: grid !important;
+  grid-template-columns: repeat(3, 1fr) !important;
+  gap: 6px !important;
+  padding: 6px 8px !important;
+}
+
+.compact-host-controls button {
+  min-width: 0 !important;
+  border: 0 !important;
+  border-radius: 10px !important;
+  background: #edf2f7 !important;
+  color: #06285a !important;
+  padding: 8px 4px !important;
+  font-size: .68rem !important;
+  font-weight: 900 !important;
+  line-height: 1.08 !important;
+  cursor: pointer !important;
+}
+
+.host-control-dropdown {
+  flex: 0 0 auto !important;
+  display: grid !important;
+  gap: 5px !important;
+  padding: 6px 8px !important;
+  background: rgba(36,118,169,.06) !important;
+}
+
+.host-control-dropdown button {
+  border: 0 !important;
+  border-radius: 10px !important;
+  padding: 8px !important;
+  font-size: .72rem !important;
+  font-weight: 900 !important;
+  color: #06285a !important;
+  background: #fff !important;
+}
+
+.rebuilt-tabs {
+  flex: 0 0 auto !important;
+  display: grid !important;
+  grid-template-columns: repeat(5, 1fr) !important;
+  gap: 3px !important;
+  padding: 6px 8px !important;
+}
+
+.rebuilt-tabs button {
+  min-width: 0 !important;
+  padding: 7px 2px !important;
+  font-size: .66rem !important;
+  border-radius: 9px !important;
+  white-space: normal !important;
+}
+
+.side-panel-body {
+  flex: 1 0 auto !important;
+  min-height: 0 !important;
+  overflow: visible !important;
+  padding: 0 8px 10px !important;
+  box-sizing: border-box !important;
+}
+
+.rebuilt-chat-panel {
+  display: grid !important;
+  grid-template-rows: auto 150px auto !important;
+  gap: 7px !important;
+  min-height: 0 !important;
+  overflow: visible !important;
+  padding-bottom: 8px !important;
+}
+
+.rebuilt-chat-messages {
+  height: 150px !important;
+  min-height: 150px !important;
+  max-height: 150px !important;
+  overflow-y: auto !important;
+  overflow-x: hidden !important;
+  background: #f7fafc !important;
+  border: 1px solid rgba(8,41,91,.10) !important;
+  border-radius: 14px !important;
+  padding: 8px !important;
+  display: grid !important;
+  align-content: start !important;
+  gap: 7px !important;
+}
+
+.rebuilt-chat-compose {
+  display: grid !important;
+  gap: 6px !important;
+  background: #fff !important;
+  padding-bottom: 8px !important;
+}
+
+.rebuilt-chat-compose select {
+  min-height: 32px !important;
+  font-size: .78rem !important;
+  border-radius: 10px !important;
+}
+
+.rebuilt-chat-compose textarea {
+  display: block !important;
+  width: 100% !important;
+  min-height: 60px !important;
+  max-height: 76px !important;
+  resize: none !important;
+  box-sizing: border-box !important;
+  border-radius: 12px !important;
+  font-size: .84rem !important;
+}
+
+.rebuilt-chat-compose > button {
+  display: block !important;
+  width: 100% !important;
+  min-height: 38px !important;
+  border-radius: 12px !important;
+  background: #09a440 !important;
+  color: #fff !important;
+  font-weight: 900 !important;
+  border: 0 !important;
+}
+
+.rebuilt-chat-compose .main-chat-emoji-row {
+  display: flex !important;
+  flex-wrap: nowrap !important;
+  overflow-x: auto !important;
+  overflow-y: hidden !important;
+  gap: 5px !important;
+  max-height: 36px !important;
+  padding: 3px 0 !important;
+}
+
+.rebuilt-chat-compose .main-chat-emoji-row button {
+  flex: 0 0 auto !important;
+  min-width: 30px !important;
+  min-height: 30px !important;
+  font-size: .9rem !important;
+  padding: 2px 7px !important;
+}
+
+.rebuilt-live .live-toolbar.clean-toolbar {
+  height: 74px !important;
+  min-height: 74px !important;
+  max-height: 74px !important;
+  overflow-x: auto !important;
+  overflow-y: hidden !important;
+  padding: 8px !important;
+  box-sizing: border-box !important;
+}
+
+.rebuilt-live .toolbar-pill {
+  min-width: 60px !important;
+  min-height: 52px !important;
+}
+
+.rebuilt-live .toolbar-pill small {
+  font-size: .64rem !important;
+}
+
+.id-reaction {
+  display: inline-flex !important;
+  align-items: center;
+  justify-content: center;
+  margin-left: 5px;
+  padding: 1px 7px;
+  border-radius: 999px;
+  background: rgba(255,255,255,.25);
+  font-style: normal;
+  color: #fff;
+}
+
+@media (max-width: 1100px) {
+  .rebuilt-live .live-main.side-open {
+    grid-template-columns: minmax(0, 1fr) 280px !important;
+  }
+
+  .rebuilt-side-panel {
+    width: 280px !important;
+    min-width: 280px !important;
+    max-width: 280px !important;
+  }
+
+  .compact-host-controls button {
+    font-size: .62rem !important;
+  }
+
+  .rebuilt-tabs button {
+    font-size: .61rem !important;
+  }
+}
+
+@media (max-width: 900px) {
+  .rebuilt-live .live-main.side-open,
+  .rebuilt-live .live-main.side-closed {
+    display: block !important;
+    height: calc(100dvh - 136px) !important;
+    overflow: hidden !important;
+  }
+
+  .rebuilt-side-panel {
+    position: fixed !important;
+    right: 8px !important;
+    top: 72px !important;
+    bottom: 82px !important;
+    width: min(92vw, 340px) !important;
+    min-width: 0 !important;
+    max-width: min(92vw, 340px) !important;
+    height: auto !important;
+    z-index: 95 !important;
+  }
+}
