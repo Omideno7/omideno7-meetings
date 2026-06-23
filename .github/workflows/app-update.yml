@@ -6,7 +6,6 @@ on:
       - main
     paths:
       - "app-update.zip"
-      - ".github/workflows/app-update.yml"
 
 permissions:
   contents: write
@@ -58,6 +57,7 @@ jobs:
 
           skip_names = {
               ".git",
+              ".github",
               "node_modules",
               "dist",
               ".DS_Store",
@@ -67,6 +67,9 @@ jobs:
           for root, dirs, files in os.walk(source):
               root_path = Path(root)
 
+              # Important:
+              # Do not copy .github or workflow files from the zip.
+              # GitHub Actions cannot commit workflow changes with normal GITHUB_TOKEN.
               dirs[:] = [d for d in dirs if d not in skip_names]
 
               rel_dir = root_path.relative_to(source)
@@ -79,8 +82,12 @@ jobs:
 
                   src_file = root_path / file_name
                   rel_file = src_file.relative_to(source)
-                  dest_file = target / rel_file
 
+                  if ".github" in rel_file.parts:
+                      print(f"Skipping workflow/security file: {rel_file}")
+                      continue
+
+                  dest_file = target / rel_file
                   dest_file.parent.mkdir(parents=True, exist_ok=True)
                   shutil.copy2(src_file, dest_file)
 
