@@ -21,26 +21,34 @@ function json(res, statusCode, body) {
 
 function cleanText(value, fallback) {
   const text = String(value || fallback || "").trim();
-  return text.replace(/[^a-zA-Z0-9._:@ -]/g, "").slice(0, 80) || fallback;
+  return text.replace(/[^a-zA-Z0-9._:@ -]/g, "").slice(0, 100) || fallback;
 }
 
 export default async function handler(req, res) {
   if (req.method !== "POST") {
-    return json(res, 405, { ok: false, reason: "method_not_allowed" });
+    return json(res, 405, { ok: false, reason: "method_not_allowed", message: "POST only." });
   }
 
   if (!LIVEKIT_URL || !LIVEKIT_API_KEY || !LIVEKIT_API_SECRET) {
-    return json(res, 500, { ok: false, reason: "livekit_env_missing", message: "LIVEKIT_URL, LIVEKIT_API_KEY or LIVEKIT_API_SECRET is missing in Vercel." });
+    return json(res, 500, {
+      ok: false,
+      reason: "livekit_env_missing",
+      message: "LIVEKIT_URL, LIVEKIT_API_KEY, or LIVEKIT_API_SECRET is missing in Vercel."
+    });
   }
 
   if (!SUPABASE_URL || !SUPABASE_KEY) {
-    return json(res, 500, { ok: false, reason: "supabase_env_missing", message: "SUPABASE_URL and a Supabase server/public key are missing in Vercel." });
+    return json(res, 500, {
+      ok: false,
+      reason: "supabase_env_missing",
+      message: "SUPABASE_URL and a Supabase key are missing in Vercel."
+    });
   }
 
   const authHeader = req.headers.authorization || "";
   const jwt = authHeader.replace(/^Bearer\s+/i, "").trim();
   if (!jwt) {
-    return json(res, 401, { ok: false, reason: "missing_supabase_session" });
+    return json(res, 401, { ok: false, reason: "missing_supabase_session", message: "Missing Supabase session." });
   }
 
   let body = {};
@@ -59,7 +67,7 @@ export default async function handler(req, res) {
   const user = userData?.user;
 
   if (userError || !user) {
-    return json(res, 401, { ok: false, reason: "invalid_supabase_session" });
+    return json(res, 401, { ok: false, reason: "invalid_supabase_session", message: userError?.message || "Invalid Supabase session." });
   }
 
   const { data: profile, error: profileError } = await supabase
@@ -69,11 +77,11 @@ export default async function handler(req, res) {
     .maybeSingle();
 
   if (profileError || !profile) {
-    return json(res, 403, { ok: false, reason: "profile_not_found" });
+    return json(res, 403, { ok: false, reason: "profile_not_found", message: profileError?.message || "Profile not found." });
   }
 
   if (profile.status !== "approved") {
-    return json(res, 403, { ok: false, reason: "profile_not_approved" });
+    return json(res, 403, { ok: false, reason: "profile_not_approved", message: "Profile is not approved." });
   }
 
   const isHost = hostRoles.has(profile.role);
@@ -101,35 +109,43 @@ export default async function handler(req, res) {
   const identity = cleanText(`${user.id}:${Date.now()}:${deviceId}`, user.id);
   const displayName = cleanText(profile.display_name || profile.full_name || user.email, "OmideNo7 User");
 
-  const token = new AccessToken(LIVEKIT_API_KEY, LIVEKIT_API_SECRET, {
-    identity,
-    name: displayName,
-    metadata: JSON.stringify({
-      profileId: user.id,
-      role: profile.role,
-      avatarUrl: profile.avatar_url || "",
-      deviceId
-    }),
-    ttl: "2h"
-  });
+  try {
+    const token = new AccessToken(LIVEKIT_API_KEY, LIVEKIT_API_SECRET, {
+      identity,
+      name: displayName,
+      metadata: JSON.stringify({
+        profileId: user.id,
+        role: profile.role,
+        avatarUrl: profile.avatar_url || "",
+        deviceId
+      }),
+      ttl: "2h"
+    });
 
-  token.addGrant({
-    room: roomName,
-    roomJoin: true,
-    canPublish: true,
-    canSubscribe: true,
-    canPublishData: true,
-    roomAdmin: isHost
-  });
+    token.addGrant({
+      room: roomName,
+      roomJoin: true,
+      canPublish: true,
+      canSubscribe: true,
+      canPublishData: true,
+      roomAdmin: isHost
+    });
 
-  const jwtToken = await token.toJwt();
+    const jwtToken = await token.toJwt();
 
-  return json(res, 200, {
-    ok: true,
-    token: jwtToken,
-    wsUrl: LIVEKIT_URL,
-    roomName,
-    identity,
-    isHost
-  });
+    return json(res, 200, {
+      ok: true,
+      token: jwtToken,
+      wsUrl: LIVEKIT_URL,
+      roomName,
+      identity,
+      isHost
+    });
+  } catch (error) {
+    return json(res, 500, {
+      ok: false,
+      reason: "livekit_token_create_failed",
+      message: error?.message || "LiveKit token could not be created."
+    });
+  }
 }
