@@ -3615,3 +3615,339 @@ code {
     grid-template-columns: repeat(auto-fill, minmax(92px, 1fr)) !important;
   }
 }
+
+
+/* Brand + mobile UI polish 1.13.0 */
+:root {
+  --omide-blue-900: #05275a;
+  --omide-blue-800: #083b7a;
+  --omide-blue-700: #0b5798;
+  --omide-blue-500: #2476a9;
+  --omide-green-600: #09a440;
+  --omide-green-500: #13bf54;
+  --omide-white: #ffffff;
+  --omide-ice: #f3fbff;
+  --omide-border: rgba(36, 118, 169, .18);
+  --omide-shadow: 0 18px 44px rgba(5, 39, 90, .16);
+}
+
+body {
+  background:
+    radial-gradient(circle at top left, rgba(19,191,84,.18), transparent 28%),
+    radial-gradient(circle at top right, rgba(36,118,169,.18), transparent 28%),
+    linear-gradient(135deg, #f7fcff 0%, #eef8ff 42%, #f5fff8 100%) !important;
+  color: var(--omide-blue-900) !important;
+}
+
+.app-shell,
+.no-sidebar-shell {
+  background:
+    radial-gradient(circle at 0% 0%, rgba(19,191,84,.13), transparent 28%),
+    linear-gradient(135deg, rgba(5,39,90,.03), rgba(9,164,64,.04)) !important;
+}
+
+.top-app-nav,
+.live-topbar {
+  background: linear-gradient(135deg, var(--omide-blue-900), var(--omide-blue-700)) !important;
+  color: #fff !important;
+  border-bottom: 3px solid rgba(9,164,64,.75) !important;
+  box-shadow: 0 12px 36px rgba(5,39,90,.24) !important;
+}
+
+.top-brand strong,
+.top-brand span,
+.live-topbar strong,
+.live-topbar span {
+  color: #fff !important;
+}
+
+.top-app-nav nav button {
+  color: rgba(255,255,255,.86) !important;
+  background: rgba(255,255,255,.08) !important;
+  border: 1px solid rgba(255,255,255,.12) !important;
+}
+
+.top-app-nav nav button.active,
+.top-app-nav nav button:hover {
+  background: var(--omide-green-600) !important;
+  color: #fff !important;
+  border-color: rgba(255,255,255,.24) !important;
+}
+
+.top-logout {
+  background: rgba(255,255,255,.12) !important;
+  color: #fff !important;
+  border: 1px solid rgba(255,255,255,.18) !important;
+}
+
+.card,
+.auth-card,
+.attendees-panel,
+.polished-side-panel,
+.rebuilt-side-panel,
+.participant-tile,
+.room-card,
+.waiting-live-card,
+.compact-message,
+.qa-check-item,
+.qa-issue {
+  border: 1px solid var(--omide-border) !important;
+  box-shadow: var(--omide-shadow) !important;
+}
+
+.card h1,
+.card h2,
+.card h3,
+.auth-card h1,
+.auth-card h2,
+.participant-tile strong,
+.attendees-panel strong {
+  color: var(--omide-blue-900) !important;
+}
+
+.button,
+button.primary,
+.auth-card button[type="submit"],
+.rebuilt-chat-compose > button {
+  background: linear-gradient(135deg, var(--omide-green-600), var(--omide-green-500)) !important;
+  color: #fff !important;
+  border: 0 !important;
+}
+
+.button.secondary,
+button.secondary {
+  background: linear-gradient(135deg, var(--omide-blue-700), var(--omide-blue-500)) !important;
+  color: #fff !important;
+}
+
+.mobile-bottom-tabs {
+  background: linear-gradient(135deg, var(--omide-blue-900), var(--omide-blue-800)) !important;
+  border-top: 3px solid rgba(9,164,64,.8) !important;
+}
+
+.mobile-bottom-tabs button {
+  color: rgba(255,255,255,.82) !important;
+}
+
+.mobile-bottom-tabs button.active {
+  color: #fff !important;
+  background: rgba(9,164,64,.25) !important;
+}
+
+.live-shell.rebuilt-live {
+  background:
+    radial-gradient(circle at top left, rgba(9,164,64,.16), transparent 30%),
+    linear-gradient(135deg, #eff9ff 0%, #f8fff9 100%) !important;
+}
+
+.rebuilt-side-panel {
+  background: linear-gradient(180deg, #ffffff 0%, #f7fcff 100%) !important;
+  border: 1px solid var(--omide-border) !important;
+}
+
+.compact-panel-head {
+  background: linear-gradient(135deg, rgba(5,39,90,.08), rgba(9,164,64,.08)) !important;
+  border-bottom: 1px solid var(--omide-border) !important;
+}
+
+.compact-host-controls button,
+.host-control-dropdown button,
+.rebuilt-tabs button {
+  background: rgba(36,118,169,.08) !important;
+  color: var(--omide-blue-900) !important;
+}
+
+.compact-host-controls button:hover,
+.host-control-dropdown button:hover,
+.rebuilt-tabs button.active {
+  background: var(--omide-green-600) !important;
+  color: #fff !important;
+}
+
+.participant-tile {
+  background: linear-gradient(150deg, var(--omide-blue-900), var(--omide-blue-700)) !important;
+  color: #fff !important;
+}
+
+.participant-tile strong,
+.participant-tile span,
+.participant-tile em {
+  color: #fff !important;
+}
+
+.participant-avatar {
+  background: rgba(255,255,255,.18) !important;
+  border: 2px solid rgba(255,255,255,.35) !important;
+}
+
+.mini-eq.active i {
+  background: var(--omide-green-500) !important;
+}
+
+.waiting-top-badge,
+.status-badge.status-waiting {
+  background: var(--omide-green-600) !important;
+  color: #fff !important;
+}
+
+/* Better mobile live meeting UX */
+.mobile-panel-menu {
+  display: none;
+}
+
+@media (max-width: 900px) {
+  .rebuilt-live .live-topbar {
+    height: auto !important;
+    min-height: 58px !important;
+    max-height: 118px !important;
+    padding: 8px !important;
+    display: grid !important;
+    grid-template-columns: 1fr !important;
+    gap: 6px !important;
+  }
+
+  .live-status-line {
+    display: flex !important;
+    gap: 5px !important;
+    overflow-x: auto !important;
+    white-space: nowrap !important;
+  }
+
+  .live-topbar-actions {
+    display: flex !important;
+    overflow-x: auto !important;
+    gap: 6px !important;
+  }
+
+  .live-topbar-actions button {
+    flex: 0 0 auto !important;
+    min-height: 34px !important;
+    padding: 7px 10px !important;
+    border-radius: 999px !important;
+  }
+
+  .rebuilt-live .live-main.side-open,
+  .rebuilt-live .live-main.side-closed {
+    height: calc(100dvh - 144px) !important;
+    max-height: calc(100dvh - 144px) !important;
+    overflow: hidden !important;
+    padding: 6px !important;
+  }
+
+  .rebuilt-live .participants-grid {
+    height: 100% !important;
+    padding-bottom: 92px !important;
+  }
+
+  .rebuilt-side-panel {
+    position: fixed !important;
+    left: 8px !important;
+    right: 8px !important;
+    top: auto !important;
+    bottom: 78px !important;
+    width: auto !important;
+    min-width: 0 !important;
+    max-width: none !important;
+    height: min(58dvh, 460px) !important;
+    max-height: min(58dvh, 460px) !important;
+    border-radius: 22px 22px 18px 18px !important;
+    z-index: 95 !important;
+    overflow-y: auto !important;
+    transform: none !important;
+    box-shadow: 0 -20px 54px rgba(5,39,90,.30) !important;
+  }
+
+  .rebuilt-side-panel::before {
+    content: "";
+    position: sticky;
+    top: 0;
+    display: block;
+    width: 56px;
+    height: 5px;
+    margin: 8px auto 4px;
+    border-radius: 999px;
+    background: rgba(5,39,90,.22);
+    z-index: 2;
+  }
+
+  .compact-panel-head {
+    position: sticky !important;
+    top: 0 !important;
+    z-index: 3 !important;
+    border-radius: 18px 18px 0 0 !important;
+    background: linear-gradient(135deg, #ffffff, #eef8ff) !important;
+  }
+
+  .compact-host-controls {
+    grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+  }
+
+  .rebuilt-tabs {
+    position: sticky !important;
+    top: 52px !important;
+    z-index: 3 !important;
+    background: #fff !important;
+  }
+
+  .side-panel-body {
+    padding-bottom: 16px !important;
+  }
+
+  .rebuilt-chat-panel {
+    grid-template-rows: auto 132px auto !important;
+  }
+
+  .rebuilt-chat-messages {
+    height: 132px !important;
+    min-height: 132px !important;
+    max-height: 132px !important;
+  }
+
+  .rebuilt-chat-compose textarea {
+    min-height: 52px !important;
+    max-height: 64px !important;
+  }
+
+  .live-toolbar.clean-toolbar {
+    background: linear-gradient(135deg, var(--omide-blue-900), var(--omide-blue-800)) !important;
+    border-top: 3px solid rgba(9,164,64,.8) !important;
+  }
+
+  .toolbar-pill {
+    background: rgba(255,255,255,.10) !important;
+    color: #fff !important;
+    border: 1px solid rgba(255,255,255,.14) !important;
+  }
+
+  .toolbar-pill.active {
+    background: var(--omide-green-600) !important;
+  }
+
+  .toolbar-pill.leave {
+    background: rgba(217,31,42,.88) !important;
+  }
+}
+
+@media (max-width: 520px) {
+  .grid-compact .participants-grid,
+  .grid-normal .participants-grid {
+    grid-template-columns: repeat(auto-fill, minmax(84px, 1fr)) !important;
+    gap: 6px !important;
+  }
+
+  .grid-compact .participant-avatar,
+  .grid-normal .participant-avatar {
+    width: 34px !important;
+    height: 34px !important;
+  }
+
+  .grid-compact .participant-tile strong,
+  .grid-normal .participant-tile strong {
+    font-size: .64rem !important;
+  }
+
+  .rebuilt-side-panel {
+    height: min(62dvh, 470px) !important;
+    max-height: min(62dvh, 470px) !important;
+  }
+}
