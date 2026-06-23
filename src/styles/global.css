@@ -5351,3 +5351,64 @@ button.secondary {
   }
 }
 }
+/* ============================================================
+   OmideNo7 Meetings 1.26.1 — Force LiveKit out of old participant grid
+   This fixes the narrow blue LiveKit column.
+   ============================================================ */
+
+.participants-grid.with-panel:has(.omide-livekit-clean),
+.participants-grid:has(.omide-livekit-clean),
+.meeting-grid:has(.omide-livekit-clean),
+.room-grid:has(.omide-livekit-clean) {
+  display: flex !important;
+  flex-direction: column !important;
+  grid-template-columns: none !important;
+  width: 100% !important;
+  max-width: none !important;
+  min-width: 0 !important;
+  height: 100% !important;
+  max-height: 100% !important;
+  padding: 8px !important;
+  gap: 0 !important;
+  overflow: hidden !important;
+  box-sizing: border-box !important;
+}
+
+.participants-grid.with-panel:has(.omide-livekit-clean) > .omide-livekit-clean,
+.participants-grid:has(.omide-livekit-clean) > .omide-livekit-clean,
+.meeting-grid:has(.omide-livekit-clean) > .omide-livekit-clean,
+.room-grid:has(.omide-livekit-clean) > .omide-livekit-clean {
+  width: 100% !important;
+  max-width: none !important;
+  min-width: 0 !important;
+  height: 100% !important;
+  flex: 1 1 auto !important;
+}
+
+.live-main.side-open > .participants-grid:has(.omide-livekit-clean),
+.live-main.side-open > .meeting-grid:has(.omide-livekit-clean),
+.live-main.side-open > .room-grid:has(.omide-livekit-clean) {
+  grid-column: 1 / 2 !important;
+}
+
+.live-main.side-closed > .participants-grid:has(.omide-livekit-clean),
+.live-main.side-closed > .meeting-grid:has(.omide-livekit-clean),
+.live-main.side-closed > .room-grid:has(.omide-livekit-clean) {
+  grid-column: 1 / -1 !important;
+}
+
+.omide-livekit-clean {
+  width: 100% !important;
+  max-width: none !important;
+  min-width: 0 !important;
+}
+
+.omide-livekit-clean-grid {
+  width: 100% !important;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)) !important;
+}
+
+.omide-livekit-clean-tile {
+  width: 100% !important;
+  min-width: 0 !important;
+}
