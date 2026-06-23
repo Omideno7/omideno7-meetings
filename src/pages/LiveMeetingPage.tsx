@@ -136,6 +136,7 @@ export function LiveMeetingPage() {
   const [leaveDialogOpen, setLeaveDialogOpen] = useState(false);
   const [controlMenu, setControlMenu] = useState<"none" | "mic" | "chat" | "grid">("none");
   const [gridSize, setGridSize] = useState<"compact" | "normal" | "large">("normal");
+  const [liveKitConnected, setLiveKitConnected] = useState(false);
   const [myRoomStatus, setMyRoomStatus] = useState<"unknown" | "waiting" | "online" | "removed" | "blocked" | "left">("unknown");
 
   function notify(text: string) {
@@ -413,8 +414,9 @@ export function LiveMeetingPage() {
             profile={profile}
             meetingId="main-room"
             admitted={canHost || myRoomStatus === "online"}
+            onConnectionChange={setLiveKitConnected}
           />
-          {participants.map((person) => (
+          {!liveKitConnected && participants.map((person) => (
             <article key={person.id} className={`participant-tile ${person.id === roomParticipantId(meetingRoomService.meetingId, profile?.id) ? "speaking" : ""}`}>
               <button className="participant-click-zone" onClick={() => { setSidebarOpen(true); setPanel("attendees"); if (person.id !== roomParticipantId(meetingRoomService.meetingId, profile?.id)) setSelectedAttendee(person); }}>
                 <div className="participant-avatar clean-avatar">

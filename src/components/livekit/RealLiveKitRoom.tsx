@@ -9,9 +9,10 @@ type Props = {
   profile: UserProfile | null;
   admitted: boolean;
   meetingId: string;
+  onConnectionChange?: (connected: boolean) => void;
 };
 
-export function RealLiveKitRoom({ profile, admitted, meetingId }: Props) {
+export function RealLiveKitRoom({ profile, admitted, meetingId, onConnectionChange }: Props) {
   const [status, setStatus] = useState("Not connected");
   const [tokenData, setTokenData] = useState<Extract<LiveKitTokenResponse, { ok: true }> | null>(null);
   const [connecting, setConnecting] = useState(false);
@@ -25,24 +26,31 @@ export function RealLiveKitRoom({ profile, admitted, meetingId }: Props) {
 
     if (!result.ok) {
       setStatus(result.message || `Cannot connect: ${result.reason}`);
+      onConnectionChange?.(false);
       return;
     }
 
     setTokenData(result);
-    setStatus(`Connected token ready for ${result.roomName}`);
+    onConnectionChange?.(true);
+    setStatus(`Live video room is ready: ${result.roomName}`);
   }
 
   function disconnectRealRoom() {
     setTokenData(null);
+    onConnectionChange?.(false);
     setStatus("Disconnected from real LiveKit room.");
   }
 
   return (
-    <section className="real-livekit-card">
+    <section className={`real-livekit-card integrated-livekit-card ${tokenData ? "connected" : "not-connected"}`}>
       <div className="real-livekit-head">
         <div>
-          <strong>Real LiveKit Room</strong>
-          <span>{tokenData ? `Room: ${tokenData.roomName}` : "Real camera and microphone test"}</span>
+          <strong>{tokenData ? "LiveKit Video Grid" : "Real LiveKit Room"}</strong>
+          <span>
+            {tokenData
+              ? "Camera tiles are now inside the meeting grid. Turn camera on to show live video."
+              : "Join to replace profile tiles with real video tiles."}
+          </span>
         </div>
         <div className="real-livekit-actions">
           {!tokenData ? (
@@ -64,14 +72,18 @@ export function RealLiveKitRoom({ profile, admitted, meetingId }: Props) {
       <p className="real-livekit-status">{status}</p>
 
       {tokenData && (
-        <div className="real-livekit-frame">
+        <div className="real-livekit-frame integrated-video-frame">
           <LiveKitRoom
             token={tokenData.token}
             serverUrl={tokenData.wsUrl || liveKitReadyConfig.wsUrl}
             connect={true}
-            audio={false}
-            video={false}
-            onDisconnected={() => setStatus("Disconnected from LiveKit.")}
+            audio={true}
+            video={true}
+            onDisconnected={() => {
+              setStatus("Disconnected from LiveKit.");
+              setTokenData(null);
+              onConnectionChange?.(false);
+            }}
             onError={(error) => setStatus(error.message)}
           >
             <VideoConference />
