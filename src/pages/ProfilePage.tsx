@@ -138,7 +138,7 @@ export function ProfilePage() {
           <button onClick={() => setRoute("deviceTest")}>Audio / Video Test</button>
           <button onClick={() => setRoute("meetingSchedule")}>My Meetings</button>
           <button onClick={() => setMessage("Problem report dialog will be connected in the next support step.")}>Report a problem</button>
-          <button onClick={() => setMessage("OmideNo7 Meetings version 1.23.0")}>About / Version 1.23.0</button>
+          <button onClick={() => setMessage("OmideNo7 Meetings version 1.24.1")}>About / Version 1.24.1</button>
           <button className="danger" onClick={logout}>Logout</button>
         </div>
       </Card>

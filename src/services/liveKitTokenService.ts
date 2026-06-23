@@ -9,35 +9,21 @@ export type LiveKitTokenResponse =
 function getDeviceId() {
   const key = "omideno7.livekit.deviceId.v4";
   let existing = sessionStorage.getItem(key);
-
   if (!existing) {
     existing = crypto.randomUUID();
     sessionStorage.setItem(key, existing);
   }
-
   return existing;
 }
 
 function timeoutSignal(ms: number) {
   const controller = new AbortController();
   const timer = window.setTimeout(() => controller.abort(), ms);
-
-  return {
-    signal: controller.signal,
-    cancel: () => window.clearTimeout(timer)
-  };
+  return { signal: controller.signal, cancel: () => window.clearTimeout(timer) };
 }
 
 export const liveKitTokenService = {
-  async requestToken({
-    meetingId,
-    profile,
-    admitted
-  }: {
-    meetingId: string;
-    profile: UserProfile | null;
-    admitted: boolean;
-  }): Promise<LiveKitTokenResponse> {
+  async requestToken({ meetingId, profile, admitted }: { meetingId: string; profile: UserProfile | null; admitted: boolean }): Promise<LiveKitTokenResponse> {
     if (!isLiveKitConfigured()) {
       return {
         ok: false,
@@ -47,32 +33,14 @@ export const liveKitTokenService = {
     }
 
     if (!profile || profile.status !== "approved") {
-      return {
-        ok: false,
-        reason: "profile_not_approved",
-        message: "Your account is not approved yet."
-      };
+      return { ok: false, reason: "profile_not_approved", message: "Your account is not approved yet." };
     }
 
-    const hostRoles = [
-      "owner",
-      "senior_host",
-      "meeting_host",
-      "co_host",
-      "door_servant",
-      "media_servant",
-      "prayer_servant",
-      "chat_moderator"
-    ];
-
+    const hostRoles = ["owner", "senior_host", "meeting_host", "co_host", "door_servant", "media_servant", "prayer_servant", "chat_moderator"];
     const isHostLike = hostRoles.includes(profile.role);
 
     if (!admitted && !isHostLike) {
-      return {
-        ok: false,
-        reason: "waiting_room_admission_required",
-        message: "Member must be admitted from Waiting Room first."
-      };
+      return { ok: false, reason: "waiting_room_admission_required", message: "Member must be admitted from Waiting Room first." };
     }
 
     const sessionResult = await supabase?.auth.getSession();
@@ -81,12 +49,7 @@ export const liveKitTokenService = {
     if (!accessToken) {
       localStorage.removeItem("omideno7.react.profile");
       localStorage.removeItem("omideno7.profile.override");
-
-      return {
-        ok: false,
-        reason: "missing_supabase_session",
-        message: "Auth session missing. Please logout, refresh, and sign in again with email/password."
-      };
+      return { ok: false, reason: "missing_supabase_session", message: "Auth session missing. Please logout, refresh, and sign in again with email/password." };
     }
 
     const timeout = timeoutSignal(15000);
@@ -108,7 +71,6 @@ export const liveKitTokenService = {
 
       const rawText = await response.text();
       let data: any = {};
-
       try {
         data = rawText ? JSON.parse(rawText) : {};
       } catch {

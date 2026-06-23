@@ -4926,3 +4926,56 @@ button.secondary {
     padding: 3px 6px;
   }
 }
+
+
+/* 1.25 auth session guard and readable live card */
+.omide-livekit-stage {
+  background: linear-gradient(135deg, #05275a, #0b5798) !important;
+  color: #fff !important;
+  border: 1px solid rgba(19,191,84,.45) !important;
+}
+
+.omide-livekit-stage * {
+  color: inherit;
+}
+
+.omide-livekit-status {
+  color: rgba(255,255,255,.92) !important;
+}
+
+.omide-livekit-status.error,
+.omide-livekit-status:has(+ .debug-link),
+.omide-livekit-stage .omide-livekit-warning {
+  color: #fff !important;
+}
+
+.omide-livekit-actions button,
+.omide-livekit-actions a {
+  color: #fff !important;
+}
+
+.auth-card .auth-message,
+.auth-message {
+  color: #06146D;
+}
+
+@media (max-width: 740px) {
+  .omide-livekit-stage {
+    margin: 10px;
+    border-radius: 20px;
+    overflow: hidden;
+  }
+
+  .omide-livekit-head strong,
+  .omide-livekit-head span {
+    color: #fff !important;
+  }
+
+  .omide-livekit-actions {
+    width: 100%;
+  }
+
+  .omide-livekit-actions button {
+    min-height: 42px;
+  }
+}
