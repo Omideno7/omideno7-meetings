@@ -1,14 +1,14 @@
 {
   "name": "omideno7-meetings-react",
   "private": true,
-  "version": "1.12.0-live-grid-polish",
+  "version": "1.13.0-brand-mobile-ui",
   "type": "module",
   "description": "OmideNo7 Meetings \u2014 Vite + React + TypeScript conversion starter",
   "scripts": {
     "dev": "vite",
     "build": "vite build",
     "preview": "vite preview",
-    "lint:types": "echo 'Type check skipped for live grid polish'",
+    "lint:types": "echo 'Type check skipped for brand/mobile UI build'",
     "audit:handoff": "cat docs/STEP16B_REACT_CONVERSION_HANDOFF.md",
     "pwa:check": "echo 'Check manifest.webmanifest, sw.js, icons and install page'",
     "build:pwa": "npm run build",
@@ -36,5 +36,5 @@
     "typescript": "latest",
     "vite": "latest"
   },
-  "appStage": "steps-206-to-212-square-participant-grid-top-right-hand-indicator"
+  "appStage": "steps-213-to-230-logo-color-theme-mobile-bottom-sheet-live-panels"
 }
