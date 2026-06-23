@@ -1,14 +1,14 @@
 {
   "name": "omideno7-meetings-react",
   "private": true,
-  "version": "1.20.0-livekit-ux-controls-room-chat-fix",
+  "version": "1.21.0-livekit-flow-profile-waiting-endmeeting-fix",
   "type": "module",
   "description": "OmideNo7 Meetings \u2014 Vite + React + TypeScript conversion starter",
   "scripts": {
     "dev": "vite",
     "build": "vite build",
     "preview": "vite preview",
-    "lint:types": "echo 'Type check skipped for LiveKit integrated grid build'",
+    "lint:types": "echo 'Type check skipped for OmideNo7 1.21 fix build'",
     "audit:handoff": "cat docs/STEP16B_REACT_CONVERSION_HANDOFF.md",
     "pwa:check": "echo 'Check manifest.webmanifest, sw.js, icons and install page'",
     "build:pwa": "npm run build",
@@ -39,5 +39,5 @@
     "typescript": "latest",
     "vite": "latest"
   },
-  "appStage": "steps-471-to-520-livekit-ux-controls-chat-settings-admin-cleanup"
+  "appStage": "steps-521-to-570-livekit-token-diagnostics-profile-waiting-endmeeting"
 }
