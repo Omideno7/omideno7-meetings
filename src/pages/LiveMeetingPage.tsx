@@ -10,6 +10,7 @@ import {
   roleLabel
 } from "../services/roleAccess";
 import { meetingRoomService, roomParticipantId, type RoomParticipant } from "../services/meetingRoomService";
+import { RealLiveKitRoom } from "../components/livekit/RealLiveKitRoom";
 
 type Participant = {
   id: string;
@@ -408,6 +409,11 @@ export function LiveMeetingPage() {
 
       <main className={sidebarOpen ? "live-main side-open" : "live-main side-closed"}>
         <section className="participants-grid with-panel">
+          <RealLiveKitRoom
+            profile={profile}
+            meetingId="main-room"
+            admitted={canHost || myRoomStatus === "online"}
+          />
           {participants.map((person) => (
             <article key={person.id} className={`participant-tile ${person.id === roomParticipantId(meetingRoomService.meetingId, profile?.id) ? "speaking" : ""}`}>
               <button className="participant-click-zone" onClick={() => { setSidebarOpen(true); setPanel("attendees"); if (person.id !== roomParticipantId(meetingRoomService.meetingId, profile?.id)) setSelectedAttendee(person); }}>

@@ -4322,3 +4322,101 @@ button.secondary {
     padding-right: 12px !important;
   }
 }
+
+
+/* LiveKit Real Engine Phase 1 — 1.17.0 */
+.real-livekit-card {
+  grid-column: 1 / -1;
+  min-height: 240px;
+  border-radius: 24px;
+  background: linear-gradient(135deg, rgba(5,39,90,.96), rgba(11,87,152,.94));
+  border: 1px solid rgba(19,191,84,.28);
+  box-shadow: 0 24px 70px rgba(5,39,90,.24);
+  color: #fff;
+  overflow: hidden;
+}
+
+.real-livekit-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 14px 16px;
+  border-bottom: 1px solid rgba(255,255,255,.12);
+}
+
+.real-livekit-head strong {
+  display: block;
+  font-size: 1rem;
+  color: #fff !important;
+}
+
+.real-livekit-head span {
+  display: block;
+  color: rgba(255,255,255,.76) !important;
+  font-size: .82rem;
+}
+
+.real-livekit-actions button {
+  border: 0;
+  border-radius: 999px;
+  padding: 10px 14px;
+  font-weight: 900;
+  color: #fff;
+  background: linear-gradient(135deg, #09a440, #13bf54);
+  cursor: pointer;
+}
+
+.real-livekit-actions button:disabled {
+  opacity: .58;
+  cursor: not-allowed;
+}
+
+.real-livekit-actions button.danger {
+  background: #d91f2a;
+}
+
+.real-livekit-status {
+  margin: 0;
+  padding: 10px 16px;
+  color: rgba(255,255,255,.82);
+}
+
+.real-livekit-warning {
+  margin: 12px 16px 0;
+  padding: 10px 12px;
+  border-radius: 14px;
+  background: rgba(217,31,42,.94);
+  color: #fff;
+  font-weight: 900;
+}
+
+.real-livekit-frame {
+  height: min(68vh, 620px);
+  min-height: 420px;
+  background: #061a35;
+}
+
+.real-livekit-frame .lk-video-conference {
+  height: 100%;
+}
+
+.real-livekit-frame .lk-room-container {
+  height: 100%;
+}
+
+@media (max-width: 900px) {
+  .real-livekit-card {
+    min-height: 260px;
+  }
+
+  .real-livekit-head {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .real-livekit-frame {
+    height: 58vh;
+    min-height: 360px;
+  }
+}
