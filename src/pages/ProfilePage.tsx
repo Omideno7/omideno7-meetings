@@ -5,7 +5,7 @@ import { useAppState } from "../app/AppState";
 import { profileSettingsService } from "../services/profileSettingsService";
 
 export function ProfilePage() {
-  const { profile, setRoute, refreshProfile, updateProfile, logout } = useAppState();
+  const { profile, setRoute, updateProfile, logout } = useAppState();
   const fileRef = useRef<HTMLInputElement | null>(null);
   const [displayName, setDisplayName] = useState(profile?.displayName || "");
   const [avatarUrl, setAvatarUrl] = useState(profile?.avatarUrl || "");
@@ -21,7 +21,7 @@ export function ProfilePage() {
     });
   }, [profile?.id]);
 
-  async function saveProfile(nextName = displayName, nextAvatar = avatarUrl) {
+  async function saveProfile(nextName = displayName, nextAvatar = avatarUrl, closeAfterSave = true) {
     if (!profile) return;
     const cleanName = nextName.trim() || profile.displayName;
     const cleanAvatar = nextAvatar || undefined;
@@ -39,7 +39,10 @@ export function ProfilePage() {
       avatarUrl: cleanAvatar
     });
 
-    setMessage("Profile saved. The new photo is now active.");
+    setMessage("Profile saved.");
+    if (closeAfterSave) {
+      window.setTimeout(() => setRoute("memberHome"), 550);
+    }
   }
 
   function resizeAvatarFile(file: File): Promise<string> {
@@ -88,7 +91,8 @@ export function ProfilePage() {
       setMessage("Preparing photo...");
       const dataUrl = await resizeAvatarFile(file);
       setAvatarUrl(dataUrl);
-      await saveProfile(displayName, dataUrl);
+      await saveProfile(displayName, dataUrl, false);
+      setMessage("Photo selected. Press Save Profile to close.");
     } catch (error: any) {
       setMessage(error?.message || "Could not save this photo.");
     } finally {
@@ -121,9 +125,9 @@ export function ProfilePage() {
         </div>
         {avatarUrl && <img className="profile-preview-image" src={avatarUrl} alt="Selected profile preview" />}
         <div className="button-row">
-          <Button onClick={() => saveProfile()}>Save Profile</Button>
+          <Button onClick={() => saveProfile(displayName, avatarUrl, true)}>Save Profile</Button>
           <Button variant="secondary" onClick={() => fileRef.current?.click()}>Choose Photo</Button>
-          <Button variant="ghost" onClick={refreshProfile}>Refresh Profile</Button>
+          <Button variant="ghost" onClick={() => setRoute("memberHome")}>Close</Button>
         </div>
         <p className="auth-message">{message}</p>
       </Card>
@@ -134,7 +138,7 @@ export function ProfilePage() {
           <button onClick={() => setRoute("deviceTest")}>Audio / Video Test</button>
           <button onClick={() => setRoute("meetingSchedule")}>My Meetings</button>
           <button onClick={() => setMessage("Problem report dialog will be connected in the next support step.")}>Report a problem</button>
-          <button onClick={() => setMessage("OmideNo7 Meetings version 1.22.0")}>About / Version 1.22.0</button>
+          <button onClick={() => setMessage("OmideNo7 Meetings version 1.23.0")}>About / Version 1.23.0</button>
           <button className="danger" onClick={logout}>Logout</button>
         </div>
       </Card>

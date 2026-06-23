@@ -74,12 +74,27 @@ function getPublications(participant: any) {
   return Array.from(publications.values()) as any[];
 }
 
+function withTimeout<T>(promise: Promise<T>, ms: number, message: string): Promise<T> {
+  return new Promise((resolve, reject) => {
+    const timer = window.setTimeout(() => reject(new Error(message)), ms);
+    promise
+      .then((value) => {
+        window.clearTimeout(timer);
+        resolve(value);
+      })
+      .catch((error) => {
+        window.clearTimeout(timer);
+        reject(error);
+      });
+  });
+}
+
 function tileFromParticipant(participant: any, isLocal: boolean): LiveTile {
   const publications = getPublications(participant);
   const cameraPublication = publications.find((pub) => pub.source === Track.Source.Camera);
   const micPublication = publications.find((pub) => pub.source === Track.Source.Microphone);
   const audioLevel = Math.max(0, Math.min(Number(participant?.audioLevel || 0), 1));
-  const speaking = Boolean(participant?.isSpeaking || audioLevel > 0.055);
+  const speaking = Boolean(participant?.isSpeaking || audioLevel > 0.08);
 
   return {
     key: participant.identity || participant.sid || participant.name,
@@ -199,9 +214,13 @@ export function RealLiveKitRoom({
       });
 
     try {
-      await nextRoom.connect(result.wsUrl || liveKitReadyConfig.wsUrl, result.token, {
-        autoSubscribe: true
-      });
+      const wsUrl = (result.wsUrl || liveKitReadyConfig.wsUrl || "").trim();
+
+      await withTimeout(
+        nextRoom.connect(wsUrl, result.token, { autoSubscribe: true }),
+        20000,
+        `LiveKit connection timed out. Browser could not reach ${wsUrl || "LiveKit server"}.`
+      );
 
       roomRef.current = nextRoom;
       setRoom(nextRoom);
@@ -222,7 +241,7 @@ export function RealLiveKitRoom({
     } catch (error: any) {
       await nextRoom.disconnect();
       setFailed(true);
-      setStatus(error?.message || "Could not establish LiveKit room connection.");
+      setStatus(error?.message || "Could not establish LiveKit room connection. Open /api/livekit/debug and check LiveKit URL.");
       await onConnectionChange?.(false);
     } finally {
       setConnecting(false);
@@ -365,7 +384,7 @@ export function RealLiveKitRoom({
         <div className="custom-livekit-grid">
           {tiles.map((tile) => {
             const level = Math.max(0, Math.min(tile.audioLevel || 0, 1));
-            const levelForCss = tile.speaking ? String(Math.max(level, 0.12)) : "0";
+            const levelForCss = tile.speaking ? String(level) : "0";
             return (
               <article
                 key={tile.key}

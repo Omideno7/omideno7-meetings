@@ -30,8 +30,8 @@ export function WaitingRoomPage() {
   async function enterWaitingRoom() {
     await meetingRoomService.joinWaiting(profile);
     await meetingRoomService.raiseAlert(`${profile?.displayName || "A member"} is waiting for admission.`, "waiting_room", "red", "active");
-    setMessage("You entered the waiting room. Opening live page...");
-    window.setTimeout(() => setRoute("liveMeeting"), 350);
+    setMessage("Waiting request sent. Opening live page...");
+    window.setTimeout(() => setRoute("liveMeeting"), 300);
   }
 
   async function admit(person: RoomParticipant) {
@@ -51,7 +51,7 @@ export function WaitingRoomPage() {
       <div className="page-grid">
         <Card>
           <h1>Waiting Room</h1>
-          <p>Enter the waiting room. After the host admits you, the Live page opens and connects to the active room.</p>
+          <p>Send your waiting request. After host admission, the Live page will open the active room.</p>
           <div className="member-waiting-status">
             <strong>Mic off · Camera off</strong>
             <span>Waiting for host admission</span>

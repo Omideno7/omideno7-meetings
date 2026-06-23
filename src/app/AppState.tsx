@@ -1,21 +1,6 @@
 import { createContext, useContext, useEffect, useMemo, useState } from "react";
 import type { UserProfile } from "../types/roles";
 import type { AppRouteKey } from "../types/routes";
-
-async function applyRemoteProfileSettings(profile: any) {
-  const settings = await profileSettingsService.load(profile);
-  return profileSettingsService.merge(profile, settings);
-}
-
-function applyProfileOverride(profile: any) {
-  try {
-    const override = JSON.parse(localStorage.getItem("omideno7.profile.override") || "{}");
-    if (!profile || !override) return profile;
-    return { ...profile, displayName: override.displayName || profile.displayName, fullName: override.displayName || profile.fullName, avatarUrl: override.avatarUrl || profile.avatarUrl };
-  } catch {
-    return profile;
-  }
-}
 import { authService } from "../services/authService";
 import { getDefaultRoute } from "../services/routeGuard";
 import { profileSettingsService } from "../services/profileSettingsService";
@@ -37,9 +22,29 @@ type AppStateValue = {
 
 const AppStateContext = createContext<AppStateValue | null>(null);
 
+async function applyRemoteProfileSettings(profile: UserProfile | null) {
+  const settings = await profileSettingsService.load(profile);
+  return profileSettingsService.merge(profile, settings);
+}
+
+function applyProfileOverride(profile: UserProfile | null) {
+  try {
+    const override = JSON.parse(localStorage.getItem("omideno7.profile.override") || "{}");
+    if (!profile || !override) return profile;
+    return {
+      ...profile,
+      displayName: override.displayName || profile.displayName,
+      fullName: override.displayName || profile.fullName,
+      avatarUrl: override.avatarUrl || profile.avatarUrl
+    };
+  } catch {
+    return profile;
+  }
+}
+
 export function AppStateProvider({ children }: { children: React.ReactNode }) {
-  const [profile, setProfile] = useState<UserProfile | null>(() => authService.getCurrentProfile());
-  const [route, setRoute] = useState<AppRouteKey>(() => getDefaultRoute(authService.getCurrentProfile()));
+  const [profile, setProfile] = useState<UserProfile | null>(() => applyProfileOverride(authService.getCurrentProfile()));
+  const [route, setRoute] = useState<AppRouteKey>(() => getDefaultRoute(applyProfileOverride(authService.getCurrentProfile())));
   const [authLoading, setAuthLoading] = useState(false);
   const [authMessage, setAuthMessage] = useState("");
 
@@ -70,8 +75,9 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
     setRoute,
     loginAs(role) {
       const next = authService.loginAs(role);
-      setProfile(applyProfileOverride(next));
-      setRoute(getDefaultRoute(next));
+      const merged = applyProfileOverride(next);
+      setProfile(merged);
+      setRoute(getDefaultRoute(merged));
     },
     async signIn(email, password) {
       setAuthLoading(true);
@@ -84,8 +90,9 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
         return;
       }
 
-      setProfile(result.profile);
-      setRoute(getDefaultRoute(result.profile));
+      const merged = applyProfileOverride(await applyRemoteProfileSettings(result.profile));
+      setProfile(merged);
+      setRoute(getDefaultRoute(merged));
     },
     async signUp(email, password, fullName) {
       setAuthLoading(true);
@@ -99,8 +106,9 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
       }
 
       setAuthMessage(result.message || "Account created.");
-      setProfile(result.profile);
-      setRoute(result.profile ? getDefaultRoute(result.profile) : "pendingApproval");
+      const merged = applyProfileOverride(await applyRemoteProfileSettings(result.profile));
+      setProfile(merged);
+      setRoute(merged ? getDefaultRoute(merged) : "pendingApproval");
     },
     refreshProfile,
     updateProfile(patch) {

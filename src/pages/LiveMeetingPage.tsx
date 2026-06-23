@@ -158,7 +158,7 @@ export function LiveMeetingPage() {
     await refreshRoomState();
   }
 
-  function sendLiveKitControl(action: "mic" | "camera" | "leave") {
+  function sendLiveKitControl(action: "mic" | "camera" | "leave" | "force-disconnect") {
     window.dispatchEvent(new CustomEvent("omide-livekit-control", { detail: { action } }));
   }
 
@@ -174,20 +174,19 @@ export function LiveMeetingPage() {
       setChatMode(roomSettings.chat_mode);
     }
 
-    if (roomSettings && roomSettings.live_open === false && !canHost) {
-      sendLiveKitControl("force-disconnect");
-      notify("The host ended the meeting.");
-      setRoute("memberHome");
-      return;
-    }
-
     if (myRow) {
       if (!canHost && (myRow.status === "removed" || myRow.status === "blocked")) {
+        sendLiveKitControl("force-disconnect");
         setMyRoomStatus(myRow.status);
         setRoute("memberHome");
         return;
       }
-      setMyRoomStatus(myRow.status);
+
+      if (!canHost && myRow.status === "left") {
+        setMyRoomStatus("unknown");
+      } else {
+        setMyRoomStatus(myRow.status);
+      }
       demoStore.setMeetingState({ mic: myRow.mic_on, camera: myRow.camera_on });
       setSelfHandRaised(Boolean(myRow.hand_raised));
     } else if (canHost) {
@@ -240,6 +239,7 @@ export function LiveMeetingPage() {
       if (!alive) return;
 
       if (canHost) {
+        await meetingRoomService.openMeetingForEveryone();
         await meetingRoomService.enterOnline(profile, {
           mic_on: Boolean(state.mic),
           camera_on: Boolean(state.camera),
@@ -467,19 +467,6 @@ export function LiveMeetingPage() {
               await refreshRoomState();
             }}
           />
-          {!liveKitConnected && participants.map((person) => (
-            <article key={person.id} className={`participant-tile ${person.id === roomParticipantId(meetingRoomService.meetingId, profile?.id) ? "speaking" : ""}`}>
-              <button className="participant-click-zone" onClick={() => { setSidebarOpen(true); setPanel("attendees"); if (person.id !== roomParticipantId(meetingRoomService.meetingId, profile?.id)) setSelectedAttendee(person); }}>
-                <div className="participant-avatar clean-avatar">
-                  {person.avatarUrl ? <img src={person.avatarUrl} alt={person.name} /> : person.camera ? <span className="camera-placeholder">Camera on</span> : <span>{person.symbol}</span>}
-                </div>
-                <strong>{person.name} {person.handRaised ? <em className="id-reaction">✋</em> : null}</strong>
-                <span>{person.role} · {person.room}</span>
-                <em className={person.mic ? "mic-on" : "mic-off"}>{person.mic ? "Mic on" : person.canUnmute ? "Can unmute" : "Muted"}</em>
-                <div className={`mini-eq ${person.mic ? "active" : ""}`}><i></i><i></i><i></i><i></i></div>
-              </button>
-            </article>
-          ))}
         </section>
 
         {sidebarOpen && (
@@ -611,8 +598,8 @@ export function LiveMeetingPage() {
       </main>
 
       <footer className="live-toolbar clean-toolbar">
-        <ToolbarButton icon={state.mic ? "🎙" : "🔇"} label={state.mic ? "Mute" : "Unmute"} active={state.mic} onClick={() => liveKitConnected ? sendLiveKitControl("mic") : toggle("mic", "Microphone unmuted.", "Microphone muted.")} />
-        <ToolbarButton icon={state.camera ? "📷" : "🚫"} label={state.camera ? "Video on" : "Video off"} active={state.camera} onClick={() => liveKitConnected ? sendLiveKitControl("camera") : toggle("camera", "Camera preview placeholder enabled.", "Camera turned off.")} />
+        <ToolbarButton icon={state.mic ? "🎙" : "🔇"} label={state.mic ? "Mute" : "Unmute"} active={state.mic} onClick={() => liveKitConnected ? sendLiveKitControl("mic") : notify("Enter the live room first.")} />
+        <ToolbarButton icon={state.camera ? "📷" : "🚫"} label={state.camera ? "Video on" : "Video off"} active={state.camera} onClick={() => liveKitConnected ? sendLiveKitControl("camera") : notify("Enter the live room first.")} />
         <ToolbarButton icon="☷" label="Attendees" onClick={() => { setSidebarOpen(true); setPanel("attendees"); }} />
         {canWaiting && <ToolbarButton icon="⏳" label="Waiting" onClick={() => { setSidebarOpen(true); setPanel("waiting"); }} />}
         <ToolbarButton icon="💬" label="Chat" onClick={() => { setSidebarOpen(true); setPanel("chat"); }} />
