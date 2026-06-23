@@ -3439,3 +3439,179 @@ code {
 .status-admitted {
   background: rgba(9,164,64,.10) !important;
 }
+
+
+/* Live grid polish 1.12.0 */
+.rebuilt-live .participants-grid,
+.polished-live .participants-grid,
+.control-live .participants-grid {
+  align-content: start !important;
+  grid-auto-rows: auto !important;
+}
+
+.grid-compact .participants-grid {
+  grid-template-columns: repeat(auto-fill, minmax(92px, 1fr)) !important;
+  gap: 7px !important;
+}
+
+.grid-normal .participants-grid {
+  grid-template-columns: repeat(auto-fill, minmax(128px, 1fr)) !important;
+  gap: 9px !important;
+}
+
+.grid-large .participants-grid {
+  grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)) !important;
+  gap: 12px !important;
+}
+
+.grid-compact .participant-tile,
+.grid-normal .participant-tile,
+.grid-large .participant-tile {
+  aspect-ratio: 1 / 1 !important;
+  min-height: 0 !important;
+  height: auto !important;
+  border-radius: 16px !important;
+  overflow: hidden !important;
+  position: relative !important;
+}
+
+.grid-compact .participant-click-zone,
+.grid-normal .participant-click-zone,
+.grid-large .participant-click-zone {
+  height: 100% !important;
+  width: 100% !important;
+  padding: 8px !important;
+  box-sizing: border-box !important;
+  align-content: center !important;
+  justify-items: center !important;
+  gap: 4px !important;
+}
+
+.grid-compact .participant-avatar {
+  width: 38px !important;
+  height: 38px !important;
+  font-size: 1.1rem !important;
+}
+
+.grid-normal .participant-avatar {
+  width: 52px !important;
+  height: 52px !important;
+  font-size: 1.35rem !important;
+}
+
+.grid-large .participant-avatar {
+  width: 78px !important;
+  height: 78px !important;
+  font-size: 2rem !important;
+}
+
+.grid-compact .participant-tile strong,
+.grid-normal .participant-tile strong,
+.grid-large .participant-tile strong {
+  max-width: 100% !important;
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+  white-space: nowrap !important;
+  text-align: center !important;
+  line-height: 1.1 !important;
+}
+
+.grid-compact .participant-tile strong {
+  font-size: .72rem !important;
+}
+
+.grid-normal .participant-tile strong {
+  font-size: .84rem !important;
+}
+
+.grid-large .participant-tile strong {
+  font-size: 1rem !important;
+}
+
+.grid-compact .participant-tile span,
+.grid-compact .participant-tile em {
+  font-size: .58rem !important;
+  line-height: 1.05 !important;
+}
+
+.grid-normal .participant-tile span,
+.grid-normal .participant-tile em {
+  font-size: .66rem !important;
+  line-height: 1.1 !important;
+}
+
+.grid-large .participant-tile span,
+.grid-large .participant-tile em {
+  font-size: .78rem !important;
+}
+
+.grid-compact .participant-tile span,
+.grid-normal .participant-tile span {
+  max-width: 100% !important;
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+  white-space: nowrap !important;
+}
+
+.participant-tile .id-reaction,
+.grid-compact .participant-tile .id-reaction,
+.grid-normal .participant-tile .id-reaction,
+.grid-large .participant-tile .id-reaction {
+  position: absolute !important;
+  top: 7px !important;
+  right: 7px !important;
+  z-index: 12 !important;
+  display: grid !important;
+  place-items: center !important;
+  width: 28px !important;
+  height: 28px !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  border-radius: 999px !important;
+  background: #fff !important;
+  color: #06285a !important;
+  box-shadow: 0 8px 18px rgba(0,0,0,.22) !important;
+  border: 2px solid rgba(9,164,64,.35) !important;
+  font-size: 1.05rem !important;
+  line-height: 1 !important;
+}
+
+.grid-compact .participant-tile .id-reaction {
+  width: 24px !important;
+  height: 24px !important;
+  top: 5px !important;
+  right: 5px !important;
+  font-size: .92rem !important;
+}
+
+.grid-large .participant-tile .id-reaction {
+  width: 34px !important;
+  height: 34px !important;
+  font-size: 1.2rem !important;
+}
+
+.grid-compact .mini-eq {
+  height: 12px !important;
+  gap: 2px !important;
+}
+
+.grid-compact .mini-eq i {
+  width: 3px !important;
+}
+
+.grid-compact .participants-grid.with-panel {
+  padding: 6px !important;
+}
+
+@media (min-width: 1200px) {
+  .grid-compact .participants-grid {
+    grid-template-columns: repeat(auto-fill, minmax(86px, 1fr)) !important;
+  }
+}
+
+@media (max-width: 900px) {
+  .grid-compact .participants-grid,
+  .grid-normal .participants-grid {
+    grid-template-columns: repeat(auto-fill, minmax(92px, 1fr)) !important;
+  }
+}
