@@ -4978,4 +4978,154 @@ button.secondary {
   .omide-livekit-actions button {
     min-height: 42px;
   }
+  /* ============================================================
+   OmideNo7 Meetings 1.25.1 — LiveKit Grid / Video Zoom Fix
+   Fixes: zoomed camera, cylinder-looking tile, non-square layout
+   ============================================================ */
+
+.custom-livekit-grid {
+  display: grid !important;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)) !important;
+  gap: 12px !important;
+  padding: 12px !important;
+  width: 100% !important;
+  max-height: 68vh !important;
+  overflow-y: auto !important;
+  align-items: stretch !important;
+  justify-items: stretch !important;
+  background: rgba(2, 12, 27, 0.28) !important;
+  border-top: 1px solid rgba(255,255,255,0.10) !important;
+}
+
+.custom-livekit-tile {
+  position: relative !important;
+  display: grid !important;
+  place-items: center !important;
+  width: 100% !important;
+  min-width: 0 !important;
+  min-height: 0 !important;
+  max-height: none !important;
+  aspect-ratio: 1 / 1 !important;
+  overflow: hidden !important;
+  border-radius: 18px !important;
+  background: #020617 !important;
+  border: 1px solid rgba(255,255,255,0.14) !important;
+  box-shadow: 0 14px 32px rgba(0,0,0,0.22) !important;
+}
+
+.custom-livekit-video {
+  display: block !important;
+  width: 100% !important;
+  height: 100% !important;
+  min-width: 0 !important;
+  min-height: 0 !important;
+  object-fit: contain !important;
+  object-position: center center !important;
+  border-radius: 0 !important;
+  transform: none !important;
+  background: #020617 !important;
+}
+
+.custom-livekit-avatar {
+  width: 100% !important;
+  height: 100% !important;
+  display: grid !important;
+  place-items: center !important;
+  background: radial-gradient(circle at top, #0b5798, #06146d) !important;
+}
+
+.custom-livekit-avatar span {
+  width: 64px !important;
+  height: 64px !important;
+  border-radius: 20px !important;
+  display: grid !important;
+  place-items: center !important;
+  background: rgba(255,255,255,0.16) !important;
+  color: #fff !important;
+  font-weight: 900 !important;
+  font-size: 1.6rem !important;
+}
+
+.custom-livekit-namebar {
+  position: absolute !important;
+  left: 8px !important;
+  right: 8px !important;
+  bottom: 8px !important;
+  border-radius: 12px !important;
+  padding: 6px 8px !important;
+  background: rgba(0,0,0,0.58) !important;
+  backdrop-filter: blur(8px) !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: space-between !important;
+  gap: 8px !important;
+  z-index: 5 !important;
+}
+
+.custom-livekit-namebar strong,
+.custom-livekit-namebar small {
+  color: #fff !important;
+  line-height: 1.1 !important;
+}
+
+.custom-livekit-namebar strong {
+  font-size: 0.78rem !important;
+  white-space: nowrap !important;
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+}
+
+.custom-livekit-namebar small {
+  font-size: 0.68rem !important;
+  opacity: 0.9 !important;
+  white-space: nowrap !important;
+}
+
+.live-audio-ring.real-eq {
+  bottom: 42px !important;
+  z-index: 6 !important;
+}
+
+@media (min-width: 900px) {
+  .custom-livekit-grid {
+    grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)) !important;
+  }
+
+  .custom-livekit-tile {
+    aspect-ratio: 1 / 1 !important;
+  }
+}
+
+@media (max-width: 740px) {
+  .custom-livekit-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+    gap: 8px !important;
+    padding: 8px !important;
+    max-height: 56vh !important;
+  }
+
+  .custom-livekit-tile {
+    aspect-ratio: 1 / 1 !important;
+    border-radius: 16px !important;
+  }
+
+  .custom-livekit-video {
+    object-fit: contain !important;
+  }
+
+  .custom-livekit-namebar {
+    left: 6px !important;
+    right: 6px !important;
+    bottom: 6px !important;
+    padding: 5px 7px !important;
+  }
+
+  .custom-livekit-namebar strong {
+    font-size: 0.68rem !important;
+  }
+
+  .custom-livekit-namebar small {
+    font-size: 0.58rem !important;
+  }
+}
 }
