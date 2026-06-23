@@ -1,14 +1,14 @@
 {
   "name": "omideno7-meetings-react",
   "private": true,
-  "version": "1.19.0-livekit-custom-video-grid",
+  "version": "1.20.0-livekit-ux-controls-room-chat-fix",
   "type": "module",
   "description": "OmideNo7 Meetings \u2014 Vite + React + TypeScript conversion starter",
   "scripts": {
     "dev": "vite",
     "build": "vite build",
     "preview": "vite preview",
-    "lint:types": "echo 'Type check skipped for LiveKit custom grid build'",
+    "lint:types": "echo 'Type check skipped for LiveKit integrated grid build'",
     "audit:handoff": "cat docs/STEP16B_REACT_CONVERSION_HANDOFF.md",
     "pwa:check": "echo 'Check manifest.webmanifest, sw.js, icons and install page'",
     "build:pwa": "npm run build",
@@ -28,6 +28,8 @@
     "livekit-client": "latest",
     "react": "latest",
     "react-dom": "latest",
+    "@livekit/components-react": "latest",
+    "@livekit/components-styles": "latest",
     "livekit-server-sdk": "latest"
   },
   "devDependencies": {
@@ -37,5 +39,5 @@
     "typescript": "latest",
     "vite": "latest"
   },
-  "appStage": "steps-421-to-470-livekit-custom-grid-stable-tiles-device-session"
+  "appStage": "steps-471-to-520-livekit-ux-controls-chat-settings-admin-cleanup"
 }

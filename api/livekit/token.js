@@ -11,7 +11,7 @@ const SUPABASE_KEY =
   process.env.SUPABASE_ANON_KEY ||
   "";
 
-const hostRoles = new Set(["owner", "senior_host", "meeting_host", "co_host"]);
+const hostRoles = new Set(["owner", "senior_host", "meeting_host", "co_host", "door_servant", "media_servant", "prayer_servant", "chat_moderator"]);
 
 function json(res, statusCode, body) {
   res.statusCode = statusCode;
@@ -78,7 +78,7 @@ export default async function handler(req, res) {
 
   const isHost = hostRoles.has(profile.role);
   const meetingId = cleanText(body.meetingId, "main-room").toLowerCase().replace(/\s+/g, "-");
-  const roomName = cleanText(body.roomName || "omideno7-main-room", "omideno7-main-room").toLowerCase().replace(/\s+/g, "-");
+  const roomName = cleanText(body.roomName, `omideno7-${meetingId}`).toLowerCase().replace(/\s+/g, "-");
 
   if (!isHost) {
     const roomParticipantId = `${meetingId}::${user.id}`;
@@ -98,7 +98,7 @@ export default async function handler(req, res) {
   }
 
   const deviceId = cleanText(body.deviceId, "device").replace(/\s+/g, "-");
-  const identity = cleanText(`${user.id}:${Date.now()}:${deviceId}`, user.id);
+  const identity = cleanText(`${user.id}:${deviceId}`, user.id);
   const displayName = cleanText(profile.display_name || profile.full_name || user.email, "OmideNo7 User");
 
   const token = new AccessToken(LIVEKIT_API_KEY, LIVEKIT_API_SECRET, {
