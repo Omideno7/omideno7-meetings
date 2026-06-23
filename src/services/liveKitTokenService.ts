@@ -7,11 +7,11 @@ export type LiveKitTokenResponse =
   | { ok: false; reason: string; message?: string };
 
 function getDeviceId() {
-  const key = "omideno7.livekit.deviceId.v1";
-  let existing = localStorage.getItem(key);
+  const key = "omideno7.livekit.deviceId.v2";
+  let existing = sessionStorage.getItem(key);
   if (!existing) {
     existing = crypto.randomUUID();
-    localStorage.setItem(key, existing);
+    sessionStorage.setItem(key, existing);
   }
   return existing;
 }
