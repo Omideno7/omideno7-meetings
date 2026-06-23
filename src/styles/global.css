@@ -5127,5 +5127,227 @@ button.secondary {
   .custom-livekit-namebar small {
     font-size: 0.58rem !important;
   }
+  /* ============================================================
+   OmideNo7 Meetings 1.25.2 — Force Full Width LiveKit Grid Fix
+   Fixes narrow left video column, zoomed camera, and cylinder tile.
+   ============================================================ */
+
+/* Main meeting body must use the full available space */
+.live-meeting-page,
+.live-meeting-shell,
+.live-meeting-main,
+.live-room-main,
+.meeting-room-main,
+.meeting-stage,
+.room-stage,
+.live-stage,
+.main-stage,
+.video-stage {
+  width: 100% !important;
+  max-width: none !important;
+  min-width: 0 !important;
+  flex: 1 1 auto !important;
+}
+
+/* Force the LiveKit area itself to stop becoming a thin sidebar */
+.omide-livekit-stage,
+.omide-livekit-room,
+.real-livekit-room,
+.livekit-room,
+.custom-livekit-room,
+.lk-room-container {
+  width: 100% !important;
+  max-width: none !important;
+  min-width: 0 !important;
+  min-height: 58vh !important;
+  display: flex !important;
+  flex-direction: column !important;
+  align-items: stretch !important;
+  justify-content: flex-start !important;
+  overflow: hidden !important;
+  border-radius: 18px !important;
+  background: linear-gradient(135deg, #06146d, #0b5798) !important;
+}
+
+/* Any direct child inside the stage should not stay narrow */
+.omide-livekit-stage > *,
+.omide-livekit-room > *,
+.real-livekit-room > *,
+.livekit-room > *,
+.custom-livekit-room > *,
+.lk-room-container > * {
+  width: 100% !important;
+  max-width: none !important;
+  min-width: 0 !important;
+}
+
+/* The video grid must become real tiles */
+.custom-livekit-grid,
+.livekit-grid,
+.video-grid,
+.participants-video-grid,
+.lk-grid-layout,
+.lk-focus-layout,
+.lk-grid-layout-wrapper {
+  display: grid !important;
+  grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)) !important;
+  gap: 12px !important;
+  width: 100% !important;
+  max-width: none !important;
+  min-width: 0 !important;
+  padding: 12px !important;
+  overflow-y: auto !important;
+  align-items: stretch !important;
+  justify-items: stretch !important;
+  background: rgba(2, 12, 27, 0.22) !important;
+}
+
+/* Every participant tile must be square/clean */
+.custom-livekit-tile,
+.livekit-tile,
+.video-tile,
+.participant-video-tile,
+.lk-participant-tile,
+.lk-participant-media-video,
+.lk-focus-layout > *,
+.lk-grid-layout > * {
+  position: relative !important;
+  width: 100% !important;
+  min-width: 0 !important;
+  max-width: none !important;
+  aspect-ratio: 1 / 1 !important;
+  min-height: 180px !important;
+  max-height: 320px !important;
+  overflow: hidden !important;
+  border-radius: 18px !important;
+  background: #020617 !important;
+  border: 1px solid rgba(255, 255, 255, 0.16) !important;
+  box-shadow: 0 14px 34px rgba(0, 0, 0, 0.25) !important;
+}
+
+/* Video must not zoom/crop */
+.custom-livekit-video,
+.livekit-video,
+.video-tile video,
+.participant-video-tile video,
+.custom-livekit-tile video,
+.livekit-tile video,
+.lk-participant-tile video,
+.lk-participant-media-video video,
+.omide-livekit-stage video,
+.real-livekit-room video,
+.livekit-room video,
+.lk-room-container video {
+  display: block !important;
+  width: 100% !important;
+  height: 100% !important;
+  min-width: 0 !important;
+  min-height: 0 !important;
+  max-width: 100% !important;
+  max-height: 100% !important;
+  object-fit: contain !important;
+  object-position: center center !important;
+  border-radius: 0 !important;
+  transform: none !important;
+  background: #020617 !important;
+}
+
+/* Stop old left-column fallback cards from staying narrow */
+.participants-grid.with-panel,
+.participants-grid,
+.meeting-grid,
+.room-grid {
+  width: 100% !important;
+  max-width: none !important;
+  min-width: 0 !important;
+}
+
+/* Hide any old sample/fake tiles if they remain */
+.participant-tile.fake,
+.participant-tile.sample,
+.participant-tile.demo {
+  display: none !important;
+}
+
+/* Name bar inside tile */
+.custom-livekit-namebar,
+.livekit-namebar,
+.video-namebar,
+.lk-participant-name,
+.lk-participant-metadata {
+  position: absolute !important;
+  left: 8px !important;
+  right: 8px !important;
+  bottom: 8px !important;
+  z-index: 10 !important;
+  border-radius: 12px !important;
+  padding: 6px 8px !important;
+  background: rgba(0, 0, 0, 0.58) !important;
+  color: #fff !important;
+  backdrop-filter: blur(8px) !important;
+}
+
+/* Desktop with right chat panel */
+@media (min-width: 900px) {
+  .custom-livekit-grid,
+  .livekit-grid,
+  .video-grid,
+  .participants-video-grid,
+  .lk-grid-layout,
+  .lk-focus-layout,
+  .lk-grid-layout-wrapper {
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)) !important;
+    max-height: 70vh !important;
+  }
+}
+
+/* Mobile */
+@media (max-width: 740px) {
+  .omide-livekit-stage,
+  .omide-livekit-room,
+  .real-livekit-room,
+  .livekit-room,
+  .custom-livekit-room,
+  .lk-room-container {
+    min-height: 48vh !important;
+    border-radius: 16px !important;
+  }
+
+  .custom-livekit-grid,
+  .livekit-grid,
+  .video-grid,
+  .participants-video-grid,
+  .lk-grid-layout,
+  .lk-focus-layout,
+  .lk-grid-layout-wrapper {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+    gap: 8px !important;
+    padding: 8px !important;
+    max-height: 56vh !important;
+  }
+
+  .custom-livekit-tile,
+  .livekit-tile,
+  .video-tile,
+  .participant-video-tile,
+  .lk-participant-tile,
+  .lk-participant-media-video,
+  .lk-focus-layout > *,
+  .lk-grid-layout > * {
+    min-height: 130px !important;
+    max-height: 190px !important;
+    border-radius: 15px !important;
+  }
+
+  .custom-livekit-namebar,
+  .livekit-namebar,
+  .video-namebar,
+  .lk-participant-name,
+  .lk-participant-metadata {
+    left: 6px !important;
+    right: 6px !important;
+    bottom: 6px !important;
+    font-size: 0.68rem !important;
+  }
 }
 }
