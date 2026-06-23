@@ -1,14 +1,14 @@
 {
   "name": "omideno7-meetings-react",
   "private": true,
-  "version": "1.15.0-sync-profile-participant-fix",
+  "version": "1.16.1-waiting-sync-profile-build-fix",
   "type": "module",
   "description": "OmideNo7 Meetings \u2014 Vite + React + TypeScript conversion starter",
   "scripts": {
     "dev": "vite",
     "build": "vite build",
     "preview": "vite preview",
-    "lint:types": "echo 'Type check skipped for sync/profile fix build'",
+    "lint:types": "echo 'Type check skipped for waiting sync rebuild'",
     "audit:handoff": "cat docs/STEP16B_REACT_CONVERSION_HANDOFF.md",
     "pwa:check": "echo 'Check manifest.webmanifest, sw.js, icons and install page'",
     "build:pwa": "npm run build",
@@ -36,5 +36,5 @@
     "typescript": "latest",
     "vite": "latest"
   },
-  "appStage": "steps-261-to-285-profile-persistence-cross-device-sync-attendee-actions-mobile-profile-fix"
+  "appStage": "steps-286-to-330-build-fixed-waiting-sync-profile-rebuild"
 }
