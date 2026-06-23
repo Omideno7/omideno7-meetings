@@ -7,7 +7,7 @@ export type LiveKitTokenResponse =
   | { ok: false; reason: string; message?: string };
 
 function getDeviceId() {
-  const key = "omideno7.livekit.deviceId.v3";
+  const key = "omideno7.livekit.deviceId.v4";
   let existing = sessionStorage.getItem(key);
   if (!existing) {
     existing = crypto.randomUUID();
@@ -28,7 +28,7 @@ export const liveKitTokenService = {
       return {
         ok: false,
         reason: "livekit_not_configured",
-        message: "LiveKit is not configured in Vercel environment variables."
+        message: "LiveKit is not configured. Check VITE_LIVEKIT_ENABLED and VITE_LIVEKIT_WS_URL in Vercel."
       };
     }
 
@@ -38,18 +38,19 @@ export const liveKitTokenService = {
 
     const hostRoles = ["owner", "senior_host", "meeting_host", "co_host", "door_servant", "media_servant", "prayer_servant", "chat_moderator"];
     const isHostLike = hostRoles.includes(profile.role);
+
     if (!admitted && !isHostLike) {
-      return { ok: false, reason: "waiting_room_admission_required", message: "Member must be admitted from Waiting Room before entering LiveKit." };
+      return { ok: false, reason: "waiting_room_admission_required", message: "Member must be admitted from Waiting Room first." };
     }
 
     const sessionResult = await supabase?.auth.getSession();
     const accessToken = sessionResult?.data.session?.access_token;
 
     if (!accessToken) {
-      return { ok: false, reason: "missing_supabase_session", message: "Please logout and login again." };
+      return { ok: false, reason: "missing_supabase_session", message: "Please logout, refresh, and login again." };
     }
 
-    const timeout = timeoutSignal(12000);
+    const timeout = timeoutSignal(15000);
 
     try {
       const response = await fetch(liveKitReadyConfig.tokenEndpoint, {
@@ -74,7 +75,7 @@ export const liveKitTokenService = {
         return {
           ok: false,
           reason: `invalid_token_response_${response.status}`,
-          message: "LiveKit token endpoint did not return JSON. Check Vercel /api/livekit/token routing."
+          message: `LiveKit token endpoint returned non-JSON (${response.status}). Open /api/livekit/debug and check Vercel Functions.`
         };
       }
 
@@ -92,7 +93,7 @@ export const liveKitTokenService = {
         return {
           ok: false,
           reason: "token_request_timeout",
-          message: "LiveKit token request timed out. Check Vercel environment variables and /api/livekit/token."
+          message: "LiveKit token request timed out after 15 seconds. Check /api/livekit/debug and Vercel Environment Variables."
         };
       }
 

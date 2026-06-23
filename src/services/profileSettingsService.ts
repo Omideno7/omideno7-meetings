@@ -52,13 +52,6 @@ export const profileSettingsService = {
     localStorage.setItem(localKey(profile.id), JSON.stringify(settings));
 
     if (supabase) {
-      const { error } = await supabase.rpc("save_my_profile_settings", {
-        next_display_name: settings.displayName || profile.displayName,
-        next_avatar_data_url: settings.avatarUrl || null
-      });
-
-      if (!error) return;
-
       await supabase
         .from("profiles")
         .update({
@@ -68,6 +61,11 @@ export const profileSettingsService = {
           updated_at: new Date().toISOString()
         })
         .eq("id", profile.id);
+
+      await supabase.rpc("save_my_profile_settings", {
+        next_display_name: settings.displayName || profile.displayName,
+        next_avatar_data_url: settings.avatarUrl || null
+      });
     }
   },
 

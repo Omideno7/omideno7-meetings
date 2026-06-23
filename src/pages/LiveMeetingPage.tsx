@@ -175,12 +175,18 @@ export function LiveMeetingPage() {
     }
 
     if (roomSettings && roomSettings.live_open === false && !canHost) {
+      sendLiveKitControl("force-disconnect");
       notify("The host ended the meeting.");
       setRoute("memberHome");
       return;
     }
 
     if (myRow) {
+      if (!canHost && (myRow.status === "removed" || myRow.status === "blocked")) {
+        setMyRoomStatus(myRow.status);
+        setRoute("memberHome");
+        return;
+      }
       setMyRoomStatus(myRow.status);
       demoStore.setMeetingState({ mic: myRow.mic_on, camera: myRow.camera_on });
       setSelfHandRaised(Boolean(myRow.hand_raised));
@@ -396,8 +402,8 @@ export function LiveMeetingPage() {
   }
 
   async function leaveOnly() {
-    const myId = roomParticipantId(meetingRoomService.meetingId, profile?.id);
-    await meetingRoomService.updateParticipant(myId, { status: "left", mic_on: false, camera_on: false });
+    sendLiveKitControl("force-disconnect");
+    await meetingRoomService.leaveMeeting(profile);
     setLeaveDialogOpen(false);
     setRoute("memberHome");
   }
@@ -405,7 +411,7 @@ export function LiveMeetingPage() {
   async function endMeetingForEveryone() {
     if (!canEnd) return notify("Only host roles can end the meeting for everyone.");
     setLeaveDialogOpen(false);
-    sendLiveKitControl("leave");
+    sendLiveKitControl("force-disconnect");
     await meetingRoomService.endMeetingForEveryone();
     demoStore.setMeetingState({ mic: false, camera: false, recording: false });
     notify("Meeting ended for everyone.");
@@ -456,6 +462,10 @@ export function LiveMeetingPage() {
               }
             }}
             onMediaStateChange={handleLiveKitMediaState}
+            onLeave={async () => {
+              await meetingRoomService.leaveMeeting(profile);
+              await refreshRoomState();
+            }}
           />
           {!liveKitConnected && participants.map((person) => (
             <article key={person.id} className={`participant-tile ${person.id === roomParticipantId(meetingRoomService.meetingId, profile?.id) ? "speaking" : ""}`}>

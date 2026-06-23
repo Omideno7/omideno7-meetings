@@ -1,40 +1,49 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Button } from "../components/ui/Button";
 import { Card } from "../components/ui/Card";
 import { useAppState } from "../app/AppState";
 import { canManageWaitingRoom, isHostLike } from "../services/roleAccess";
-
-type WaitingPerson = {
-  id: string;
-  name: string;
-  note: string;
-  status: "waiting" | "admitted" | "rejected";
-};
-
-const initialWaiting: WaitingPerson[] = [
-  { id: "wait-1", name: "Member waiting", note: "Entered waiting room now", status: "waiting" }
-];
+import { meetingRoomService, type RoomParticipant } from "../services/meetingRoomService";
 
 export function WaitingRoomPage() {
   const { profile, setRoute } = useAppState();
-  const [waiting, setWaiting] = useState<WaitingPerson[]>(initialWaiting);
-  const [joined, setJoined] = useState(false);
+  const [waiting, setWaiting] = useState<RoomParticipant[]>([]);
   const [message, setMessage] = useState("Ready");
   const canManage = canManageWaitingRoom(profile);
   const canHost = isHostLike(profile);
 
-  function admit(person: WaitingPerson) {
-    setWaiting((current) => current.map((item) => item.id === person.id ? { ...item, status: "admitted" } : item));
-    setMessage(`${person.name} admitted.`);
+  async function load() {
+    const rows = await meetingRoomService.listParticipants("waiting");
+    setWaiting(rows);
   }
 
-  function reject(person: WaitingPerson) {
-    setWaiting((current) => current.map((item) => item.id === person.id ? { ...item, status: "rejected" } : item));
-    setMessage(`${person.name} rejected.`);
+  useEffect(() => {
+    void load();
+    const unsubscribe = meetingRoomService.subscribe(load);
+    const timer = window.setInterval(load, 2500);
+    return () => {
+      unsubscribe();
+      window.clearInterval(timer);
+    };
+  }, []);
+
+  async function enterWaitingRoom() {
+    await meetingRoomService.joinWaiting(profile);
+    await meetingRoomService.raiseAlert(`${profile?.displayName || "A member"} is waiting for admission.`, "waiting_room", "red", "active");
+    setMessage("You entered the waiting room. Opening live page...");
+    window.setTimeout(() => setRoute("liveMeeting"), 350);
   }
 
-  function removeDone() {
-    setWaiting((current) => current.filter((item) => item.status === "waiting"));
+  async function admit(person: RoomParticipant) {
+    await meetingRoomService.admitParticipant(person.id);
+    setMessage(`${person.display_name} admitted.`);
+    await load();
+  }
+
+  async function reject(person: RoomParticipant) {
+    await meetingRoomService.rejectParticipant(person.id);
+    setMessage(`${person.display_name} rejected.`);
+    await load();
   }
 
   if (!canManage) {
@@ -42,17 +51,14 @@ export function WaitingRoomPage() {
       <div className="page-grid">
         <Card>
           <h1>Waiting Room</h1>
-          <p>Approved members enter the waiting room first. A host or Door Servant must admit you before you enter the main meeting.</p>
+          <p>Enter the waiting room. After the host admits you, the Live page opens and connects to the active room.</p>
           <div className="member-waiting-status">
-            <strong>{joined ? "You are waiting for host approval." : "You have not entered the waiting room yet."}</strong>
-            <span>Mic off · Camera off · Waiting for host</span>
+            <strong>Mic off · Camera off</strong>
+            <span>Waiting for host admission</span>
           </div>
           <div className="button-row">
-            {!joined ? (
-              <Button onClick={() => { setJoined(true); setMessage("You entered the waiting room."); }}>Enter Waiting Room</Button>
-            ) : (
-              <Button variant="secondary" onClick={() => setRoute("liveMeeting")}>Open Meeting Preview</Button>
-            )}
+            <Button onClick={enterWaitingRoom}>Enter Waiting Room</Button>
+            <Button variant="secondary" onClick={() => setRoute("liveMeeting")}>Open Live Page</Button>
             <Button variant="ghost" onClick={() => setRoute("memberHome")}>Back Home</Button>
           </div>
           <p className="auth-message">{message}</p>
@@ -65,33 +71,33 @@ export function WaitingRoomPage() {
     <div className="page-grid">
       <Card>
         <h1>Waiting Room Control</h1>
-        <p>Only Owner, Host, Co-host, or Door Servant can admit/reject people from the waiting room.</p>
+        <p>Admit or reject approved members before they enter the main meeting.</p>
         <p className="small-note">Signed in as: {profile?.displayName} · {profile?.role?.replaceAll("_", " ")}</p>
         <div className="button-row">
           {canHost && <Button onClick={() => setRoute("liveMeeting")}>Open Live Meeting</Button>}
-          <Button variant="secondary" onClick={removeDone}>Clear admitted/rejected</Button>
+          <Button variant="secondary" onClick={load}>Refresh</Button>
+          <Button variant="ghost" onClick={() => setRoute("memberHome")}>Back Home</Button>
         </div>
         <p className="auth-message">{message}</p>
       </Card>
 
       <div className="meeting-list">
-        {waiting.map((person) => (
-          <Card key={person.id} className={`waiting-live-card visible-waiting-card status-${person.status}`}>
+        {waiting.length === 0 ? (
+          <Card><p>No one is waiting now.</p></Card>
+        ) : waiting.map((person) => (
+          <Card key={person.id} className="waiting-live-card visible-waiting-card status-waiting">
             <div className="section-row">
               <div>
-                <h2>{person.name}</h2>
-                <p>{person.note}</p>
-                <p className="small-note">ID: {person.id} · Status: {person.status}</p>
+                <h2>{person.display_name}</h2>
+                <p>{person.role_label}</p>
+                <p className="small-note">ID: {person.id}</p>
               </div>
-              <span className={`status-badge status-${person.status}`}>{person.status.toUpperCase()}</span>
+              <span className="status-badge status-waiting">WAITING</span>
             </div>
-            {person.status === "waiting" && (
-              <div className="button-row">
-                <Button onClick={() => admit(person)}>Admit</Button>
-                <Button variant="secondary" onClick={() => setMessage(`Message opened for ${person.name}.`)}>Message</Button>
-                <Button variant="danger" onClick={() => reject(person)}>Reject</Button>
-              </div>
-            )}
+            <div className="button-row">
+              <Button onClick={() => admit(person)}>Admit</Button>
+              <Button variant="danger" onClick={() => reject(person)}>Reject</Button>
+            </div>
           </Card>
         ))}
       </div>

@@ -4645,3 +4645,156 @@ button.secondary {
   height: 100%;
   object-fit: cover;
 }
+
+
+/* 1.22 LiveKit stability/mobile/profile fixes */
+.omide-livekit-status.error {
+  background: rgba(217,31,42,.16);
+  color: #fff;
+  border-top: 1px solid rgba(217,31,42,.35);
+}
+
+.debug-link {
+  color: #fff;
+  background: rgba(255,255,255,.13);
+  padding: 10px 12px;
+  border-radius: 999px;
+  text-decoration: none;
+  font-weight: 900;
+}
+
+.custom-livekit-grid {
+  max-height: min(68vh, 680px);
+  overflow-y: auto;
+  grid-auto-rows: minmax(140px, auto);
+}
+
+.custom-livekit-tile {
+  min-height: 140px;
+  max-height: 270px;
+}
+
+.custom-livekit-tile::after {
+  display: none !important;
+}
+
+.live-audio-ring.real-eq {
+  left: 50%;
+  top: auto;
+  bottom: 42px;
+  transform: translateX(-50%);
+  opacity: 0;
+  gap: 3px;
+  height: 20px;
+  padding: 4px 8px;
+  border-radius: 999px;
+  background: rgba(0,0,0,.38);
+  border: 1px solid rgba(255,255,255,.08);
+}
+
+.custom-livekit-tile.mic-active .live-audio-ring.real-eq {
+  opacity: .42;
+}
+
+.custom-livekit-tile.speaking-now .live-audio-ring.real-eq {
+  opacity: 1;
+  background: rgba(19,191,84,.24);
+  border-color: rgba(19,191,84,.52);
+}
+
+.live-audio-ring.real-eq i {
+  display: block;
+  width: 3px;
+  height: 4px;
+  border-radius: 999px;
+  background: rgba(255,255,255,.72);
+  animation: none !important;
+  transition: height .12s ease, background-color .12s ease;
+}
+
+.custom-livekit-tile.speaking-now .live-audio-ring.real-eq i {
+  background: #24e16c;
+}
+
+.custom-livekit-tile.speaking-now .live-audio-ring.real-eq i:nth-child(1) { height: calc(5px + 9px * var(--audio-level)); }
+.custom-livekit-tile.speaking-now .live-audio-ring.real-eq i:nth-child(2) { height: calc(6px + 15px * var(--audio-level)); }
+.custom-livekit-tile.speaking-now .live-audio-ring.real-eq i:nth-child(3) { height: calc(7px + 18px * var(--audio-level)); }
+.custom-livekit-tile.speaking-now .live-audio-ring.real-eq i:nth-child(4) { height: calc(6px + 13px * var(--audio-level)); }
+.custom-livekit-tile.speaking-now .live-audio-ring.real-eq i:nth-child(5) { height: calc(5px + 10px * var(--audio-level)); }
+
+.profile-preview-image {
+  width: 92px;
+  height: 92px;
+  object-fit: cover;
+  border-radius: 26px;
+  border: 2px solid rgba(19,191,84,.45);
+  margin: 10px 0;
+}
+
+.profile-form-clean input[type="file"] {
+  border: 1px dashed rgba(6,20,109,.25);
+  padding: 12px;
+  border-radius: 14px;
+}
+
+@media (max-width: 740px) {
+  .omide-livekit-stage.connected {
+    min-height: 0 !important;
+  }
+
+  .custom-livekit-grid {
+    max-height: 58vh;
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+    grid-auto-rows: auto;
+    padding: 8px;
+    gap: 8px;
+  }
+
+  .custom-livekit-tile {
+    min-height: 112px;
+    max-height: 168px;
+    aspect-ratio: 1 / 1;
+    border-radius: 16px;
+  }
+
+  .custom-livekit-video {
+    object-fit: cover;
+  }
+
+  .custom-livekit-avatar span {
+    width: 54px;
+    height: 54px;
+    border-radius: 20px;
+    font-size: 1.45rem;
+  }
+
+  .custom-livekit-namebar {
+    left: 6px;
+    right: 6px;
+    bottom: 6px;
+    padding: 5px 7px;
+  }
+
+  .custom-livekit-namebar strong {
+    font-size: .7rem;
+  }
+
+  .custom-livekit-namebar small {
+    font-size: .62rem;
+  }
+
+  .live-audio-ring.real-eq {
+    bottom: 32px;
+    height: 16px;
+    padding: 3px 6px;
+  }
+
+  .omide-livekit-head {
+    padding: 10px 12px;
+  }
+
+  .omide-livekit-status {
+    padding: 8px 12px;
+    font-size: .78rem;
+  }
+}
