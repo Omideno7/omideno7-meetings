@@ -14,9 +14,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     { key: "profile", label: "Profile", icon: "◉" },
     { key: "servantDashboard", label: "Host", icon: "◎" },
     { key: "reports", label: "Reports", icon: "📊" },
-    { key: "ownerDashboard", label: "Owner", icon: "✓" },
-    { key: "testingCenter", label: "Testing", icon: "🧪" },
-    { key: "releaseReadiness", label: "Release", icon: "🚦" }
+    { key: "ownerDashboard", label: "Owner", icon: "✓" }
   ];
 
   const visibleTabs = mainTabs.filter((item) => canOpenRoute(item.key, profile));

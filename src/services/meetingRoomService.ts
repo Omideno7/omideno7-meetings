@@ -31,6 +31,14 @@ export type RoomChatMessage = {
   created_at?: string;
 };
 
+export type MeetingRoomSettings = {
+  meeting_id: string;
+  chat_mode: "public" | "admin" | "closed";
+  live_open: boolean;
+  active_room_name: string;
+  updated_at?: string;
+};
+
 export type RoomAlert = {
   id: string;
   meeting_id: string;
@@ -47,6 +55,7 @@ const MEETING_ID = "main-room";
 const LOCAL_PARTICIPANTS = "omideno7.room.participants.v2";
 const LOCAL_CHAT = "omideno7.room.chat.v2";
 const LOCAL_ALERTS = "omideno7.room.alerts.v2";
+const LOCAL_SETTINGS = "omideno7.room.settings.v1";
 
 function readLocal<T>(key: string, fallback: T): T {
   try {
@@ -199,6 +208,47 @@ export const meetingRoomService = {
     return readLocal<RoomChatMessage[]>(LOCAL_CHAT, []).slice().reverse();
   },
 
+  async getSettings(): Promise<MeetingRoomSettings> {
+    if (supabase) {
+      const { data, error } = await supabase
+        .from("meeting_room_settings")
+        .select("*")
+        .eq("meeting_id", MEETING_ID)
+        .maybeSingle();
+
+      if (!error && data) return data as MeetingRoomSettings;
+
+      const fallback = { meeting_id: MEETING_ID, chat_mode: "public" as const, live_open: true, active_room_name: "Main Room" };
+      await supabase.from("meeting_room_settings").upsert(fallback, { onConflict: "meeting_id" });
+      return fallback;
+    }
+
+    return readLocal<MeetingRoomSettings>(LOCAL_SETTINGS, {
+      meeting_id: MEETING_ID,
+      chat_mode: "public",
+      live_open: true,
+      active_room_name: "Main Room"
+    });
+  },
+
+  async updateSettings(patch: Partial<MeetingRoomSettings>) {
+    const next = {
+      meeting_id: MEETING_ID,
+      ...patch,
+      updated_at: new Date().toISOString()
+    };
+
+    if (supabase) {
+      const { error } = await supabase
+        .from("meeting_room_settings")
+        .upsert(next, { onConflict: "meeting_id" });
+      if (!error) return;
+    }
+
+    const current = await this.getSettings();
+    writeLocal(LOCAL_SETTINGS, { ...current, ...next });
+  },
+
   async raiseAlert(title: string, alertType = "info", color: RoomAlert["color"] = "red", status: RoomAlert["status"] = "active") {
     const row = {
       meeting_id: MEETING_ID,
@@ -238,6 +288,7 @@ export const meetingRoomService = {
       .on("postgres_changes", { event: "*", schema: "public", table: "meeting_room_participants" }, onChange)
       .on("postgres_changes", { event: "*", schema: "public", table: "meeting_room_chat_messages" }, onChange)
       .on("postgres_changes", { event: "*", schema: "public", table: "meeting_room_alerts" }, onChange)
+      .on("postgres_changes", { event: "*", schema: "public", table: "meeting_room_settings" }, onChange)
       .subscribe();
 
     return () => {

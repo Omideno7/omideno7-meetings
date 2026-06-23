@@ -7,11 +7,11 @@ export type LiveKitTokenResponse =
   | { ok: false; reason: string; message?: string };
 
 function getDeviceId() {
-  const key = "omideno7.livekit.deviceId.v2";
-  let existing = sessionStorage.getItem(key);
+  const key = "omideno7.livekit.deviceId.v1";
+  let existing = localStorage.getItem(key);
   if (!existing) {
     existing = crypto.randomUUID();
-    sessionStorage.setItem(key, existing);
+    localStorage.setItem(key, existing);
   }
   return existing;
 }
@@ -26,7 +26,9 @@ export const liveKitTokenService = {
       return { ok: false, reason: "profile_not_approved" };
     }
 
-    if (!admitted) {
+    const hostRoles = ["owner", "senior_host", "meeting_host", "co_host", "door_servant", "media_servant", "prayer_servant", "chat_moderator"];
+    const isHostLike = hostRoles.includes(profile.role);
+    if (!admitted && !isHostLike) {
       return { ok: false, reason: "waiting_room_admission_required" };
     }
 

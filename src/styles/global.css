@@ -4508,200 +4508,83 @@ button.secondary {
 }
 
 
-/* LiveKit Custom Video Grid — 1.19.0 */
-.omide-livekit-stage {
-  grid-column: 1 / -1;
-  border-radius: 24px;
-  background: linear-gradient(135deg, rgba(5,39,90,.97), rgba(11,87,152,.95));
-  border: 1px solid rgba(19,191,84,.28);
-  box-shadow: 0 24px 70px rgba(5,39,90,.24);
-  color: #fff;
-  overflow: hidden;
-}
-
-.omide-livekit-stage.idle {
-  min-height: 180px;
-}
-
-.omide-livekit-stage.connected {
-  min-height: 520px;
-}
-
-.omide-livekit-head {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  padding: 14px 16px;
-  border-bottom: 2px solid rgba(19,191,84,.75);
-}
-
-.omide-livekit-head strong {
-  display: block;
-  font-size: 1rem;
-  color: #fff !important;
-}
-
-.omide-livekit-head span {
-  display: block;
-  color: rgba(255,255,255,.76) !important;
-  font-size: .82rem;
-}
-
-.omide-livekit-actions {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  flex-wrap: wrap;
-  justify-content: flex-end;
-}
-
-.omide-livekit-actions button {
-  border: 0;
-  border-radius: 999px;
-  padding: 10px 14px;
-  font-weight: 900;
-  color: #fff;
-  background: linear-gradient(135deg, #09a440, #13bf54);
-  cursor: pointer;
-}
-
-.omide-livekit-actions button:disabled {
-  opacity: .56;
-  cursor: not-allowed;
-}
-
-.omide-livekit-actions button.danger {
-  background: #d91f2a;
-}
-
-.omide-livekit-actions button.active {
-  background: #13bf54;
-}
-
-.omide-livekit-status {
-  margin: 0;
-  padding: 10px 16px;
-  color: rgba(255,255,255,.86);
-  font-weight: 800;
-}
-
-.omide-livekit-warning {
-  margin: 12px 16px 0;
-  padding: 10px 12px;
-  border-radius: 14px;
-  background: rgba(217,31,42,.94);
-  color: #fff;
-  font-weight: 900;
-}
-
-.custom-livekit-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(190px, 1fr));
-  gap: 10px;
-  padding: 12px;
-  min-height: 430px;
-  align-content: start;
-  background: #041b3d;
-}
-
+/* 1.20 LiveKit UX controls, mic activity and cleaner navigation */
 .custom-livekit-tile {
-  position: relative;
-  min-height: 150px;
-  aspect-ratio: 16 / 10;
-  border-radius: 18px;
-  overflow: hidden;
-  background: linear-gradient(135deg, #05275a, #0b5798);
-  border: 1px solid rgba(19,191,84,.28);
-  box-shadow: 0 16px 40px rgba(0,0,0,.25);
+  --audio-level: 0.05;
 }
 
-.custom-livekit-video {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-  background: #000;
+.custom-livekit-tile.mic-active {
+  border: 2px solid rgba(24, 210, 92, .75);
+  box-shadow: 0 0 calc(8px + (28px * var(--audio-level))) rgba(24, 210, 92, .32), 0 16px 40px rgba(0,0,0,.25);
 }
 
-.custom-livekit-avatar {
-  width: 100%;
-  height: 100%;
-  display: grid;
-  place-items: center;
-  background: radial-gradient(circle at top left, rgba(19,191,84,.32), transparent 35%), linear-gradient(135deg, #05275a, #0b5798);
+.custom-livekit-tile.speaking-now {
+  animation: omideSpeakingPulse 1.2s ease-in-out infinite;
 }
 
-.custom-livekit-avatar span {
-  display: grid;
-  place-items: center;
-  width: 72px;
-  height: 72px;
-  border-radius: 28px;
-  background: rgba(255,255,255,.14);
-  border: 2px solid rgba(255,255,255,.28);
-  color: #fff;
-  font-size: 2rem;
-  font-weight: 900;
+@keyframes omideSpeakingPulse {
+  0%, 100% { box-shadow: 0 0 calc(10px + (22px * var(--audio-level))) rgba(24, 210, 92, .30), 0 16px 40px rgba(0,0,0,.25); }
+  50% { box-shadow: 0 0 calc(18px + (34px * var(--audio-level))) rgba(24, 210, 92, .58), 0 16px 40px rgba(0,0,0,.25); }
 }
 
-.custom-livekit-namebar {
+.live-audio-ring {
   position: absolute;
-  left: 8px;
-  right: 8px;
-  bottom: 8px;
-  border-radius: 12px;
-  padding: 7px 9px;
-  background: rgba(0,0,0,.48);
-  backdrop-filter: blur(8px);
+  left: 10px;
+  top: 10px;
+  display: flex;
+  align-items: flex-end;
+  gap: 3px;
+  height: 26px;
+  padding: 5px 7px;
+  border-radius: 999px;
+  background: rgba(0,0,0,.32);
+  opacity: .45;
 }
 
-.custom-livekit-namebar strong {
+.custom-livekit-tile.mic-active .live-audio-ring {
+  opacity: 1;
+  background: rgba(19,191,84,.20);
+  border: 1px solid rgba(19,191,84,.45);
+}
+
+.live-audio-ring i {
   display: block;
-  color: #fff !important;
+  width: 4px;
+  min-height: 4px;
+  border-radius: 999px;
+  background: rgba(255,255,255,.75);
+  transform-origin: bottom;
+}
+
+.custom-livekit-tile.mic-active .live-audio-ring i {
+  background: #24e16c;
+}
+
+.custom-livekit-tile.speaking-now .live-audio-ring i:nth-child(1) { height: calc(6px + 12px * var(--audio-level)); animation: omideEq1 .7s infinite ease-in-out; }
+.custom-livekit-tile.speaking-now .live-audio-ring i:nth-child(2) { height: calc(8px + 18px * var(--audio-level)); animation: omideEq2 .58s infinite ease-in-out; }
+.custom-livekit-tile.speaking-now .live-audio-ring i:nth-child(3) { height: calc(5px + 15px * var(--audio-level)); animation: omideEq3 .64s infinite ease-in-out; }
+.custom-livekit-tile.speaking-now .live-audio-ring i:nth-child(4) { height: calc(7px + 13px * var(--audio-level)); animation: omideEq2 .74s infinite ease-in-out; }
+
+@keyframes omideEq1 { 50% { transform: scaleY(1.7); } }
+@keyframes omideEq2 { 50% { transform: scaleY(1.35); } }
+@keyframes omideEq3 { 50% { transform: scaleY(1.9); } }
+
+.compact-media-actions button.mic-action,
+.compact-media-actions button.cam-action {
+  min-width: 42px;
+  width: 42px;
+  height: 42px;
+  padding: 0;
+  display: inline-grid;
+  place-items: center;
+  font-size: 1.1rem;
+}
+
+.compact-media-actions button.mic-action.active,
+.compact-media-actions button.cam-action.active {
+  outline: 3px solid rgba(36,225,108,.22);
+}
+
+.omide-livekit-stage.idle .omide-livekit-status {
   font-size: .82rem;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.custom-livekit-namebar small {
-  color: rgba(255,255,255,.78);
-  font-size: .68rem;
-}
-
-.custom-livekit-audio {
-  position: fixed;
-  width: 1px;
-  height: 1px;
-  left: -9999px;
-  overflow: hidden;
-}
-
-@media (max-width: 900px) {
-  .omide-livekit-stage.connected {
-    min-height: 480px;
-  }
-
-  .omide-livekit-head {
-    align-items: flex-start;
-    flex-direction: column;
-  }
-
-  .custom-livekit-grid {
-    grid-template-columns: repeat(auto-fill, minmax(128px, 1fr));
-    min-height: 360px;
-    gap: 7px;
-    padding: 8px;
-  }
-
-  .custom-livekit-tile {
-    min-height: 120px;
-    border-radius: 15px;
-  }
-}
-
-@media (max-width: 520px) {
-  .custom-livekit-grid {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
 }

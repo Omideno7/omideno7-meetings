@@ -8,18 +8,22 @@ type Props = {
   profile: UserProfile | null;
   admitted: boolean;
   meetingId: string;
+  autoStart?: boolean;
+  confirmBeforeStart?: boolean;
   onConnectionChange?: (connected: boolean) => void;
+  onMediaStateChange?: (state: { mic: boolean; camera: boolean }) => void | Promise<void>;
 };
 
 type LiveTile = {
   key: string;
   name: string;
-  role?: string;
   isLocal: boolean;
   cameraTrack: any | null;
   microphoneTrack: any | null;
   cameraOn: boolean;
   micOn: boolean;
+  audioLevel: number;
+  speaking: boolean;
 };
 
 function VideoTrackView({ track, muted }: { track: any | null; muted?: boolean }) {
@@ -75,6 +79,8 @@ function tileFromParticipant(participant: any, isLocal: boolean): LiveTile {
   const publications = getPublications(participant);
   const cameraPublication = publications.find((pub) => pub.source === Track.Source.Camera);
   const micPublication = publications.find((pub) => pub.source === Track.Source.Microphone);
+  const audioLevel = Number(participant?.audioLevel || 0);
+  const speaking = Boolean(participant?.isSpeaking || audioLevel > 0.05);
 
   return {
     key: participant.identity || participant.sid || participant.name,
@@ -83,21 +89,31 @@ function tileFromParticipant(participant: any, isLocal: boolean): LiveTile {
     cameraTrack: cameraPublication?.track || null,
     microphoneTrack: micPublication?.track || null,
     cameraOn: Boolean(cameraPublication?.track && !cameraPublication?.isMuted),
-    micOn: Boolean(micPublication?.track && !micPublication?.isMuted)
+    micOn: Boolean(micPublication?.track && !micPublication?.isMuted),
+    audioLevel,
+    speaking
   };
 }
 
-export function RealLiveKitRoom({ profile, admitted, meetingId, onConnectionChange }: Props) {
-  const [status, setStatus] = useState("Ready to open live meeting.");
+export function RealLiveKitRoom({
+  profile,
+  admitted,
+  meetingId,
+  autoStart = false,
+  confirmBeforeStart = false,
+  onConnectionChange,
+  onMediaStateChange
+}: Props) {
+  const [status, setStatus] = useState("Ready.");
   const [tokenData, setTokenData] = useState<Extract<LiveKitTokenResponse, { ok: true }> | null>(null);
   const [connecting, setConnecting] = useState(false);
   const [room, setRoom] = useState<Room | null>(null);
   const [tiles, setTiles] = useState<LiveTile[]>([]);
   const [cameraEnabled, setCameraEnabled] = useState(false);
   const [micEnabled, setMicEnabled] = useState(false);
+  const [confirmed, setConfirmed] = useState(!confirmBeforeStart);
 
   const connected = Boolean(room && tokenData);
-
   const remoteAudioTiles = useMemo(() => tiles.filter((tile) => !tile.isLocal && tile.microphoneTrack), [tiles]);
 
   function refreshTiles(nextRoom = room) {
@@ -118,11 +134,22 @@ export function RealLiveKitRoom({ profile, admitted, meetingId, onConnectionChan
     setTiles(nextTiles);
   }
 
+  async function publishMediaState(nextRoom: Room | null, mic: boolean, camera: boolean) {
+    setMicEnabled(mic);
+    setCameraEnabled(camera);
+    await onMediaStateChange?.({ mic, camera });
+    window.setTimeout(() => refreshTiles(nextRoom || room), 150);
+  }
+
   async function connectRealRoom() {
     if (connecting || connected) return;
+    if (!admitted) {
+      setStatus("Waiting for host admission.");
+      return;
+    }
 
     setConnecting(true);
-    setStatus("Opening secure OmideNo7 live meeting...");
+    setStatus("Opening secure live meeting...");
 
     const result = await liveKitTokenService.requestToken({ meetingId, profile, admitted });
     if (!result.ok) {
@@ -150,13 +177,14 @@ export function RealLiveKitRoom({ profile, admitted, meetingId, onConnectionChan
       .on(RoomEvent.LocalTrackPublished, refresh)
       .on(RoomEvent.LocalTrackUnpublished, refresh)
       .on(RoomEvent.Disconnected, () => {
-        setStatus("Live meeting disconnected.");
+        setStatus("Disconnected.");
         setRoom(null);
         setTokenData(null);
         setTiles([]);
         setCameraEnabled(false);
         setMicEnabled(false);
         onConnectionChange?.(false);
+        void onMediaStateChange?.({ mic: false, camera: false });
       });
 
     try {
@@ -167,22 +195,17 @@ export function RealLiveKitRoom({ profile, admitted, meetingId, onConnectionChan
       setRoom(nextRoom);
       setTokenData(result);
       onConnectionChange?.(true);
-      setStatus("Live meeting is open. Camera and microphone are ready.");
+      setStatus("Live meeting open.");
 
+      // Important: default mic/camera OFF. User turns them on by consent.
       try {
-        await nextRoom.localParticipant.setMicrophoneEnabled(true);
-        setMicEnabled(true);
-      } catch (error: any) {
-        setStatus(`Microphone permission needed: ${error?.message || "enable microphone from browser"}`);
+        await nextRoom.localParticipant.setMicrophoneEnabled(false);
+        await nextRoom.localParticipant.setCameraEnabled(false);
+      } catch {
+        // ignore default-off errors
       }
 
-      try {
-        await nextRoom.localParticipant.setCameraEnabled(true);
-        setCameraEnabled(true);
-      } catch (error: any) {
-        setStatus(`Camera permission needed: ${error?.message || "enable camera from browser"}`);
-      }
-
+      await publishMediaState(nextRoom, false, false);
       window.setTimeout(() => refreshTiles(nextRoom), 250);
       window.setTimeout(() => refreshTiles(nextRoom), 1200);
     } catch (error: any) {
@@ -203,7 +226,9 @@ export function RealLiveKitRoom({ profile, admitted, meetingId, onConnectionChan
     setTiles([]);
     setCameraEnabled(false);
     setMicEnabled(false);
+    setConfirmed(!confirmBeforeStart);
     onConnectionChange?.(false);
+    await onMediaStateChange?.({ mic: false, camera: false });
     setStatus("You left the live meeting.");
   }
 
@@ -211,17 +236,39 @@ export function RealLiveKitRoom({ profile, admitted, meetingId, onConnectionChan
     if (!room) return;
     const next = !cameraEnabled;
     await room.localParticipant.setCameraEnabled(next);
-    setCameraEnabled(next);
-    window.setTimeout(() => refreshTiles(room), 250);
+    await publishMediaState(room, micEnabled, next);
   }
 
   async function toggleMic() {
     if (!room) return;
     const next = !micEnabled;
     await room.localParticipant.setMicrophoneEnabled(next);
-    setMicEnabled(next);
-    window.setTimeout(() => refreshTiles(room), 250);
+    await publishMediaState(room, next, cameraEnabled);
   }
+
+  useEffect(() => {
+    if (autoStart && admitted && confirmed && !connected && !connecting) {
+      void connectRealRoom();
+    }
+  }, [autoStart, admitted, confirmed, connected, connecting]);
+
+  useEffect(() => {
+    if (!room) return;
+    const timer = window.setInterval(() => refreshTiles(room), 300);
+    return () => window.clearInterval(timer);
+  }, [room]);
+
+  useEffect(() => {
+    function handleLiveKitControl(event: Event) {
+      const action = (event as CustomEvent<{ action?: string }>).detail?.action;
+      if (action === "mic") void toggleMic();
+      if (action === "camera") void toggleCamera();
+      if (action === "leave") void disconnectRealRoom();
+    }
+
+    window.addEventListener("omide-livekit-control", handleLiveKitControl as EventListener);
+    return () => window.removeEventListener("omide-livekit-control", handleLiveKitControl as EventListener);
+  }, [room, micEnabled, cameraEnabled]);
 
   useEffect(() => {
     return () => {
@@ -229,24 +276,41 @@ export function RealLiveKitRoom({ profile, admitted, meetingId, onConnectionChan
     };
   }, [room]);
 
+  if (!connected && confirmBeforeStart && !confirmed) {
+    return (
+      <section className="omide-livekit-stage idle">
+        <div className="omide-livekit-head">
+          <div>
+            <strong>Enter live meeting?</strong>
+            <span>Open the active OmideNo7 room now.</span>
+          </div>
+          <div className="omide-livekit-actions">
+            <button onClick={() => setConfirmed(true)}>Enter now</button>
+          </div>
+        </div>
+        <p className="omide-livekit-status">Camera and microphone will stay off until you turn them on.</p>
+      </section>
+    );
+  }
+
   return (
     <section className={`omide-livekit-stage ${connected ? "connected" : "idle"}`}>
       <div className="omide-livekit-head">
         <div>
           <strong>OmideNo7 Live Meeting</strong>
-          <span>{connected ? "Live video tiles are active" : "Host opens the room, members join after admission"}</span>
+          <span>{connected ? "Live room is active" : "Members enter after host admission"}</span>
         </div>
 
-        <div className="omide-livekit-actions">
+        <div className="omide-livekit-actions compact-media-actions">
           {!connected ? (
             <button onClick={connectRealRoom} disabled={connecting || !admitted}>
-              {connecting ? "Opening..." : "Join Live Meeting"}
+              {connecting ? "Opening..." : "Enter"}
             </button>
           ) : (
             <>
-              <button onClick={toggleMic} className={micEnabled ? "active" : ""}>{micEnabled ? "Mute mic" : "Unmute mic"}</button>
-              <button onClick={toggleCamera} className={cameraEnabled ? "active" : ""}>{cameraEnabled ? "Camera off" : "Camera on"}</button>
-              <button className="danger" onClick={disconnectRealRoom}>Leave live</button>
+              <button aria-label="Toggle microphone" onClick={toggleMic} className={micEnabled ? "active mic-action" : "mic-action"}>{micEnabled ? "🎙" : "🔇"}</button>
+              <button aria-label="Toggle camera" onClick={toggleCamera} className={cameraEnabled ? "active cam-action" : "cam-action"}>{cameraEnabled ? "📷" : "🚫"}</button>
+              <button className="danger" onClick={disconnectRealRoom}>Leave</button>
             </>
           )}
         </div>
@@ -254,7 +318,7 @@ export function RealLiveKitRoom({ profile, admitted, meetingId, onConnectionChan
 
       {!admitted && (
         <div className="omide-livekit-warning">
-          You must be admitted by the host before entering the live meeting.
+          Waiting for host admission.
         </div>
       )}
 
@@ -262,21 +326,33 @@ export function RealLiveKitRoom({ profile, admitted, meetingId, onConnectionChan
 
       {connected && (
         <div className="custom-livekit-grid">
-          {tiles.map((tile) => (
-            <article key={tile.key} className={`custom-livekit-tile ${tile.cameraOn ? "video-on" : "video-off"}`}>
-              {tile.cameraOn ? (
-                <VideoTrackView track={tile.cameraTrack} muted={tile.isLocal} />
-              ) : (
-                <div className="custom-livekit-avatar">
-                  <span>{tile.name.slice(0, 1).toUpperCase()}</span>
+          {tiles.map((tile) => {
+            const level = Math.max(0.05, Math.min(tile.audioLevel || 0, 1));
+            return (
+              <article
+                key={tile.key}
+                className={`custom-livekit-tile ${tile.cameraOn ? "video-on" : "video-off"} ${tile.micOn ? "mic-active" : "mic-muted"} ${tile.speaking ? "speaking-now" : ""}`}
+                style={{ ["--audio-level" as any]: String(level) }}
+              >
+                {tile.cameraOn ? (
+                  <VideoTrackView track={tile.cameraTrack} muted={tile.isLocal} />
+                ) : (
+                  <div className="custom-livekit-avatar">
+                    <span>{tile.name.slice(0, 1).toUpperCase()}</span>
+                  </div>
+                )}
+
+                <div className="live-audio-ring" aria-hidden="true">
+                  <i></i><i></i><i></i><i></i>
                 </div>
-              )}
-              <div className="custom-livekit-namebar">
-                <strong>{tile.isLocal ? `${tile.name} (You)` : tile.name}</strong>
-                <small>{tile.micOn ? "Mic on" : "Muted"} · {tile.cameraOn ? "Camera on" : "Camera off"}</small>
-              </div>
-            </article>
-          ))}
+
+                <div className="custom-livekit-namebar">
+                  <strong>{tile.isLocal ? `${tile.name} (You)` : tile.name}</strong>
+                  <small>{tile.micOn ? "🎙" : "🔇"} · {tile.cameraOn ? "📷" : "🚫"}</small>
+                </div>
+              </article>
+            );
+          })}
         </div>
       )}
 

@@ -144,12 +144,34 @@ export function LiveMeetingPage() {
     window.setTimeout(() => setToast("Ready"), 3000);
   }
 
+  async function handleLiveKitMediaState(next: { mic: boolean; camera: boolean }) {
+    demoStore.setMeetingState({ mic: next.mic, camera: next.camera });
+    await meetingRoomService.enterOnline(profile, {
+      mic_on: next.mic,
+      camera_on: next.camera,
+      hand_raised: selfHandRaised,
+      avatar_url: profile?.avatarUrl || null,
+      display_name: profile?.displayName || "User",
+      role_label: roleLabel(profile?.role)
+    });
+    await refreshRoomState();
+  }
+
+  function sendLiveKitControl(action: "mic" | "camera" | "leave") {
+    window.dispatchEvent(new CustomEvent("omide-livekit-control", { detail: { action } }));
+  }
+
   async function refreshRoomState() {
-    const [rows, messages, myRow] = await Promise.all([
+    const [rows, messages, myRow, roomSettings] = await Promise.all([
       meetingRoomService.listParticipants(),
       meetingRoomService.listChat(),
-      meetingRoomService.getMyRow(profile)
+      meetingRoomService.getMyRow(profile),
+      meetingRoomService.getSettings()
     ]);
+
+    if (roomSettings?.chat_mode) {
+      setChatMode(roomSettings.chat_mode);
+    }
 
     if (myRow) {
       setMyRoomStatus(myRow.status);
@@ -384,7 +406,7 @@ export function LiveMeetingPage() {
     { key: "waiting", label: "Waiting", show: canWaiting },
     { key: "chat", label: "Chat", show: true },
     { key: "reactions", label: "React", show: true },
-    { key: "rooms", label: "Rooms", show: true }
+    { key: "rooms", label: "Rooms", show: canHost }
   ] as const;
 
   const panelTitle = panel === "rooms" ? "Breakout rooms" : panel === "chat" ? `Chat (${chatMessages.length})` : panel === "reactions" ? "Reactions" : panel === "waiting" ? `Waiting Room (${waitingParticipants.length})` : "Attendees";
@@ -414,7 +436,10 @@ export function LiveMeetingPage() {
             profile={profile}
             meetingId="main-room"
             admitted={canHost || myRoomStatus === "online"}
+            autoStart={true}
+            confirmBeforeStart={canHost}
             onConnectionChange={setLiveKitConnected}
+            onMediaStateChange={handleLiveKitMediaState}
           />
           {!liveKitConnected && participants.map((person) => (
             <article key={person.id} className={`participant-tile ${person.id === roomParticipantId(meetingRoomService.meetingId, profile?.id) ? "speaking" : ""}`}>
@@ -456,9 +481,9 @@ export function LiveMeetingPage() {
 
             {controlMenu === "chat" && canHost && (
               <div className="host-control-dropdown">
-                <button onClick={() => { setChatMode("public"); notify("Members can send public chat messages."); }}>Public chat</button>
-                <button onClick={() => { setChatMode("admin"); notify("Only hosts/admins can send public chat."); }}>Admin-only chat</button>
-                <button onClick={() => { setChatMode("closed"); notify("Members cannot send chat messages."); }}>Close chat sending</button>
+                <button onClick={async () => { setChatMode("public"); await meetingRoomService.updateSettings({ chat_mode: "public" }); notify("Members can send public chat messages."); }}>Public chat</button>
+                <button onClick={async () => { setChatMode("admin"); await meetingRoomService.updateSettings({ chat_mode: "admin" }); notify("Only hosts/admins can send public chat."); }}>Admin-only chat</button>
+                <button onClick={async () => { setChatMode("closed"); await meetingRoomService.updateSettings({ chat_mode: "closed" }); notify("Members cannot send chat messages."); }}>Close chat sending</button>
               </div>
             )}
 
@@ -560,8 +585,8 @@ export function LiveMeetingPage() {
       </main>
 
       <footer className="live-toolbar clean-toolbar">
-        <ToolbarButton icon={state.mic ? "🎙" : "🔇"} label={state.mic ? "Mute" : "Unmute"} active={state.mic} onClick={() => toggle("mic", "Microphone unmuted.", "Microphone muted.")} />
-        <ToolbarButton icon={state.camera ? "📷" : "🚫"} label={state.camera ? "Video on" : "Video off"} active={state.camera} onClick={() => toggle("camera", "Camera preview placeholder enabled.", "Camera turned off.")} />
+        <ToolbarButton icon={state.mic ? "🎙" : "🔇"} label={state.mic ? "Mute" : "Unmute"} active={state.mic} onClick={() => liveKitConnected ? sendLiveKitControl("mic") : toggle("mic", "Microphone unmuted.", "Microphone muted.")} />
+        <ToolbarButton icon={state.camera ? "📷" : "🚫"} label={state.camera ? "Video on" : "Video off"} active={state.camera} onClick={() => liveKitConnected ? sendLiveKitControl("camera") : toggle("camera", "Camera preview placeholder enabled.", "Camera turned off.")} />
         <ToolbarButton icon="☷" label="Attendees" onClick={() => { setSidebarOpen(true); setPanel("attendees"); }} />
         {canWaiting && <ToolbarButton icon="⏳" label="Waiting" onClick={() => { setSidebarOpen(true); setPanel("waiting"); }} />}
         <ToolbarButton icon="💬" label="Chat" onClick={() => { setSidebarOpen(true); setPanel("chat"); }} />

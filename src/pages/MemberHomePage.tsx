@@ -38,9 +38,7 @@ export function MemberHomePage() {
     { title: "Approvals", desc: "Approve new members", icon: "✓", route: "approvals" },
     { title: "Permissions", desc: "Roles and templates", icon: "☷", route: "permissionTemplates" },
     { title: "Security", desc: "Owner-only controls", icon: "🔒", route: "securityCenter" },
-    { title: "Audit Logs", desc: "Review actions", icon: "☰", route: "auditLogs" },
-    { title: "Testing", desc: "Run servant QA", icon: "🧪", route: "testingCenter" },
-    { title: "Release", desc: "Readiness status", icon: "🚦", route: "releaseReadiness" }
+    { title: "Audit Logs", desc: "Review actions", icon: "☰", route: "auditLogs" }
   ];
 
   return (
