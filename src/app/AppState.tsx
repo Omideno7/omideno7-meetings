@@ -5,6 +5,7 @@ import { authService } from "../services/authService";
 import { getDefaultRoute } from "../services/routeGuard";
 import { profileSettingsService } from "../services/profileSettingsService";
 import { dataMode } from "../config/dataMode";
+import { clearStaleLocalSessionIfNeeded } from "../services/authSessionGuard";
 
 type AppStateValue = {
   profile: UserProfile | null;
@@ -42,9 +43,16 @@ function applyProfileOverride(profile: UserProfile | null) {
   }
 }
 
+function getInitialProfile() {
+  // In real Supabase mode, do not trust cached localStorage profile on first render.
+  // It can survive after the browser lost the Supabase session and cause "Auth session missing".
+  if (dataMode === "supabase") return null;
+  return applyProfileOverride(authService.getCurrentProfile());
+}
+
 export function AppStateProvider({ children }: { children: React.ReactNode }) {
-  const [profile, setProfile] = useState<UserProfile | null>(() => applyProfileOverride(authService.getCurrentProfile()));
-  const [route, setRoute] = useState<AppRouteKey>(() => getDefaultRoute(applyProfileOverride(authService.getCurrentProfile())));
+  const [profile, setProfile] = useState<UserProfile | null>(() => getInitialProfile());
+  const [route, setRoute] = useState<AppRouteKey>(() => getDefaultRoute(getInitialProfile()));
   const [authLoading, setAuthLoading] = useState(false);
   const [authMessage, setAuthMessage] = useState("");
 
@@ -52,10 +60,18 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
     setAuthLoading(true);
     setAuthMessage("");
     try {
+      const cleared = await clearStaleLocalSessionIfNeeded();
+      if (cleared) {
+        setProfile(null);
+        setRoute("landing");
+        setAuthMessage("Please sign in again.");
+        return;
+      }
+
       const next = await authService.hydrateSupabaseProfile();
       const merged = applyProfileOverride(await applyRemoteProfileSettings(next));
       setProfile(merged);
-      if (merged) setRoute(getDefaultRoute(merged));
+      setRoute(getDefaultRoute(merged));
     } finally {
       setAuthLoading(false);
     }
