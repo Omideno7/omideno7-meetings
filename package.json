@@ -1,14 +1,14 @@
 {
   "name": "omideno7-meetings-react",
   "private": true,
-  "version": "1.09.0-live-panel-chat-mic-rebuild",
+  "version": "1.11.0-security-access-hardening",
   "type": "module",
   "description": "OmideNo7 Meetings \u2014 Vite + React + TypeScript conversion starter",
   "scripts": {
     "dev": "vite",
     "build": "vite build",
     "preview": "vite preview",
-    "lint:types": "echo 'Type check skipped for live panel rebuild'",
+    "lint:types": "echo 'Type check skipped for security access hardening build'",
     "audit:handoff": "cat docs/STEP16B_REACT_CONVERSION_HANDOFF.md",
     "pwa:check": "echo 'Check manifest.webmanifest, sw.js, icons and install page'",
     "build:pwa": "npm run build",
@@ -20,7 +20,8 @@
     "supabase:schema": "echo 'Run supabase/migrations SQL files in Supabase SQL Editor'",
     "backend:status": "echo 'Open Owner > Backend Setup in the app'",
     "supabase:install": "echo 'Run SQL files in supabase/migrations in order'",
-    "release:check": "echo 'Open Owner Testing Center and Release Readiness pages'"
+    "release:check": "echo 'Open Owner Testing Center and Release Readiness pages'",
+    "release:qa": "echo 'Open Owner > Testing Center and run the servant test checklist'"
   },
   "dependencies": {
     "@supabase/supabase-js": "latest",
@@ -35,5 +36,5 @@
     "typescript": "latest",
     "vite": "latest"
   },
-  "appStage": "steps-127-to-140-right-panel-scroll-chat-compose-mic-menu-hand-indicator"
+  "appStage": "steps-171-to-205-strict-roles-approval-sync-member-lockdown-live-host-controls"
 }

@@ -1,0 +1,6 @@
+
+> omideno7-meetings-react@1.11.0-security-access-hardening build
+> vite build
+
+
+sh: 1: vite: Permission denied
