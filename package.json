@@ -1,14 +1,14 @@
 {
   "name": "omideno7-meetings-react",
   "private": true,
-  "version": "1.13.0-brand-mobile-ui",
+  "version": "1.14.0-realtime-persistence-mobile-fix",
   "type": "module",
   "description": "OmideNo7 Meetings \u2014 Vite + React + TypeScript conversion starter",
   "scripts": {
     "dev": "vite",
     "build": "vite build",
     "preview": "vite preview",
-    "lint:types": "echo 'Type check skipped for brand/mobile UI build'",
+    "lint:types": "echo 'Type check skipped for realtime persistence build'",
     "audit:handoff": "cat docs/STEP16B_REACT_CONVERSION_HANDOFF.md",
     "pwa:check": "echo 'Check manifest.webmanifest, sw.js, icons and install page'",
     "build:pwa": "npm run build",
@@ -36,5 +36,5 @@
     "typescript": "latest",
     "vite": "latest"
   },
-  "appStage": "steps-213-to-230-logo-color-theme-mobile-bottom-sheet-live-panels"
+  "appStage": "steps-231-to-260-supabase-realtime-meeting-state-profile-persistence-mobile-safe-controls"
 }
