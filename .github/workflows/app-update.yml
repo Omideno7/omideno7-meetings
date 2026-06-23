@@ -2,6 +2,8 @@ name: Apply App Update Zip
 
 on:
   push:
+    branches:
+      - main
     paths:
       - "app-update.zip"
       - ".github/workflows/app-update.yml"
@@ -11,51 +13,97 @@ permissions:
 
 jobs:
   apply-update:
-    if: ${{ !contains(github.event.head_commit.message, '[skip-unpack]') }}
     runs-on: ubuntu-latest
 
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
-      - name: Stop if no update zip
+      - name: Check update zip exists
         run: |
           if [ ! -f "app-update.zip" ]; then
-            echo "No app-update.zip found. Nothing to unpack."
-            exit 0
+            echo "app-update.zip was not found in repository root."
+            exit 1
           fi
 
-      - name: Unzip update
+      - name: Extract and apply update
         run: |
-          rm -rf _app_update
-          mkdir _app_update
-          unzip -q app-update.zip -d _app_update
+          set -e
 
-      - name: Apply update to repository root
-        run: |
-          if [ -d "_app_update/omideno7-meetings-react" ]; then
-            SOURCE="_app_update/omideno7-meetings-react"
+          rm -rf /tmp/omideno7-update
+          mkdir -p /tmp/omideno7-update
+
+          unzip -q app-update.zip -d /tmp/omideno7-update
+
+          echo "Extracted files:"
+          find /tmp/omideno7-update -maxdepth 3 -type f | head -80
+
+          if [ -d "/tmp/omideno7-update/omideno7-meetings-react" ]; then
+            SOURCE="/tmp/omideno7-update/omideno7-meetings-react"
           else
-            SOURCE="_app_update"
+            SOURCE="/tmp/omideno7-update"
           fi
 
-          rsync -a --delete \
-            --exclude ".git" \
-            --exclude ".github" \
-            --exclude "app-update.zip" \
-            "$SOURCE"/ ./
+          echo "Using source folder: $SOURCE"
 
-          rm -rf _app_update
+          python3 - <<'PY'
+          import os
+          import shutil
+          from pathlib import Path
+
+          source = Path(os.environ.get("SOURCE", "/tmp/omideno7-update"))
+          target = Path.cwd()
+
+          skip_names = {
+              ".git",
+              "node_modules",
+              "dist",
+              ".DS_Store",
+              "app-update.zip"
+          }
+
+          for root, dirs, files in os.walk(source):
+              root_path = Path(root)
+
+              dirs[:] = [d for d in dirs if d not in skip_names]
+
+              rel_dir = root_path.relative_to(source)
+              dest_dir = target / rel_dir
+              dest_dir.mkdir(parents=True, exist_ok=True)
+
+              for file_name in files:
+                  if file_name in skip_names:
+                      continue
+
+                  src_file = root_path / file_name
+                  rel_file = src_file.relative_to(source)
+                  dest_file = target / rel_file
+
+                  dest_file.parent.mkdir(parents=True, exist_ok=True)
+                  shutil.copy2(src_file, dest_file)
+
+          print("Update files copied successfully.")
+          PY
+        env:
+          SOURCE: /tmp/omideno7-update/omideno7-meetings-react
+
+      - name: Remove uploaded zip from repo
+        run: |
           rm -f app-update.zip
 
       - name: Commit applied update
         run: |
-          git config user.name "OmideNo7 Auto Update"
-          git config user.email "actions@github.com"
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
           git add -A
+
           if git diff --cached --quiet; then
             echo "No changes to commit."
             exit 0
           fi
-          git commit -m "Apply app update from zip [skip-unpack]"
+
+          git commit -m "Apply app update zip"
           git push
