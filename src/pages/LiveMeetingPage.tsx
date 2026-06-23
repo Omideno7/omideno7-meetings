@@ -92,7 +92,7 @@ function LeaveMeetingDialog({ canEnd, onClose, onLeaveOnly, onEndMeeting }: { ca
   );
 }
 
-function MemberWaitingGate({ status, onEnterWaiting, onRefresh }: { status: string; onEnterWaiting: () => void; onRefresh: () => void }) {
+function MemberWaitingGate({ status, onEnterWaiting, onRefresh, onBack }: { status: string; onEnterWaiting: () => void; onRefresh: () => void; onBack: () => void }) {
   return (
     <div className="live-shell rebuilt-live member-waiting-live">
       <section className="member-waiting-card">
@@ -104,6 +104,7 @@ function MemberWaitingGate({ status, onEnterWaiting, onRefresh }: { status: stri
         <div className="button-row">
           <button onClick={onEnterWaiting}>Enter Waiting Room</button>
           <button onClick={onRefresh}>Refresh Status</button>
+          <button className="ghost" onClick={onBack}>Back to Home</button>
         </div>
       </section>
     </div>
@@ -171,6 +172,12 @@ export function LiveMeetingPage() {
 
     if (roomSettings?.chat_mode) {
       setChatMode(roomSettings.chat_mode);
+    }
+
+    if (roomSettings && roomSettings.live_open === false && !canHost) {
+      notify("The host ended the meeting.");
+      setRoute("memberHome");
+      return;
     }
 
     if (myRow) {
@@ -266,6 +273,7 @@ export function LiveMeetingPage() {
         status={myRoomStatus}
         onEnterWaiting={enterWaitingRoom}
         onRefresh={refreshRoomState}
+        onBack={() => setRoute("memberHome")}
       />
     );
   }
@@ -394,10 +402,13 @@ export function LiveMeetingPage() {
     setRoute("memberHome");
   }
 
-  function endMeetingForEveryone() {
+  async function endMeetingForEveryone() {
     if (!canEnd) return notify("Only host roles can end the meeting for everyone.");
     setLeaveDialogOpen(false);
+    sendLiveKitControl("leave");
+    await meetingRoomService.endMeetingForEveryone();
     demoStore.setMeetingState({ mic: false, camera: false, recording: false });
+    notify("Meeting ended for everyone.");
     setRoute("memberHome");
   }
 
@@ -438,7 +449,12 @@ export function LiveMeetingPage() {
             admitted={canHost || myRoomStatus === "online"}
             autoStart={true}
             confirmBeforeStart={canHost}
-            onConnectionChange={setLiveKitConnected}
+            onConnectionChange={async (connected) => {
+              setLiveKitConnected(connected);
+              if (connected && canHost) {
+                await meetingRoomService.openMeetingForEveryone();
+              }
+            }}
             onMediaStateChange={handleLiveKitMediaState}
           />
           {!liveKitConnected && participants.map((person) => (

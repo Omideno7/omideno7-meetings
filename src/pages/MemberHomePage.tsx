@@ -93,8 +93,6 @@ export function MemberHomePage() {
         <ActionCard title="Recordings" desc="Media library and archives" icon="◉" onClick={() => setRoute("mediaLibrary")} />
         {canHost && <ActionCard title="Host Panel" desc="Servant controls preview" icon="◎" onClick={() => setRoute("servantDashboard")} />}
         {canHost && <ActionCard title="Reports" desc="Attendance and logs" icon="📊" onClick={() => setRoute("reports")} />}
-        {profile?.status === "approved" && profile?.role === roles.OWNER && <ActionCard title="Testing Center" desc="Checklist and issue report" icon="🧪" onClick={() => setRoute("testingCenter")} />}
-        {profile?.status === "approved" && profile?.role === roles.OWNER && <ActionCard title="Release Readiness" desc="QA and production status" icon="🚦" onClick={() => setRoute("releaseReadiness")} />}
       </section>
 
       {profile?.status === "approved" && profile?.role === roles.OWNER && (

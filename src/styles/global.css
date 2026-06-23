@@ -4588,3 +4588,60 @@ button.secondary {
 .omide-livekit-stage.idle .omide-livekit-status {
   font-size: .82rem;
 }
+
+
+/* 1.21 real mic frame refinement */
+.custom-livekit-tile::after {
+  content: "";
+  pointer-events: none;
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  border: 1px solid transparent;
+  box-shadow: none;
+  transition: border-color .18s ease, box-shadow .18s ease, border-width .18s ease;
+}
+
+.custom-livekit-tile.mic-active::after {
+  border-color: rgba(36,225,108,.72);
+  box-shadow: 0 0 calc(5px + 26px * var(--audio-level)) rgba(36,225,108,.36);
+}
+
+.custom-livekit-tile.speaking-now::after {
+  border-width: calc(1px + 3px * var(--audio-level));
+  border-color: rgba(36,225,108,.96);
+  box-shadow: 0 0 calc(10px + 40px * var(--audio-level)) rgba(36,225,108,.58);
+}
+
+.live-audio-ring {
+  opacity: 0;
+  transform: scale(.92);
+  transition: opacity .18s ease, transform .18s ease;
+}
+
+.custom-livekit-tile.mic-active .live-audio-ring {
+  opacity: .75;
+  transform: scale(1);
+}
+
+.custom-livekit-tile:not(.speaking-now) .live-audio-ring i {
+  animation: none !important;
+  height: 6px;
+}
+
+.custom-livekit-tile.speaking-now .live-audio-ring i:nth-child(1) { height: calc(6px + 10px * var(--audio-level)); }
+.custom-livekit-tile.speaking-now .live-audio-ring i:nth-child(2) { height: calc(7px + 16px * var(--audio-level)); }
+.custom-livekit-tile.speaking-now .live-audio-ring i:nth-child(3) { height: calc(5px + 14px * var(--audio-level)); }
+.custom-livekit-tile.speaking-now .live-audio-ring i:nth-child(4) { height: calc(6px + 11px * var(--audio-level)); }
+
+.member-waiting-card .button-row .ghost {
+  background: rgba(255,255,255,.12);
+  color: #fff;
+  border: 1px solid rgba(255,255,255,.2);
+}
+
+.profile-avatar-large img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}

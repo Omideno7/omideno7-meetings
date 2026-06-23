@@ -7,61 +7,102 @@ export type LiveKitTokenResponse =
   | { ok: false; reason: string; message?: string };
 
 function getDeviceId() {
-  const key = "omideno7.livekit.deviceId.v1";
-  let existing = localStorage.getItem(key);
+  const key = "omideno7.livekit.deviceId.v3";
+  let existing = sessionStorage.getItem(key);
   if (!existing) {
     existing = crypto.randomUUID();
-    localStorage.setItem(key, existing);
+    sessionStorage.setItem(key, existing);
   }
   return existing;
+}
+
+function timeoutSignal(ms: number) {
+  const controller = new AbortController();
+  const timer = window.setTimeout(() => controller.abort(), ms);
+  return { signal: controller.signal, cancel: () => window.clearTimeout(timer) };
 }
 
 export const liveKitTokenService = {
   async requestToken({ meetingId, profile, admitted }: { meetingId: string; profile: UserProfile | null; admitted: boolean }): Promise<LiveKitTokenResponse> {
     if (!isLiveKitConfigured()) {
-      return { ok: false, reason: "livekit_not_configured" };
+      return {
+        ok: false,
+        reason: "livekit_not_configured",
+        message: "LiveKit is not configured in Vercel environment variables."
+      };
     }
 
     if (!profile || profile.status !== "approved") {
-      return { ok: false, reason: "profile_not_approved" };
+      return { ok: false, reason: "profile_not_approved", message: "Your account is not approved yet." };
     }
 
     const hostRoles = ["owner", "senior_host", "meeting_host", "co_host", "door_servant", "media_servant", "prayer_servant", "chat_moderator"];
     const isHostLike = hostRoles.includes(profile.role);
     if (!admitted && !isHostLike) {
-      return { ok: false, reason: "waiting_room_admission_required" };
+      return { ok: false, reason: "waiting_room_admission_required", message: "Member must be admitted from Waiting Room before entering LiveKit." };
     }
 
     const sessionResult = await supabase?.auth.getSession();
     const accessToken = sessionResult?.data.session?.access_token;
 
     if (!accessToken) {
-      return { ok: false, reason: "missing_supabase_session" };
+      return { ok: false, reason: "missing_supabase_session", message: "Please logout and login again." };
     }
 
-    const response = await fetch(liveKitReadyConfig.tokenEndpoint, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${accessToken}`
-      },
-      body: JSON.stringify({
-        meetingId,
-        roomName: liveKitReadyConfig.defaultRoom,
-        deviceId: getDeviceId()
-      })
-    });
+    const timeout = timeoutSignal(12000);
 
-    const data = await response.json().catch(() => ({}));
+    try {
+      const response = await fetch(liveKitReadyConfig.tokenEndpoint, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${accessToken}`
+        },
+        signal: timeout.signal,
+        body: JSON.stringify({
+          meetingId,
+          roomName: liveKitReadyConfig.defaultRoom,
+          deviceId: getDeviceId()
+        })
+      });
 
-    if (!response.ok || !data.ok) {
+      const rawText = await response.text();
+      let data: any = {};
+      try {
+        data = rawText ? JSON.parse(rawText) : {};
+      } catch {
+        return {
+          ok: false,
+          reason: `invalid_token_response_${response.status}`,
+          message: "LiveKit token endpoint did not return JSON. Check Vercel /api/livekit/token routing."
+        };
+      }
+
+      if (!response.ok || !data.ok) {
+        return {
+          ok: false,
+          reason: data.reason || `http_${response.status}`,
+          message: data.message || `LiveKit token error: ${data.reason || response.status}`
+        };
+      }
+
+      return data as LiveKitTokenResponse;
+    } catch (error: any) {
+      if (error?.name === "AbortError") {
+        return {
+          ok: false,
+          reason: "token_request_timeout",
+          message: "LiveKit token request timed out. Check Vercel environment variables and /api/livekit/token."
+        };
+      }
+
       return {
         ok: false,
-        reason: data.reason || `http_${response.status}`,
-        message: data.message
+        reason: "token_request_failed",
+        message: error?.message || "Could not request LiveKit token."
       };
+    } finally {
+      timeout.cancel();
     }
-
-    return data as LiveKitTokenResponse;
   }
 };

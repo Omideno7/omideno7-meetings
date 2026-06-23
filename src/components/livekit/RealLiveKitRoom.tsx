@@ -149,7 +149,7 @@ export function RealLiveKitRoom({
     }
 
     setConnecting(true);
-    setStatus("Opening secure live meeting...");
+    setStatus("Requesting secure LiveKit token...");
 
     const result = await liveKitTokenService.requestToken({ meetingId, profile, admitted });
     if (!result.ok) {
@@ -158,6 +158,8 @@ export function RealLiveKitRoom({
       onConnectionChange?.(false);
       return;
     }
+
+    setStatus("Token received. Connecting to LiveKit room...");
 
     const nextRoom = new Room({
       adaptiveStream: true,
@@ -235,15 +237,25 @@ export function RealLiveKitRoom({
   async function toggleCamera() {
     if (!room) return;
     const next = !cameraEnabled;
-    await room.localParticipant.setCameraEnabled(next);
-    await publishMediaState(room, micEnabled, next);
+    try {
+      await room.localParticipant.setCameraEnabled(next);
+      await publishMediaState(room, micEnabled, next);
+      setStatus(next ? "Camera on." : "Camera off.");
+    } catch (error: any) {
+      setStatus(error?.message || "Camera permission was blocked by the browser.");
+    }
   }
 
   async function toggleMic() {
     if (!room) return;
     const next = !micEnabled;
-    await room.localParticipant.setMicrophoneEnabled(next);
-    await publishMediaState(room, next, cameraEnabled);
+    try {
+      await room.localParticipant.setMicrophoneEnabled(next);
+      await publishMediaState(room, next, cameraEnabled);
+      setStatus(next ? "Microphone on." : "Microphone muted.");
+    } catch (error: any) {
+      setStatus(error?.message || "Microphone permission was blocked by the browser.");
+    }
   }
 
   useEffect(() => {
@@ -285,7 +297,7 @@ export function RealLiveKitRoom({
             <span>Open the active OmideNo7 room now.</span>
           </div>
           <div className="omide-livekit-actions">
-            <button onClick={() => setConfirmed(true)}>Enter now</button>
+            <button onClick={() => { setConfirmed(true); window.setTimeout(() => void connectRealRoom(), 0); }}>Enter now</button>
           </div>
         </div>
         <p className="omide-livekit-status">Camera and microphone will stay off until you turn them on.</p>

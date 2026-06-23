@@ -249,6 +249,45 @@ export const meetingRoomService = {
     writeLocal(LOCAL_SETTINGS, { ...current, ...next });
   },
 
+  async endMeetingForEveryone() {
+    await this.updateSettings({
+      live_open: false,
+      chat_mode: "closed",
+      active_room_name: "Main Room"
+    });
+
+    if (supabase) {
+      await supabase
+        .from("meeting_room_participants")
+        .update({
+          status: "removed",
+          mic_on: false,
+          camera_on: false,
+          updated_at: new Date().toISOString()
+        })
+        .eq("meeting_id", MEETING_ID)
+        .in("status", ["waiting", "online"]);
+    } else {
+      const local = readLocal<RoomParticipant[]>(LOCAL_PARTICIPANTS, []);
+      writeLocal(LOCAL_PARTICIPANTS, local.map((item) => ({
+        ...item,
+        status: item.status === "waiting" || item.status === "online" ? "removed" : item.status,
+        mic_on: false,
+        camera_on: false,
+        updated_at: new Date().toISOString()
+      })));
+    }
+
+    await this.raiseAlert("The host ended the meeting for everyone.", "meeting_ended", "red", "active");
+  },
+
+  async openMeetingForEveryone() {
+    await this.updateSettings({
+      live_open: true,
+      active_room_name: "Main Room"
+    });
+  },
+
   async raiseAlert(title: string, alertType = "info", color: RoomAlert["color"] = "red", status: RoomAlert["status"] = "active") {
     const row = {
       meeting_id: MEETING_ID,
