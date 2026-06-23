@@ -2,6 +2,7 @@ import { useState } from "react";
 import { Button } from "../components/ui/Button";
 import { Card } from "../components/ui/Card";
 import { useAppState } from "../app/AppState";
+import { supabase } from "../services/supabaseClient";
 import { roles } from "../config/roles";
 
 const hostSettingsRoles = [

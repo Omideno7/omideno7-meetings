@@ -3951,3 +3951,81 @@ button.secondary {
     max-height: min(62dvh, 470px) !important;
   }
 }
+
+
+/* Realtime persistence + mobile safe controls 1.14.0 */
+.mobile-bottom-tabs,
+.live-toolbar.clean-toolbar {
+  padding-bottom: max(16px, env(safe-area-inset-bottom)) !important;
+}
+
+.mobile-bottom-tabs {
+  min-height: calc(78px + env(safe-area-inset-bottom)) !important;
+}
+
+.live-toolbar.clean-toolbar {
+  min-height: calc(84px + env(safe-area-inset-bottom)) !important;
+  height: calc(84px + env(safe-area-inset-bottom)) !important;
+  max-height: calc(84px + env(safe-area-inset-bottom)) !important;
+}
+
+@media (max-width: 900px) {
+  .rebuilt-live .live-main.side-open,
+  .rebuilt-live .live-main.side-closed {
+    height: calc(100dvh - 160px - env(safe-area-inset-bottom)) !important;
+    max-height: calc(100dvh - 160px - env(safe-area-inset-bottom)) !important;
+  }
+
+  .rebuilt-side-panel {
+    bottom: calc(96px + env(safe-area-inset-bottom)) !important;
+  }
+
+  .toolbar-pill.leave {
+    position: fixed !important;
+    right: 10px !important;
+    bottom: calc(92px + env(safe-area-inset-bottom)) !important;
+    z-index: 120 !important;
+    min-width: 66px !important;
+    min-height: 52px !important;
+    box-shadow: 0 12px 30px rgba(217,31,42,.36) !important;
+  }
+
+  .live-toolbar.clean-toolbar {
+    overflow-x: auto !important;
+    gap: 7px !important;
+  }
+
+  .toolbar-pill {
+    flex: 0 0 auto !important;
+  }
+}
+
+.alert-red,
+.waiting-top-badge,
+.status-badge.status-waiting,
+.status-pending,
+.status-critical {
+  background: #d91f2a !important;
+  color: #fff !important;
+}
+
+.alert-green,
+.status-approved,
+.status-admitted,
+.status-resolved {
+  background: #09a440 !important;
+  color: #fff !important;
+}
+
+.visible-waiting-card {
+  border-left: 6px solid #d91f2a !important;
+}
+
+.visible-waiting-card.status-admitted,
+.visible-waiting-card.status-resolved {
+  border-left-color: #09a440 !important;
+}
+
+.speaker-toggle {
+  touch-action: manipulation;
+}

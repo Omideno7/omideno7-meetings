@@ -65,3 +65,19 @@ export const authService = {
     localStorage.removeItem(STORAGE_KEY);
   }
 };
+
+
+export function applyLocalProfileOverride(profile: any) {
+  try {
+    const override = JSON.parse(localStorage.getItem("omideno7.profile.override") || "{}");
+    if (!profile || !override) return profile;
+    return {
+      ...profile,
+      displayName: override.displayName || profile.displayName,
+      fullName: override.displayName || profile.fullName,
+      avatarUrl: override.avatarUrl || profile.avatarUrl
+    };
+  } catch {
+    return profile;
+  }
+}

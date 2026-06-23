@@ -1,5 +1,6 @@
-import { useMemo, useState, type KeyboardEvent } from "react";
+import { useEffect, useMemo, useState, type KeyboardEvent } from "react";
 import { demoStore } from "../services/demoStore";
+import { meetingRealtimeService } from "../services/meetingRealtimeService";
 import { useDemoStoreVersion } from "../hooks/useDemoStoreVersion";
 import { useAppState } from "../app/AppState";
 import {
@@ -140,6 +141,68 @@ export function LiveMeetingPage() {
   const [leaveDialogOpen, setLeaveDialogOpen] = useState(false);
   const [controlMenu, setControlMenu] = useState<"none" | "mic" | "chat" | "grid">("none");
   const [gridSize, setGridSize] = useState<"compact" | "normal" | "large">("normal");
+  const [realtimeStatus, setRealtimeStatus] = useState(meetingRealtimeService.isRealtimeReady() ? "realtime" : "local");
+
+  useEffect(() => {
+    let alive = true;
+
+    async function refreshRealtime() {
+      const [remotePeople, remoteMessages] = await Promise.all([
+        meetingRealtimeService.listParticipants(),
+        meetingRealtimeService.listChat()
+      ]);
+
+      if (!alive) return;
+
+      if (remotePeople.length) {
+        setParticipants(remotePeople
+          .filter((item) => item.profile_id !== profile?.id)
+          .map((item) => ({
+            id: item.id,
+            name: item.display_name,
+            role: item.role_label,
+            status: item.status,
+            mic: item.mic_on,
+            camera: item.camera_on,
+            canUnmute: item.allowed_mic,
+            room: item.room_name,
+            symbol: "👤",
+            avatarUrl: item.avatar_url || undefined,
+            handRaised: item.hand_raised,
+            reaction: item.hand_raised ? "✋" : undefined
+          })));
+      }
+
+      if (remoteMessages.length) {
+        setChatMessages(remoteMessages.map((msg) => ({
+          id: msg.id,
+          from: msg.sender_name,
+          to: msg.target_type === "everyone" ? "Everyone" : msg.target_type === "hosts" ? "Hosts/Admins" : "Direct",
+          text: msg.message,
+          time: msg.created_at ? new Date(msg.created_at).toLocaleTimeString() : "",
+          private: msg.target_type !== "everyone"
+        })));
+      }
+    }
+
+    meetingRealtimeService.upsertParticipant(profile, {
+      mic_on: Boolean(state.mic),
+      camera_on: Boolean(state.camera),
+      hand_raised: selfHandRaised,
+      avatar_url: profile?.avatarUrl || null,
+      display_name: profile?.displayName || "User",
+      role_label: roleLabel(profile?.role)
+    }).then(() => refreshRealtime());
+
+    const unsubscribe = meetingRealtimeService.subscribe(refreshRealtime);
+    const timer = window.setInterval(refreshRealtime, 5000);
+
+    return () => {
+      alive = false;
+      window.clearInterval(timer);
+      unsubscribe();
+    };
+  }, [profile?.id, profile?.avatarUrl, state.mic, state.camera, selfHandRaised]);
 
   function notify(text: string) {
     setToast(text);
@@ -178,6 +241,7 @@ export function LiveMeetingPage() {
   function toggle(key: string, onText: string, offText: string) {
     const next = !state[key];
     updateMeetingState({ [key]: next }, next ? onText : offText);
+    meetingRealtimeService.upsertParticipant(profile, key === "mic" ? { mic_on: next } : key === "camera" ? { camera_on: next } : {});
   }
 
   function changeAllParticipants(patch: Partial<Participant>, text: string) {
@@ -195,6 +259,7 @@ export function LiveMeetingPage() {
       return;
     }
     setParticipants((current) => current.map((item) => item.id === participant.id ? { ...item, mic: !item.mic, canUnmute: !item.mic } : item));
+    meetingRealtimeService.updateParticipant(participant.id, { mic_on: !participant.mic, allowed_mic: !participant.mic });
     notify(`${participant.name} microphone ${participant.mic ? "muted" : "allowed/unmuted"}.`);
   }
 
@@ -237,6 +302,7 @@ export function LiveMeetingPage() {
     };
     setParticipants((current) => [...current, newParticipant]);
     setWaitingList((current) => current.filter((item) => item.id !== person.id));
+    meetingRealtimeService.raiseAlert(`${person.name} admitted`, "waiting_resolved");
     notify(`${person.name} admitted to meeting.`);
   }
 
@@ -246,6 +312,7 @@ export function LiveMeetingPage() {
       return;
     }
     setWaitingList((current) => current.filter((item) => item.id !== person.id));
+    meetingRealtimeService.raiseAlert(`${person.name} rejected`, "waiting_resolved");
     notify(`${person.name} rejected from waiting room.`);
   }
 
@@ -263,6 +330,7 @@ export function LiveMeetingPage() {
 
     if (reaction.label === "Raise hand") {
       setSelfHandRaised((current) => !current);
+      meetingRealtimeService.upsertParticipant(profile, { hand_raised: !selfHandRaised });
       notify(!selfHandRaised ? "Hand raised. Host can see it beside your ID." : "Hand lowered.");
       return;
     }
@@ -300,6 +368,7 @@ export function LiveMeetingPage() {
       ...current,
       { id: crypto.randomUUID(), from: profile?.displayName || "You", to, text, time: new Date().toLocaleTimeString(), private: chatScope !== "everyone" }
     ]);
+    meetingRealtimeService.sendChat(profile, text, chatScope === "hosts" ? "hosts" : chatScope === "direct" ? "direct" : "everyone", directTargetId || null);
     setChatInput("");
     notify(`Message sent to ${to}.`);
   }
@@ -347,7 +416,7 @@ export function LiveMeetingPage() {
       <header className="live-topbar">
         <div>
           <strong>OmideNo7 Main Room</strong>
-          <span>{state.lowBandwidth ? "Audio-first low bandwidth mode" : "Secure internal app meeting UI"}</span>
+          <span>{state.lowBandwidth ? "Audio-first low bandwidth mode" : "Secure internal app meeting UI"} · {realtimeStatus}</span>
         </div>
         <div className="live-status-line">
           <span className={state.mic ? "ok" : ""}>{state.mic ? "Mic on" : "Muted"}</span>
