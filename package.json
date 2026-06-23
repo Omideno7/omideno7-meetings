@@ -1,14 +1,14 @@
 {
   "name": "omideno7-meetings-react",
   "private": true,
-  "version": "1.17.0-livekit-real-engine-phase1",
+  "version": "1.18.0-livekit-integrated-video-grid",
   "type": "module",
   "description": "OmideNo7 Meetings \u2014 Vite + React + TypeScript conversion starter",
   "scripts": {
     "dev": "vite",
     "build": "vite build",
     "preview": "vite preview",
-    "lint:types": "echo 'Type check skipped for LiveKit phase1 build'",
+    "lint:types": "echo 'Type check skipped for LiveKit integrated grid build'",
     "audit:handoff": "cat docs/STEP16B_REACT_CONVERSION_HANDOFF.md",
     "pwa:check": "echo 'Check manifest.webmanifest, sw.js, icons and install page'",
     "build:pwa": "npm run build",
@@ -39,5 +39,5 @@
     "typescript": "latest",
     "vite": "latest"
   },
-  "appStage": "steps-331-to-380-livekit-token-api-real-audio-video-room-phase1"
+  "appStage": "steps-381-to-420-livekit-video-inside-meeting-grid"
 }
