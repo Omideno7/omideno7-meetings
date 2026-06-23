@@ -2,6 +2,11 @@ import { createContext, useContext, useEffect, useMemo, useState } from "react";
 import type { UserProfile } from "../types/roles";
 import type { AppRouteKey } from "../types/routes";
 
+async function applyRemoteProfileSettings(profile: any) {
+  const settings = await profileSettingsService.load(profile);
+  return profileSettingsService.merge(profile, settings);
+}
+
 function applyProfileOverride(profile: any) {
   try {
     const override = JSON.parse(localStorage.getItem("omideno7.profile.override") || "{}");
@@ -13,6 +18,7 @@ function applyProfileOverride(profile: any) {
 }
 import { authService } from "../services/authService";
 import { getDefaultRoute } from "../services/routeGuard";
+import { profileSettingsService } from "../services/profileSettingsService";
 import { dataMode } from "../config/dataMode";
 
 type AppStateValue = {
@@ -42,8 +48,9 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
     setAuthMessage("");
     try {
       const next = await authService.hydrateSupabaseProfile();
-      setProfile(applyProfileOverride(next));
-      if (next) setRoute(getDefaultRoute(applyProfileOverride(next)));
+      const merged = applyProfileOverride(await applyRemoteProfileSettings(next));
+      setProfile(merged);
+      if (merged) setRoute(getDefaultRoute(merged));
     } finally {
       setAuthLoading(false);
     }

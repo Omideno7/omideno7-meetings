@@ -1,8 +1,8 @@
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Button } from "../components/ui/Button";
 import { Card } from "../components/ui/Card";
 import { useAppState } from "../app/AppState";
-import { supabase } from "../services/supabaseClient";
+import { profileSettingsService } from "../services/profileSettingsService";
 
 export function ProfilePage() {
   const { profile, setRoute, refreshProfile, logout } = useAppState();
@@ -11,32 +11,21 @@ export function ProfilePage() {
   const [avatarUrl, setAvatarUrl] = useState(profile?.avatarUrl || "");
   const [message, setMessage] = useState("Ready");
 
+  useEffect(() => {
+    profileSettingsService.load(profile).then((settings) => {
+      if (settings.displayName) setDisplayName(settings.displayName);
+      if (settings.avatarUrl) setAvatarUrl(settings.avatarUrl);
+    });
+  }, [profile?.id]);
+
   async function saveProfile(nextName = displayName, nextAvatar = avatarUrl) {
     if (!profile) return;
-
-    const safeName = nextName.trim() || profile.displayName;
-    const override = { displayName: safeName, avatarUrl: nextAvatar };
-    localStorage.setItem("omideno7.profile.override", JSON.stringify(override));
-
-    if (supabase) {
-      const { error } = await supabase
-        .from("profiles")
-        .update({
-          display_name: safeName,
-          full_name: safeName,
-          avatar_url: nextAvatar || null,
-          updated_at: new Date().toISOString()
-        })
-        .eq("id", profile.id);
-
-      if (error) {
-        setMessage(`Saved locally. Supabase save failed: ${error.message}`);
-        return;
-      }
-    }
-
+    await profileSettingsService.save(profile, {
+      displayName: nextName.trim() || profile.displayName,
+      avatarUrl: nextAvatar || undefined
+    });
     await refreshProfile();
-    setMessage("Profile saved and will remain after logout/login.");
+    setMessage("Profile saved. If you logout/login, it should remain.");
   }
 
   function chooseAvatar() {
@@ -45,6 +34,10 @@ export function ProfilePage() {
 
   function handleAvatarFile(file: File | undefined) {
     if (!file) return;
+    if (file.size > 650000) {
+      setMessage("Image is too large. Choose a smaller photo for now.");
+      return;
+    }
 
     const reader = new FileReader();
     reader.onload = () => {
@@ -65,7 +58,7 @@ export function ProfilePage() {
             {avatarUrl ? <img src={avatarUrl} alt="Profile" /> : <span>{profile?.displayName?.slice(0, 1) || "O"}</span>}
           </div>
           <div>
-            <h2>{profile?.displayName}</h2>
+            <h2>{displayName || profile?.displayName}</h2>
             <p>{profile?.email}</p>
             <p>{profile?.role?.replaceAll("_", " ")} · {profile?.status}</p>
           </div>
@@ -75,14 +68,8 @@ export function ProfilePage() {
       <Card>
         <h2>Edit profile</h2>
         <div className="profile-form-clean">
-          <label>
-            Display name
-            <input value={displayName} onChange={(event) => setDisplayName(event.target.value)} />
-          </label>
-          <label>
-            Avatar URL / Data
-            <input value={avatarUrl} onChange={(event) => setAvatarUrl(event.target.value)} />
-          </label>
+          <label>Display name<input value={displayName} onChange={(event) => setDisplayName(event.target.value)} /></label>
+          <label>Avatar data / URL<input value={avatarUrl} onChange={(event) => setAvatarUrl(event.target.value)} /></label>
           <input ref={fileRef} type="file" accept="image/*" hidden onChange={(event) => handleAvatarFile(event.target.files?.[0])} />
         </div>
         <div className="button-row">
@@ -99,7 +86,7 @@ export function ProfilePage() {
           <button onClick={() => setRoute("deviceTest")}>Audio / Video Test</button>
           <button onClick={() => setRoute("meetingSchedule")}>My Meetings</button>
           <button onClick={() => setRoute("testingCenter")}>Report a problem</button>
-          <button onClick={() => setRoute("releaseReadiness")}>About / Version 1.15.0</button>
+          <button onClick={() => setRoute("releaseReadiness")}>About / Version 1.16.0</button>
           <button className="danger" onClick={logout}>Logout</button>
         </div>
       </Card>

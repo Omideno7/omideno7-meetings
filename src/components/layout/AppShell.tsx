@@ -47,7 +47,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       <main className="main-content full-main-content">{children}</main>
 
       <nav className="mobile-bottom-tabs" aria-label="Main mobile navigation">
-        {visibleTabs.slice(0, 5).map((item) => (
+        {visibleTabs.filter((item) => ["memberHome","meetingSchedule","liveMeeting","waitingRoom"].includes(item.key)).slice(0, 4).map((item) => (
           <button key={item.key} className={route === item.key ? "active" : ""} onClick={() => setRoute(item.key)}>
             <span>{item.icon}</span>
             {item.label}
