@@ -1,7 +1,7 @@
 import { AccessToken } from "livekit-server-sdk";
 import { createClient } from "@supabase/supabase-js";
 
-const LIVEKIT_URL = process.env.LIVEKIT_URL || process.env.VITE_LIVEKIT_WS_URL || "";
+const LIVEKIT_URL = (process.env.LIVEKIT_URL || process.env.VITE_LIVEKIT_WS_URL || "").trim();
 const LIVEKIT_API_KEY = process.env.LIVEKIT_API_KEY || "";
 const LIVEKIT_API_SECRET = process.env.LIVEKIT_API_SECRET || "";
 const SUPABASE_URL = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL || "";

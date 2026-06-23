@@ -1,14 +1,14 @@
 {
   "name": "omideno7-meetings-react",
   "private": true,
-  "version": "1.22.0-livekit-stability-ui-profile-endmeeting-fix",
+  "version": "1.25.0-auth-session-guard-livekit-cache-fix",
   "type": "module",
   "description": "OmideNo7 Meetings \u2014 Vite + React + TypeScript conversion starter",
   "scripts": {
     "dev": "vite",
     "build": "vite build",
     "preview": "vite preview",
-    "lint:types": "echo 'Type check skipped for OmideNo7 1.22 build'",
+    "lint:types": "echo 'Type check skipped for OmideNo7 1.25 auth session guard build'",
     "audit:handoff": "cat docs/STEP16B_REACT_CONVERSION_HANDOFF.md",
     "pwa:check": "echo 'Check manifest.webmanifest, sw.js, icons and install page'",
     "build:pwa": "npm run build",
@@ -39,5 +39,5 @@
     "typescript": "latest",
     "vite": "latest"
   },
-  "appStage": "steps-571-to-640-livekit-stability-video-mobile-profile-waiting-endmeeting-rpc"
+  "appStage": "steps-761-to-820-auth-session-guard-livekit-cache-fix"
 }

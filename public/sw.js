@@ -1,9 +1,7 @@
-const CACHE_NAME = "omideno7-meetings-pwa-v17";
+const CACHE_NAME = "omideno7-meetings-pwa-v25-auth-session-guard";
 const APP_SHELL = [
-  "/",
-  "/index.html",
-  "/manifest.webmanifest",
   "/offline.html",
+  "/manifest.webmanifest",
   "/pwa-192.png",
   "/pwa-512.png",
   "/maskable-icon-512.png"
@@ -31,13 +29,15 @@ self.addEventListener("fetch", (event) => {
   if (
     url.pathname.includes("/api/") ||
     url.pathname.includes("livekit") ||
-    url.hostname.includes("supabase")
+    url.hostname.includes("supabase") ||
+    url.hostname.includes("livekit")
   ) {
     return;
   }
 
-  if (request.mode === "navigate") {
-    event.respondWith(fetch(request).catch(() => caches.match("/offline.html")));
+  // Always fetch latest app code first. This avoids old PWA code staying stuck after updates.
+  if (request.mode === "navigate" || url.pathname === "/" || url.pathname.endsWith(".js") || url.pathname.endsWith(".css")) {
+    event.respondWith(fetch(request).catch(() => caches.match(request).then((cached) => cached || caches.match("/offline.html"))));
     return;
   }
 
