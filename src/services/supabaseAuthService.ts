@@ -31,13 +31,39 @@ function profileFromRow(row: any): UserProfile {
     email: row.email || "",
     role: mapRole(row.role),
     status: mapStatus(row.status),
-    twoFactorRequired: row.role !== "approved_member"
+    twoFactorRequired: row.role !== "approved_member",
+    avatarUrl: row.avatar_url || row.avatarUrl || undefined
   };
+}
+
+async function readProfileByUserId(userId: string): Promise<UserProfile | null> {
+  if (!supabase) return null;
+
+  const { data, error } = await supabase
+    .from("profiles")
+    .select("*")
+    .eq("id", userId)
+    .single();
+
+  if (!error && data) return profileFromRow(data);
+  return null;
 }
 
 export const supabaseAuthService = {
   isReady() {
     return Boolean(isSupabaseConfigured && supabase);
+  },
+
+  async syncApprovalIfPossible(): Promise<UserProfile | null> {
+    if (!supabase) return null;
+
+    const { data, error } = await supabase.rpc("sync_my_profile_from_access_request");
+
+    if (!error && data) {
+      return profileFromRow(data);
+    }
+
+    return null;
   },
 
   async getCurrentProfile(): Promise<UserProfile | null> {
@@ -47,17 +73,21 @@ export const supabaseAuthService = {
     const user = sessionData.session?.user;
     if (!user) return null;
 
-    const { data, error } = await supabase
-      .from("profiles")
-      .select("*")
-      .eq("id", user.id)
-      .single();
+    let profile = await readProfileByUserId(user.id);
 
-    if (!error && data) {
-      return profileFromRow(data);
+    // If the profile is still pending, try to sync it with an approved access request.
+    // This fixes cases where Owner approved the access request but the profile row did not refresh.
+    if (profile && profile.status !== "approved") {
+      const synced = await this.syncApprovalIfPossible();
+      if (synced) profile = synced;
+      else {
+        const reread = await readProfileByUserId(user.id);
+        if (reread) profile = reread;
+      }
     }
 
-    // Fallback if trigger has not created profile yet.
+    if (profile) return profile;
+
     return {
       id: user.id,
       fullName: user.user_metadata?.full_name || user.email || "Pending User",
@@ -102,8 +132,6 @@ export const supabaseAuthService = {
   },
 
   async signOut(): Promise<void> {
-    if (supabase) {
-      await supabase.auth.signOut();
-    }
+    if (supabase) await supabase.auth.signOut();
   }
 };

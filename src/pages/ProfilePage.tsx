@@ -122,13 +122,13 @@ export function ProfilePage() {
 
       <section className="profile-list-section">
         <h2>Support</h2>
-        <ProfileRow icon="?" label="Report a problem" onClick={() => setModal("problem")} />
+        <ProfileRow icon="?" label="Report a problem" onClick={() => profile?.role === roles.OWNER ? setRoute("testingCenter") : setModal("problem")} />
         <ProfileRow icon="i" label="About" onClick={() => setModal("about")} />
       </section>
 
       <Card>
         <Button variant="danger" onClick={logout}>Log out</Button>
-        <p className="version-label">Version 0.60.0</p>
+        <p className="version-label">Version 1.10.0 QA-ready</p>
       </Card>
 
       {modal === "edit" && (
@@ -166,7 +166,7 @@ export function ProfilePage() {
         <Modal title="About OmideNo7 Meetings" onClose={() => setModal(null)}>
           <p><strong>OmideNo7 Meetings</strong></p>
           <p>Secure church meetings app for approved members, hosts, servants, and Owner controls.</p>
-          <p>Version 0.60.0 — meeting scheduling, live UI cleanup, profile edit and audio test upgrade.</p>
+          <p>Version 1.10.0 QA-ready — meeting scheduling, live UI cleanup, profile edit and audio test upgrade.</p>
           <Button onClick={() => setModal(null)}>Close</Button>
         </Modal>
       )}

@@ -91,7 +91,7 @@ export function MeetingSchedulePage() {
     notes: ""
   });
 
-  const isHost = profile?.role !== "approved_member";
+  const isHost = Boolean(profile?.status === "approved" && profile?.role !== "approved_member");
 
   const groups = useMemo(() => groupMeetings(meetings), [meetings]);
 
@@ -249,7 +249,7 @@ export function MeetingSchedulePage() {
         <p className="small-note">Data mode: {dataMode}</p>
         <div className="button-row">
           <Button onClick={load} disabled={loading}>Refresh</Button>
-          <Button variant="secondary" onClick={() => setRoute("waitingRoom")}>Waiting Room</Button>
+          {isHost && <Button variant="secondary" onClick={() => setRoute("waitingRoom")}>Waiting Room</Button>}
           <Button variant="secondary" onClick={() => setRoute("liveMeeting")}>Live Meeting UI</Button>
         </div>
       </Card>

@@ -1,32 +1,25 @@
 import { useAppState } from "../../app/AppState";
-import { roles } from "../../config/roles";
+import { canOpenRoute } from "../../services/routeGuard";
 import type { AppRouteKey } from "../../types/routes";
-
-const hostLikeRoles = [
-  roles.OWNER,
-  roles.SENIOR_HOST,
-  roles.MEETING_HOST,
-  roles.CO_HOST,
-  roles.DOOR_SERVANT,
-  roles.MEDIA_SERVANT,
-  roles.PRAYER_SERVANT,
-  roles.CHAT_MODERATOR
-];
 
 export function AppShell({ children }: { children: React.ReactNode }) {
   const { profile, route, setRoute, logout } = useAppState();
-  const isHostLike = profile ? hostLikeRoles.includes(profile.role) : false;
 
-  const mainTabs: { key: AppRouteKey; label: string; icon: string; show: boolean }[] = [
-    { key: "memberHome", label: "Home", icon: "⌂", show: true },
-    { key: "meetingSchedule", label: "Meetings", icon: "◷", show: true },
-    { key: "liveMeeting", label: "Live", icon: "▣", show: true },
-    { key: "waitingRoom", label: "Waiting", icon: "⏳", show: true },
-    { key: "deviceTest", label: "Media", icon: "🎙", show: true },
-    { key: "profile", label: "Profile", icon: "◉", show: true },
-    { key: "ownerDashboard", label: "Owner", icon: "✓", show: profile?.role === roles.OWNER },
-    { key: "servantDashboard", label: "Host", icon: "◎", show: isHostLike }
+  const mainTabs: { key: AppRouteKey; label: string; icon: string }[] = [
+    { key: "memberHome", label: "Home", icon: "⌂" },
+    { key: "meetingSchedule", label: "Meetings", icon: "◷" },
+    { key: "liveMeeting", label: "Live", icon: "▣" },
+    { key: "waitingRoom", label: "Waiting", icon: "⏳" },
+    { key: "deviceTest", label: "Media", icon: "🎙" },
+    { key: "profile", label: "Profile", icon: "◉" },
+    { key: "servantDashboard", label: "Host", icon: "◎" },
+    { key: "reports", label: "Reports", icon: "📊" },
+    { key: "ownerDashboard", label: "Owner", icon: "✓" },
+    { key: "testingCenter", label: "Testing", icon: "🧪" },
+    { key: "releaseReadiness", label: "Release", icon: "🚦" }
   ];
+
+  const visibleTabs = mainTabs.filter((item) => canOpenRoute(item.key, profile));
 
   return (
     <div className="app-shell no-sidebar-shell">
@@ -35,12 +28,12 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           <img src="/omideno7-logo.png" alt="OmideNo7" onError={(event) => { event.currentTarget.style.display = "none"; }} />
           <div>
             <strong>OmideNo7 Meetings</strong>
-            <span>{profile?.displayName}</span>
+            <span>{profile?.displayName} · {profile?.status}</span>
           </div>
         </div>
 
         <nav>
-          {mainTabs.filter((item) => item.show).map((item) => (
+          {visibleTabs.map((item) => (
             <button key={item.key} className={route === item.key ? "active" : ""} onClick={() => setRoute(item.key)}>
               <span>{item.icon}</span>
               {item.label}
@@ -54,7 +47,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       <main className="main-content full-main-content">{children}</main>
 
       <nav className="mobile-bottom-tabs" aria-label="Main mobile navigation">
-        {mainTabs.filter((item) => item.show).slice(0, 5).map((item) => (
+        {visibleTabs.slice(0, 5).map((item) => (
           <button key={item.key} className={route === item.key ? "active" : ""} onClick={() => setRoute(item.key)}>
             <span>{item.icon}</span>
             {item.label}

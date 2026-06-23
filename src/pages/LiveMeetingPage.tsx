@@ -2,7 +2,13 @@ import { useMemo, useState, type KeyboardEvent } from "react";
 import { demoStore } from "../services/demoStore";
 import { useDemoStoreVersion } from "../hooks/useDemoStoreVersion";
 import { useAppState } from "../app/AppState";
-import { roles } from "../config/roles";
+import {
+  canControlMicrophones,
+  canEndWholeMeeting,
+  canManageWaitingRoom,
+  isHostLike,
+  roleLabel
+} from "../services/roleAccess";
 
 type Participant = {
   id: string;
@@ -14,6 +20,7 @@ type Participant = {
   canUnmute: boolean;
   room: string;
   symbol: string;
+  avatarUrl?: string;
   reaction?: string;
   handRaised?: boolean;
 };
@@ -34,9 +41,6 @@ type ChatMessage = {
 };
 
 type FloatingReaction = { id: string; icon: string };
-
-const hostControlRoles = [roles.OWNER, roles.SENIOR_HOST, roles.MEETING_HOST, roles.CO_HOST];
-const hostPreferenceRoles = [roles.OWNER, roles.SENIOR_HOST, roles.MEETING_HOST, roles.CO_HOST, roles.MEDIA_SERVANT, roles.DOOR_SERVANT];
 
 const initialParticipants: Participant[] = [
   { id: "approved-member-1", name: "Approved Member", role: "member", status: "online", mic: false, camera: false, canUnmute: false, room: "Main Room", symbol: "👤" },
@@ -67,17 +71,7 @@ function ToolbarButton({ icon, label, active, danger, onClick }: { icon: string;
   );
 }
 
-function MiniParticipantMenu({
-  participant,
-  canHost,
-  onClose,
-  onAction
-}: {
-  participant: Participant;
-  canHost: boolean;
-  onClose: () => void;
-  onAction: (action: string, patch?: Partial<Participant>) => void;
-}) {
+function MiniParticipantMenu({ participant, canHost, onClose, onAction }: { participant: Participant; canHost: boolean; onClose: () => void; onAction: (action: string, patch?: Partial<Participant>) => void }) {
   return (
     <div className="mini-context-menu">
       <div className="mini-menu-head">
@@ -103,43 +97,16 @@ function MiniParticipantMenu({
   );
 }
 
-function PreferencesModal({ onClose }: { onClose: () => void }) {
-  return (
-    <div className="modal-backdrop">
-      <section className="preferences-modal small-preferences">
-        <button className="modal-close" onClick={onClose}>×</button>
-        <main>
-          <h2>Meeting Settings</h2>
-          <p>These settings are UI-ready. Real meeting engine settings are connected in the LiveKit phase.</p>
-          <div className="pref-form">
-            <label>Network mode<select><option>Automatic</option><option>Low bandwidth</option><option>Audio first</option></select></label>
-            <label className="toggle-line"><input type="checkbox" defaultChecked /> Approved users only</label>
-            <label className="toggle-line"><input type="checkbox" defaultChecked /> Waiting room required</label>
-          </div>
-        </main>
-      </section>
-    </div>
-  );
-}
-
-function LeaveMeetingDialog({
-  onClose,
-  onLeaveOnly,
-  onEndMeeting
-}: {
-  onClose: () => void;
-  onLeaveOnly: () => void;
-  onEndMeeting: () => void;
-}) {
+function LeaveMeetingDialog({ canEnd, onClose, onLeaveOnly, onEndMeeting }: { canEnd: boolean; onClose: () => void; onLeaveOnly: () => void; onEndMeeting: () => void }) {
   return (
     <div className="modal-backdrop">
       <section className="leave-confirm-modal">
         <button className="modal-close" onClick={onClose}>×</button>
         <h2>Leave meeting?</h2>
-        <p>Choose whether you only want to leave, or close the whole meeting for everyone.</p>
+        <p>{canEnd ? "Choose whether you only want to leave, or close the whole meeting for everyone." : "Members can only leave themselves. Ending the whole meeting is host-only."}</p>
         <div className="leave-choice-grid">
           <button onClick={onLeaveOnly}>Leave only me</button>
-          <button className="danger" onClick={onEndMeeting}>End meeting for everyone</button>
+          {canEnd && <button className="danger" onClick={onEndMeeting}>End meeting for everyone</button>}
           <button className="ghost" onClick={onClose}>Cancel</button>
         </div>
       </section>
@@ -152,8 +119,12 @@ export function LiveMeetingPage() {
   useDemoStoreVersion();
   const state = demoStore.getMeetingState();
 
+  const canHost = isHostLike(profile);
+  const canWaiting = canManageWaitingRoom(profile);
+  const canMicControl = canControlMicrophones(profile);
+  const canEnd = canEndWholeMeeting(profile);
+
   const [panel, setPanel] = useState<"attendees" | "waiting" | "rooms" | "chat" | "reactions">("chat");
-  const [preferencesOpen, setPreferencesOpen] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [toast, setToast] = useState("Ready");
   const [participants, setParticipants] = useState<Participant[]>(initialParticipants);
@@ -167,10 +138,8 @@ export function LiveMeetingPage() {
   const [floatingReactions, setFloatingReactions] = useState<FloatingReaction[]>([]);
   const [selfHandRaised, setSelfHandRaised] = useState(false);
   const [leaveDialogOpen, setLeaveDialogOpen] = useState(false);
-  const [controlMenu, setControlMenu] = useState<"none" | "mic" | "chat">("none");
-
-  const canUsePreferences = profile ? hostPreferenceRoles.includes(profile.role) : false;
-  const canUseHostControls = profile ? hostControlRoles.includes(profile.role) : false;
+  const [controlMenu, setControlMenu] = useState<"none" | "mic" | "chat" | "grid">("none");
+  const [gridSize, setGridSize] = useState<"compact" | "normal" | "large">("normal");
 
   function notify(text: string) {
     setToast(text);
@@ -187,17 +156,17 @@ export function LiveMeetingPage() {
     const me: Participant = {
       id: "me",
       name: profile?.displayName || "You",
-      role: profile?.role?.replaceAll("_", " ") || "member",
+      role: roleLabel(profile?.role),
       status: "online",
       mic: Boolean(state.mic),
       camera: Boolean(state.camera),
       canUnmute: true,
       room: "Main Room",
       symbol: "✝️",
+      avatarUrl: profile?.avatarUrl,
       reaction: selfHandRaised ? "✋" : undefined,
       handRaised: selfHandRaised
     };
-
     return [me, ...participants.filter((item) => item.status !== "removed")];
   }, [profile, participants, state.mic, state.camera, selfHandRaised]);
 
@@ -212,11 +181,30 @@ export function LiveMeetingPage() {
   }
 
   function changeAllParticipants(patch: Partial<Participant>, text: string) {
+    if (!canMicControl) {
+      notify("Only authorized hosts can control microphones.");
+      return;
+    }
     setParticipants((current) => current.map((item) => ({ ...item, ...patch })));
     notify(text);
   }
 
+  function toggleParticipantMic(participant: Participant) {
+    if (!canMicControl) {
+      notify("Only authorized hosts can control a participant microphone.");
+      return;
+    }
+    setParticipants((current) => current.map((item) => item.id === participant.id ? { ...item, mic: !item.mic, canUnmute: !item.mic } : item));
+    notify(`${participant.name} microphone ${participant.mic ? "muted" : "allowed/unmuted"}.`);
+  }
+
   function actOnParticipant(participant: Participant, action: string, patch?: Partial<Participant>) {
+    if (patch && !canHost) {
+      notify("Only host roles can perform this action.");
+      setMenuFor(null);
+      return;
+    }
+
     if (patch) setParticipants((current) => current.map((item) => item.id === participant.id ? { ...item, ...patch } : item));
 
     if (action === "Direct message") {
@@ -232,6 +220,10 @@ export function LiveMeetingPage() {
   }
 
   function admitWaitingPerson(person: WaitingPerson) {
+    if (!canWaiting) {
+      notify("Only host or Door Servant can admit people.");
+      return;
+    }
     const newParticipant: Participant = {
       id: `admitted-${person.id}`,
       name: person.name,
@@ -243,13 +235,16 @@ export function LiveMeetingPage() {
       room: "Main Room",
       symbol: "👤"
     };
-
     setParticipants((current) => [...current, newParticipant]);
     setWaitingList((current) => current.filter((item) => item.id !== person.id));
     notify(`${person.name} admitted to meeting.`);
   }
 
   function rejectWaitingPerson(person: WaitingPerson) {
+    if (!canWaiting) {
+      notify("Only host or Door Servant can reject people.");
+      return;
+    }
     setWaitingList((current) => current.filter((item) => item.id !== person.id));
     notify(`${person.name} rejected from waiting room.`);
   }
@@ -290,18 +285,17 @@ export function LiveMeetingPage() {
       notify("Write a message first.");
       return;
     }
-    if (chatMode === "closed" && !canUseHostControls) {
+    if (chatMode === "closed" && !canHost) {
       notify("Chat is closed by host.");
       return;
     }
-    if (chatMode === "admin" && !canUseHostControls && chatScope === "everyone") {
+    if (chatMode === "admin" && !canHost && chatScope === "everyone") {
       notify("Public chat is host/admin-only right now.");
       return;
     }
 
     const directTarget = participants.find((item) => item.id === directTargetId);
     const to = chatScope === "hosts" ? "Hosts/Admins" : chatScope === "direct" ? directTarget?.name || "Selected person" : "Everyone";
-
     setChatMessages((current) => [
       ...current,
       { id: crypto.randomUUID(), from: profile?.displayName || "You", to, text, time: new Date().toLocaleTimeString(), private: chatScope !== "everyone" }
@@ -323,6 +317,10 @@ export function LiveMeetingPage() {
   }
 
   function endMeetingForEveryone() {
+    if (!canEnd) {
+      notify("Only host roles can end the meeting for everyone.");
+      return;
+    }
     setLeaveDialogOpen(false);
     updateMeetingState({ mic: false, camera: false, recording: false }, "Meeting ended for everyone.");
     setRoute("memberHome");
@@ -336,8 +334,16 @@ export function LiveMeetingPage() {
     return "Attendees";
   }
 
+  const visibleTabs = [
+    { key: "attendees", label: "All", show: true },
+    { key: "waiting", label: "Waiting", show: canWaiting },
+    { key: "chat", label: "Chat", show: true },
+    { key: "reactions", label: "React", show: true },
+    { key: "rooms", label: "Rooms", show: true }
+  ] as const;
+
   return (
-    <div className="live-shell refined-live control-live polished-live rebuilt-live">
+    <div className={`live-shell refined-live control-live polished-live rebuilt-live grid-${gridSize}`}>
       <header className="live-topbar">
         <div>
           <strong>OmideNo7 Main Room</strong>
@@ -346,12 +352,11 @@ export function LiveMeetingPage() {
         <div className="live-status-line">
           <span className={state.mic ? "ok" : ""}>{state.mic ? "Mic on" : "Muted"}</span>
           <span className={state.camera ? "ok" : ""}>{state.camera ? "Camera on" : "Camera off"}</span>
-          <span className={state.recording ? "rec" : ""}>{state.recording ? "Recording" : "Not recording"}</span>
-          <span className={waitingList.length ? "waiting-top-badge" : ""} onClick={() => { setSidebarOpen(true); setPanel("waiting"); }}>Waiting {waitingList.length}</span>
+          {canWaiting && <span className={waitingList.length ? "waiting-top-badge" : ""} onClick={() => { setSidebarOpen(true); setPanel("waiting"); }}>Waiting {waitingList.length}</span>}
         </div>
         <div className="live-topbar-actions">
-          {canUseHostControls && <button className={state.lectureMode ? "danger" : ""} onClick={() => toggle("lectureMode", "Lecture Mode enabled.", "Lecture Mode disabled.")}>Lecture</button>}
-          {canUseHostControls && <button onClick={() => toggle("lowBandwidth", "Low Bandwidth Mode enabled.", "Low Bandwidth Mode disabled.")}>Low BW</button>}
+          {canMicControl && <button className={state.lectureMode ? "danger" : ""} onClick={() => toggle("lectureMode", "Lecture Mode enabled.", "Lecture Mode disabled.")}>Lecture</button>}
+          {canHost && <button onClick={() => toggle("lowBandwidth", "Low Bandwidth Mode enabled.", "Low Bandwidth Mode disabled.")}>Low BW</button>}
           <button onClick={() => setSidebarOpen(!sidebarOpen)}>{sidebarOpen ? "Hide panel" : "Show panel"}</button>
         </div>
       </header>
@@ -362,7 +367,7 @@ export function LiveMeetingPage() {
             <article key={person.id} className={`participant-tile ${person.id === "me" ? "speaking" : ""} ${person.status === "blocked" ? "blocked-tile" : ""}`}>
               <button className="participant-click-zone" onClick={() => person.id !== "me" ? setMenuFor(person) : notify("This is your tile.")}>
                 <div className="participant-avatar clean-avatar">
-                  {person.camera && person.id === "me" ? <span className="camera-placeholder">Camera on</span> : <span>{person.symbol}</span>}
+                  {person.avatarUrl ? <img src={person.avatarUrl} alt={person.name} /> : person.camera && person.id === "me" ? <span className="camera-placeholder">Camera on</span> : <span>{person.symbol}</span>}
                 </div>
                 <strong>{person.name} {person.handRaised || person.reaction ? <em className="id-reaction">{person.reaction || "✋"}</em> : null}</strong>
                 <span>{person.role} · {person.room}</span>
@@ -370,7 +375,7 @@ export function LiveMeetingPage() {
                 <div className={`mini-eq ${person.mic ? "active" : ""}`}><i></i><i></i><i></i><i></i></div>
               </button>
               {menuFor?.id === person.id && (
-                <MiniParticipantMenu participant={person} canHost={canUseHostControls} onClose={() => setMenuFor(null)} onAction={(action, patch) => actOnParticipant(person, action, patch)} />
+                <MiniParticipantMenu participant={person} canHost={canHost} onClose={() => setMenuFor(null)} onAction={(action, patch) => actOnParticipant(person, action, patch)} />
               )}
             </article>
           ))}
@@ -383,15 +388,15 @@ export function LiveMeetingPage() {
               <button onClick={() => setSidebarOpen(false)}>×</button>
             </div>
 
-            {canUseHostControls && (
+            {canHost && (
               <div className="compact-host-controls">
-                <button onClick={() => setControlMenu(controlMenu === "mic" ? "none" : "mic")}>Mic controls</button>
+                {canMicControl && <button onClick={() => setControlMenu(controlMenu === "mic" ? "none" : "mic")}>Mic controls</button>}
                 <button onClick={() => setControlMenu(controlMenu === "chat" ? "none" : "chat")}>Chat mode</button>
-                <button onClick={() => notify("Click participant tile for individual controls.")}>User controls</button>
+                <button onClick={() => setControlMenu(controlMenu === "grid" ? "none" : "grid")}>Grid size</button>
               </div>
             )}
 
-            {controlMenu === "mic" && (
+            {controlMenu === "mic" && canMicControl && (
               <div className="host-control-dropdown">
                 <button onClick={() => changeAllParticipants({ mic: false, canUnmute: false }, "All microphones muted and locked.")}>Mute all + lock</button>
                 <button onClick={() => changeAllParticipants({ canUnmute: true }, "All members may unmute when allowed.")}>Allow all mics</button>
@@ -400,24 +405,30 @@ export function LiveMeetingPage() {
               </div>
             )}
 
-            {controlMenu === "chat" && (
+            {controlMenu === "chat" && canHost && (
               <div className="host-control-dropdown">
-                <button onClick={() => { setChatMode("public"); notify("Chat is public."); }}>Public chat</button>
-                <button onClick={() => { setChatMode("admin"); notify("Chat is host/admin-only."); }}>Admin-only chat</button>
-                <button onClick={() => { setChatMode("closed"); notify("Chat is closed."); }}>Close chat</button>
+                <button onClick={() => { setChatMode("public"); notify("Members can send public chat messages."); }}>Public chat</button>
+                <button onClick={() => { setChatMode("admin"); notify("Only hosts/admins can send public chat."); }}>Admin-only chat</button>
+                <button onClick={() => { setChatMode("closed"); notify("Members cannot send chat messages."); }}>Close chat sending</button>
+              </div>
+            )}
+
+            {controlMenu === "grid" && canHost && (
+              <div className="host-control-dropdown">
+                <button onClick={() => setGridSize("compact")}>Compact grid</button>
+                <button onClick={() => setGridSize("normal")}>Normal grid</button>
+                <button onClick={() => setGridSize("large")}>Large grid</button>
               </div>
             )}
 
             <div className="panel-tabs rebuilt-tabs">
-              <button className={panel === "attendees" ? "active" : ""} onClick={() => setPanel("attendees")}>All</button>
-              <button className={panel === "waiting" ? "active" : ""} onClick={() => setPanel("waiting")}>Waiting</button>
-              <button className={panel === "chat" ? "active" : ""} onClick={() => setPanel("chat")}>Chat</button>
-              <button className={panel === "reactions" ? "active" : ""} onClick={() => setPanel("reactions")}>React</button>
-              <button className={panel === "rooms" ? "active" : ""} onClick={() => setPanel("rooms")}>Rooms</button>
+              {visibleTabs.filter((item) => item.show).map((item) => (
+                <button key={item.key} className={panel === item.key ? "active" : ""} onClick={() => setPanel(item.key)}>{item.label}</button>
+              ))}
             </div>
 
             <div className="side-panel-body">
-              {panel === "waiting" && (
+              {panel === "waiting" && canWaiting && (
                 <div className="waiting-live-list">
                   {waitingList.length === 0 ? (
                     <p className="empty-chat">No one is waiting now.</p>
@@ -442,11 +453,18 @@ export function LiveMeetingPage() {
                 <div className="attendee-list">
                   <input placeholder="Search participants" />
                   {people.map((person) => (
-                    <button className="attendee-row attendee-button" key={`${person.id}-row`} onClick={() => person.id !== "me" ? setMenuFor(person) : notify("You selected yourself.")}>
-                      <span>{person.name} {person.handRaised ? "✋" : ""}</span>
-                      <small>{person.role} · {person.room}</small>
-                      <em>{person.status === "blocked" ? "⛔" : person.mic ? "🎙" : "🔇"}</em>
-                    </button>
+                    <div className="attendee-row attendee-line" key={`${person.id}-row`}>
+                      <button className="attendee-main-button" onClick={() => person.id !== "me" ? setMenuFor(person) : notify("You selected yourself.")}>
+                        <span className="attendee-mini-avatar">{person.avatarUrl ? <img src={person.avatarUrl} alt="" /> : person.symbol}</span>
+                        <span>{person.name} {person.handRaised ? "✋" : ""}</span>
+                        <small>{person.role} · {person.room}</small>
+                      </button>
+                      {canMicControl && person.id !== "me" && (
+                        <button className={`speaker-toggle ${person.mic ? "on" : ""}`} onClick={() => toggleParticipantMic(person)} title="Toggle microphone">
+                          {person.mic ? "🎙" : "🔇"}
+                        </button>
+                      )}
+                    </div>
                   ))}
                 </div>
               )}
@@ -464,7 +482,7 @@ export function LiveMeetingPage() {
 
               {panel === "chat" && (
                 <div className="chat-panel rebuilt-chat-panel">
-                  <div className="chat-rules"><span>{chatMode === "closed" ? "Chat closed" : chatMode === "admin" ? "Host/Admin-only public chat" : "Chat open"}</span></div>
+                  <div className="chat-rules"><span>{chatMode === "closed" ? "Chat closed for members" : chatMode === "admin" ? "Host/Admin-only public chat" : "Chat open"}</span></div>
                   <div className="chat-messages rebuilt-chat-messages">
                     {chatMessages.length === 0 ? (
                       <p className="empty-chat">No messages yet. Write below and press Enter or Send.</p>
@@ -498,12 +516,7 @@ export function LiveMeetingPage() {
                       {chatEmojiOptions.map((emoji) => <button key={emoji} type="button" onClick={() => appendEmoji(emoji)}>{emoji}</button>)}
                     </div>
 
-                    <textarea
-                      value={chatInput}
-                      onChange={(event) => setChatInput(event.target.value)}
-                      onKeyDown={sendChatWithKeyboard}
-                      placeholder="Write a message... Enter sends, Shift+Enter makes a new line."
-                    />
+                    <textarea value={chatInput} onChange={(event) => setChatInput(event.target.value)} onKeyDown={sendChatWithKeyboard} placeholder="Write a message..." />
                     <button onClick={sendChat}>Send message</button>
                   </div>
                 </div>
@@ -528,17 +541,15 @@ export function LiveMeetingPage() {
         <ToolbarButton icon={state.mic ? "🎙" : "🔇"} label={state.mic ? "Mute" : "Unmute"} active={state.mic} onClick={() => toggle("mic", "Microphone unmuted.", "Microphone muted.")} />
         <ToolbarButton icon={state.camera ? "📷" : "🚫"} label={state.camera ? "Video on" : "Video off"} active={state.camera} onClick={() => toggle("camera", "Camera preview placeholder enabled. Real live video connects in LiveKit phase.", "Camera turned off.")} />
         <ToolbarButton icon="☷" label="Attendees" onClick={() => { setSidebarOpen(true); setPanel("attendees"); }} />
-        <ToolbarButton icon="⏳" label="Waiting" onClick={() => { setSidebarOpen(true); setPanel("waiting"); }} />
+        {canWaiting && <ToolbarButton icon="⏳" label="Waiting" onClick={() => { setSidebarOpen(true); setPanel("waiting"); }} />}
         <ToolbarButton icon="💬" label="Chat" onClick={() => { setSidebarOpen(true); setPanel("chat"); }} />
         <ToolbarButton icon="❤️" label="Reactions" onClick={() => { setSidebarOpen(true); setPanel("reactions"); }} />
-        {canUsePreferences && <ToolbarButton icon="⚙" label="Settings" onClick={() => setPreferencesOpen(true)} />}
         <button className="toolbar-pill leave" onClick={() => setLeaveDialogOpen(true)}><span>⏻</span><small>Leave</small></button>
       </footer>
 
       <div className="floating-reaction-layer">{floatingReactions.map((item) => <span key={item.id}>{item.icon}</span>)}</div>
       <div className="live-toast">{toast}</div>
-      {preferencesOpen && canUsePreferences && <PreferencesModal onClose={() => setPreferencesOpen(false)} />}
-      {leaveDialogOpen && <LeaveMeetingDialog onClose={() => setLeaveDialogOpen(false)} onLeaveOnly={leaveOnly} onEndMeeting={endMeetingForEveryone} />}
+      {leaveDialogOpen && <LeaveMeetingDialog canEnd={canEnd} onClose={() => setLeaveDialogOpen(false)} onLeaveOnly={leaveOnly} onEndMeeting={endMeetingForEveryone} />}
     </div>
   );
 }

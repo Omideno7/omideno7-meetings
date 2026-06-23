@@ -31,14 +31,16 @@ function ActionCard({
 
 export function MemberHomePage() {
   const { profile, setRoute } = useAppState();
-  const canHost = profile ? hostRoles.includes(profile.role) : false;
+  const canHost = profile ? profile.status === "approved" && hostRoles.includes(profile.role) : false;
   const displayName = profile?.displayName || "Approved Member";
 
   const ownerActions: { title: string; desc: string; icon: string; route: AppRouteKey }[] = [
     { title: "Approvals", desc: "Approve new members", icon: "✓", route: "approvals" },
     { title: "Permissions", desc: "Roles and templates", icon: "☷", route: "permissionTemplates" },
     { title: "Security", desc: "Owner-only controls", icon: "🔒", route: "securityCenter" },
-    { title: "Audit Logs", desc: "Review actions", icon: "☰", route: "auditLogs" }
+    { title: "Audit Logs", desc: "Review actions", icon: "☰", route: "auditLogs" },
+    { title: "Testing", desc: "Run servant QA", icon: "🧪", route: "testingCenter" },
+    { title: "Release", desc: "Readiness status", icon: "🚦", route: "releaseReadiness" }
   ];
 
   return (
@@ -93,9 +95,11 @@ export function MemberHomePage() {
         <ActionCard title="Recordings" desc="Media library and archives" icon="◉" onClick={() => setRoute("mediaLibrary")} />
         {canHost && <ActionCard title="Host Panel" desc="Servant controls preview" icon="◎" onClick={() => setRoute("servantDashboard")} />}
         {canHost && <ActionCard title="Reports" desc="Attendance and logs" icon="📊" onClick={() => setRoute("reports")} />}
+        {profile?.status === "approved" && profile?.role === roles.OWNER && <ActionCard title="Testing Center" desc="Checklist and issue report" icon="🧪" onClick={() => setRoute("testingCenter")} />}
+        {profile?.status === "approved" && profile?.role === roles.OWNER && <ActionCard title="Release Readiness" desc="QA and production status" icon="🚦" onClick={() => setRoute("releaseReadiness")} />}
       </section>
 
-      {profile?.role === roles.OWNER && (
+      {profile?.status === "approved" && profile?.role === roles.OWNER && (
         <>
           <section className="section-heading-row">
             <h2>Owner shortcuts</h2>
