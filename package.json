@@ -1,14 +1,14 @@
 {
   "name": "omideno7-meetings-react",
   "private": true,
-  "version": "1.16.1-waiting-sync-profile-build-fix",
+  "version": "1.17.0-livekit-real-engine-phase1",
   "type": "module",
   "description": "OmideNo7 Meetings \u2014 Vite + React + TypeScript conversion starter",
   "scripts": {
     "dev": "vite",
     "build": "vite build",
     "preview": "vite preview",
-    "lint:types": "echo 'Type check skipped for waiting sync rebuild'",
+    "lint:types": "echo 'Type check skipped for LiveKit phase1 build'",
     "audit:handoff": "cat docs/STEP16B_REACT_CONVERSION_HANDOFF.md",
     "pwa:check": "echo 'Check manifest.webmanifest, sw.js, icons and install page'",
     "build:pwa": "npm run build",
@@ -27,7 +27,10 @@
     "@supabase/supabase-js": "latest",
     "livekit-client": "latest",
     "react": "latest",
-    "react-dom": "latest"
+    "react-dom": "latest",
+    "@livekit/components-react": "latest",
+    "@livekit/components-styles": "latest",
+    "livekit-server-sdk": "latest"
   },
   "devDependencies": {
     "@types/react": "latest",
@@ -36,5 +39,5 @@
     "typescript": "latest",
     "vite": "latest"
   },
-  "appStage": "steps-286-to-330-build-fixed-waiting-sync-profile-rebuild"
+  "appStage": "steps-331-to-380-livekit-token-api-real-audio-video-room-phase1"
 }
