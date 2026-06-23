@@ -7,8 +7,11 @@ const STORAGE_KEY = "omideno7.react.profile";
 
 export const authService = {
   getCurrentProfile(): UserProfile | null {
+    if (dataMode === "supabase") return null;
+
     const raw = localStorage.getItem(STORAGE_KEY);
     if (!raw) return null;
+
     try {
       return JSON.parse(raw) as UserProfile;
     } catch {
@@ -21,12 +24,14 @@ export const authService = {
       localStorage.removeItem(STORAGE_KEY);
       return;
     }
+
     localStorage.setItem(STORAGE_KEY, JSON.stringify(profile));
   },
 
   updateLocalProfile(patch: Partial<UserProfile>): UserProfile | null {
     const current = this.getCurrentProfile();
     if (!current) return null;
+
     const next = { ...current, ...patch };
     this.saveProfile(next);
     return next;
@@ -50,34 +55,29 @@ export const authService = {
 
   async signIn(email: string, password: string) {
     const result = await supabaseAuthService.signIn(email, password);
-    if (result.profile) this.saveProfile(result.profile);
+
+    if (result.profile) {
+      this.saveProfile(result.profile);
+    }
+
     return result;
   },
 
   async signUp(email: string, password: string, fullName: string) {
     const result = await supabaseAuthService.signUp(email, password, fullName);
-    if (result.profile) this.saveProfile(result.profile);
+
+    if (result.profile) {
+      this.saveProfile(result.profile);
+    }
+
     return result;
   },
 
   async logout(): Promise<void> {
     await supabaseAuthService.signOut();
+
     localStorage.removeItem(STORAGE_KEY);
+    localStorage.removeItem("omideno7.profile.override");
+    localStorage.removeItem("omideno7.livekit.deviceId.v4");
   }
 };
-
-
-export function applyLocalProfileOverride(profile: any) {
-  try {
-    const override = JSON.parse(localStorage.getItem("omideno7.profile.override") || "{}");
-    if (!profile || !override) return profile;
-    return {
-      ...profile,
-      displayName: override.displayName || profile.displayName,
-      fullName: override.displayName || profile.fullName,
-      avatarUrl: override.avatarUrl || profile.avatarUrl
-    };
-  } catch {
-    return profile;
-  }
-}
