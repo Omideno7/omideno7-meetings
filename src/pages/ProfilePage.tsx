@@ -1,176 +1,108 @@
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { Button } from "../components/ui/Button";
 import { Card } from "../components/ui/Card";
 import { useAppState } from "../app/AppState";
 import { supabase } from "../services/supabaseClient";
-import { roles } from "../config/roles";
-
-const hostSettingsRoles = [
-  roles.OWNER,
-  roles.SENIOR_HOST,
-  roles.MEETING_HOST,
-  roles.CO_HOST,
-  roles.MEDIA_SERVANT,
-  roles.DOOR_SERVANT
-];
-
-function ProfileRow({ icon, label, onClick }: { icon: string; label: string; onClick?: () => void }) {
-  return (
-    <button className="profile-row" onClick={onClick}>
-      <span>{icon}</span>
-      <strong>{label}</strong>
-      <em>›</em>
-    </button>
-  );
-}
-
-function Modal({ title, children, onClose }: { title: string; children: React.ReactNode; onClose: () => void }) {
-  return (
-    <div className="modal-backdrop">
-      <section className="simple-modal">
-        <button className="modal-close" onClick={onClose}>×</button>
-        <h2>{title}</h2>
-        {children}
-      </section>
-    </div>
-  );
-}
 
 export function ProfilePage() {
-  const { profile, setRoute, logout, updateProfile } = useAppState();
-  const [modal, setModal] = useState<"edit" | "switch" | "problem" | "about" | null>(null);
+  const { profile, setRoute, refreshProfile, logout } = useAppState();
+  const fileRef = useRef<HTMLInputElement | null>(null);
   const [displayName, setDisplayName] = useState(profile?.displayName || "");
   const [avatarUrl, setAvatarUrl] = useState(profile?.avatarUrl || "");
-  const [saved, setSaved] = useState("");
-  const isHost = profile ? hostSettingsRoles.includes(profile.role) : false;
-  const isOwner = profile?.role === "owner";
+  const [message, setMessage] = useState("Ready");
 
-  function saveProfile() {
-    updateProfile({ displayName: displayName.trim() || profile?.displayName || "OmideNo7 Member", avatarUrl });
-    setSaved("Profile updated locally. Supabase profile sync will be connected in the next backend step.");
-    window.setTimeout(() => setModal(null), 1200);
+  async function saveProfile(nextName = displayName, nextAvatar = avatarUrl) {
+    if (!profile) return;
+
+    const safeName = nextName.trim() || profile.displayName;
+    const override = { displayName: safeName, avatarUrl: nextAvatar };
+    localStorage.setItem("omideno7.profile.override", JSON.stringify(override));
+
+    if (supabase) {
+      const { error } = await supabase
+        .from("profiles")
+        .update({
+          display_name: safeName,
+          full_name: safeName,
+          avatar_url: nextAvatar || null,
+          updated_at: new Date().toISOString()
+        })
+        .eq("id", profile.id);
+
+      if (error) {
+        setMessage(`Saved locally. Supabase save failed: ${error.message}`);
+        return;
+      }
+    }
+
+    await refreshProfile();
+    setMessage("Profile saved and will remain after logout/login.");
   }
 
-  function readAvatar(file?: File) {
+  function chooseAvatar() {
+    fileRef.current?.click();
+  }
+
+  function handleAvatarFile(file: File | undefined) {
     if (!file) return;
+
     const reader = new FileReader();
-    reader.onload = () => setAvatarUrl(String(reader.result || ""));
+    reader.onload = () => {
+      const dataUrl = String(reader.result || "");
+      setAvatarUrl(dataUrl);
+      saveProfile(displayName, dataUrl);
+    };
     reader.readAsDataURL(file);
   }
 
-  const avatar = profile?.avatarUrl || avatarUrl;
-
   return (
-    <div className="profile-mobile-page">
-      <section className="profile-header-card">
-        <div className="profile-title-row">
-          <h1>Profile</h1>
-          <button onClick={() => setModal("edit")}>Edit</button>
-        </div>
-        <div className="profile-identity">
-          {avatar ? <img src={avatar} alt="Profile" /> : <img src="/omideno7-logo.png" alt="OmideNo7" onError={(event) => { event.currentTarget.style.display = "none"; }} />}
-          <div>
-            <strong>{profile?.displayName || "OmideNo7 Member"}</strong>
-            <span>{profile?.email}</span>
-            <button onClick={() => setModal("switch")}>Switch account</button>
-          </div>
-        </div>
-      </section>
-
-      {isHost && (
-        <section className="profile-info-block">
-          <h2>My meeting info</h2>
-          <div className="info-grid">
-            <span>Internal room</span><strong>OmideNo7 Main Room</strong>
-            <span>Room type</span><strong>Secure approved-member room</strong>
-            <span>Owner</span><strong>Apostle Yuhana</strong>
-            <span>Access rule</span><strong>Approved users only + Waiting Room</strong>
-            <span>Default join</span><strong>Mic off · Camera off</strong>
-            <span>Meeting engine</span><strong>LiveKit/WebRTC backend phase</strong>
-          </div>
-          <button className="share-invite" onClick={() => setRoute("meetingSchedule")}>Open meeting schedule</button>
-        </section>
-      )}
-
-      <section className="profile-list-section">
-        <h2>Profile</h2>
-        <ProfileRow icon="⌂" label="Home" onClick={() => setRoute("memberHome")} />
-        <ProfileRow icon="▣" label="Live Meeting" onClick={() => setRoute("liveMeeting")} />
-        <ProfileRow icon="🎙" label="Video / Audio Test" onClick={() => setRoute("deviceTest")} />
-        <ProfileRow icon="◉" label="Recordings" onClick={() => setRoute("mediaLibrary")} />
-      </section>
-
-      {isHost && (
-        <section className="profile-list-section">
-          <h2>Host settings</h2>
-          <ProfileRow icon="📅" label="Meeting schedule" onClick={() => setRoute("meetingSchedule")} />
-          <ProfileRow icon="⏳" label="Waiting room" onClick={() => setRoute("waitingRoom")} />
-          <ProfileRow icon="◎" label="Host panel" onClick={() => setRoute("servantDashboard")} />
-          <ProfileRow icon="▭" label="Reports" onClick={() => setRoute("reports")} />
-          <ProfileRow icon="⚙" label="Additional settings" onClick={() => setRoute("deviceTest")} />
-        </section>
-      )}
-
-      {isOwner && (
-        <section className="profile-list-section">
-          <h2>Owner</h2>
-          <ProfileRow icon="✓" label="Approvals" onClick={() => setRoute("approvals")} />
-          <ProfileRow icon="☷" label="Permission Templates" onClick={() => setRoute("permissionTemplates")} />
-          <ProfileRow icon="🔒" label="Security Center" onClick={() => setRoute("securityCenter")} />
-          <ProfileRow icon="☰" label="Audit Logs" onClick={() => setRoute("auditLogs")} />
-        </section>
-      )}
-
-      <section className="profile-list-section">
-        <h2>Support</h2>
-        <ProfileRow icon="?" label="Report a problem" onClick={() => profile?.role === roles.OWNER ? setRoute("testingCenter") : setModal("problem")} />
-        <ProfileRow icon="i" label="About" onClick={() => setModal("about")} />
-      </section>
-
+    <div className="page-grid profile-mobile-safe">
       <Card>
-        <Button variant="danger" onClick={logout}>Log out</Button>
-        <p className="version-label">Version 1.10.0 QA-ready</p>
+        <h1>Profile</h1>
+        <p>Manage your display name, avatar, account status, and meeting identity.</p>
+        <div className="profile-hero-clean">
+          <div className="profile-avatar-large">
+            {avatarUrl ? <img src={avatarUrl} alt="Profile" /> : <span>{profile?.displayName?.slice(0, 1) || "O"}</span>}
+          </div>
+          <div>
+            <h2>{profile?.displayName}</h2>
+            <p>{profile?.email}</p>
+            <p>{profile?.role?.replaceAll("_", " ")} · {profile?.status}</p>
+          </div>
+        </div>
       </Card>
 
-      {modal === "edit" && (
-        <Modal title="Edit profile" onClose={() => setModal(null)}>
-          <div className="pref-form">
-            <label>Display name<input value={displayName} onChange={(event) => setDisplayName(event.target.value)} /></label>
-            <label>Profile picture from phone gallery / computer
-              <input type="file" accept="image/*" onChange={(event) => readAvatar(event.target.files?.[0])} />
-              <small>On mobile this opens your gallery/photo picker.</small>
-            </label>
-            {avatarUrl && <img className="avatar-preview" src={avatarUrl} alt="Preview" />}
-            <Button onClick={saveProfile}>Save profile</Button>
-            {saved && <p className="auth-message message-success">{saved}</p>}
-          </div>
-        </Modal>
-      )}
+      <Card>
+        <h2>Edit profile</h2>
+        <div className="profile-form-clean">
+          <label>
+            Display name
+            <input value={displayName} onChange={(event) => setDisplayName(event.target.value)} />
+          </label>
+          <label>
+            Avatar URL / Data
+            <input value={avatarUrl} onChange={(event) => setAvatarUrl(event.target.value)} />
+          </label>
+          <input ref={fileRef} type="file" accept="image/*" hidden onChange={(event) => handleAvatarFile(event.target.files?.[0])} />
+        </div>
+        <div className="button-row">
+          <Button onClick={() => saveProfile()}>Save Profile</Button>
+          <Button variant="secondary" onClick={chooseAvatar}>Choose Photo</Button>
+          <Button variant="ghost" onClick={refreshProfile}>Refresh Profile</Button>
+        </div>
+        <p className="auth-message">{message}</p>
+      </Card>
 
-      {modal === "switch" && (
-        <Modal title="Switch account" onClose={() => setModal(null)}>
-          <p>To switch account, log out and sign in with another approved email.</p>
-          <Button variant="danger" onClick={logout}>Log out now</Button>
-        </Modal>
-      )}
-
-      {modal === "problem" && (
-        <Modal title="Report a problem" onClose={() => setModal(null)}>
-          <p>Please send the issue to the church app administrator.</p>
-          <p><strong>Email:</strong> omideno7church@gmail.com</p>
-          <p>Include your device, browser, and what button/page caused the issue.</p>
-          <Button onClick={() => setModal(null)}>Close</Button>
-        </Modal>
-      )}
-
-      {modal === "about" && (
-        <Modal title="About OmideNo7 Meetings" onClose={() => setModal(null)}>
-          <p><strong>OmideNo7 Meetings</strong></p>
-          <p>Secure church meetings app for approved members, hosts, servants, and Owner controls.</p>
-          <p>Version 1.10.0 QA-ready — meeting scheduling, live UI cleanup, profile edit and audio test upgrade.</p>
-          <Button onClick={() => setModal(null)}>Close</Button>
-        </Modal>
-      )}
+      <Card>
+        <h2>Account</h2>
+        <div className="profile-actions-list">
+          <button onClick={() => setRoute("deviceTest")}>Audio / Video Test</button>
+          <button onClick={() => setRoute("meetingSchedule")}>My Meetings</button>
+          <button onClick={() => setRoute("testingCenter")}>Report a problem</button>
+          <button onClick={() => setRoute("releaseReadiness")}>About / Version 1.15.0</button>
+          <button className="danger" onClick={logout}>Logout</button>
+        </div>
+      </Card>
     </div>
   );
 }

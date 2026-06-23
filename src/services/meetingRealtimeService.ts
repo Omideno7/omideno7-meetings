@@ -39,6 +39,7 @@ export type MeetingAlert = {
 };
 
 const LOCAL_PARTICIPANTS_KEY = "omideno7.meeting.participants.v1";
+export const stableParticipantId = (meetingId: string, profileId: string | null | undefined) => `${meetingId}-${profileId || "guest"}`;
 const LOCAL_CHAT_KEY = "omideno7.meeting.chat.v1";
 const LOCAL_ALERT_KEY = "omideno7.meeting.alerts.v1";
 
@@ -63,7 +64,7 @@ export const meetingRealtimeService = {
 
   async upsertParticipant(profile: UserProfile | null, patch: Partial<MeetingParticipantState> = {}) {
     const state: MeetingParticipantState = {
-      id: profile?.id || "local-me",
+      id: stableParticipantId(this.meetingId, profile?.id || "local-me"),
       meeting_id: this.meetingId,
       profile_id: profile?.id || null,
       display_name: profile?.displayName || "Guest",
@@ -79,7 +80,7 @@ export const meetingRealtimeService = {
     };
 
     if (supabase) {
-      const { error } = await supabase.from("meeting_participants").upsert(state, { onConflict: "meeting_id,profile_id" });
+      const { error } = await supabase.from("meeting_participants").upsert(state, { onConflict: "id" });
       if (!error) return state;
     }
 
@@ -87,6 +88,22 @@ export const meetingRealtimeService = {
     const next = [state, ...local.filter((item) => item.id !== state.id && item.profile_id !== state.profile_id)];
     writeLocal(LOCAL_PARTICIPANTS_KEY, next);
     return state;
+  },
+
+  async getMyParticipant(profileId: string | undefined | null): Promise<MeetingParticipantState | null> {
+    if (!profileId) return null;
+    const stableId = stableParticipantId(this.meetingId, profileId);
+
+    if (supabase) {
+      const { data, error } = await supabase
+        .from("meeting_participants")
+        .select("*")
+        .eq("id", stableId)
+        .maybeSingle();
+      if (!error && data) return data as MeetingParticipantState;
+    }
+
+    return readLocal<MeetingParticipantState[]>(LOCAL_PARTICIPANTS_KEY, []).find((item) => item.id === stableId || item.profile_id === profileId) || null;
   },
 
   async listParticipants(): Promise<MeetingParticipantState[]> {

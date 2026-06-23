@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState, type KeyboardEvent } from "react";
 import { demoStore } from "../services/demoStore";
-import { meetingRealtimeService } from "../services/meetingRealtimeService";
+import { meetingRealtimeService, stableParticipantId } from "../services/meetingRealtimeService";
 import { useDemoStoreVersion } from "../hooks/useDemoStoreVersion";
 import { useAppState } from "../app/AppState";
 import {
@@ -131,6 +131,7 @@ export function LiveMeetingPage() {
   const [participants, setParticipants] = useState<Participant[]>(initialParticipants);
   const [waitingList, setWaitingList] = useState<WaitingPerson[]>(initialWaitingPeople);
   const [menuFor, setMenuFor] = useState<Participant | null>(null);
+  const [selectedAttendee, setSelectedAttendee] = useState<Participant | null>(null);
   const [chatScope, setChatScope] = useState<"everyone" | "hosts" | "direct">("everyone");
   const [directTargetId, setDirectTargetId] = useState("");
   const [chatInput, setChatInput] = useState("");
@@ -147,16 +148,25 @@ export function LiveMeetingPage() {
     let alive = true;
 
     async function refreshRealtime() {
-      const [remotePeople, remoteMessages] = await Promise.all([
+      const [remotePeople, remoteMessages, myRemote] = await Promise.all([
         meetingRealtimeService.listParticipants(),
-        meetingRealtimeService.listChat()
+        meetingRealtimeService.listChat(),
+        meetingRealtimeService.getMyParticipant(profile?.id)
       ]);
 
       if (!alive) return;
 
+      if (myRemote) {
+        demoStore.setMeetingState({
+          mic: Boolean(myRemote.mic_on),
+          camera: Boolean(myRemote.camera_on)
+        });
+        setSelfHandRaised(Boolean(myRemote.hand_raised));
+      }
+
       if (remotePeople.length) {
-        setParticipants(remotePeople
-          .filter((item) => item.profile_id !== profile?.id)
+        const mapped = remotePeople
+          .filter((item) => item.profile_id !== profile?.id && item.status !== "removed" && item.status !== "blocked")
           .map((item) => ({
             id: item.id,
             name: item.display_name,
@@ -170,7 +180,8 @@ export function LiveMeetingPage() {
             avatarUrl: item.avatar_url || undefined,
             handRaised: item.hand_raised,
             reaction: item.hand_raised ? "✋" : undefined
-          })));
+          } as Participant));
+        setParticipants(mapped);
       }
 
       if (remoteMessages.length) {
@@ -191,11 +202,12 @@ export function LiveMeetingPage() {
       hand_raised: selfHandRaised,
       avatar_url: profile?.avatarUrl || null,
       display_name: profile?.displayName || "User",
-      role_label: roleLabel(profile?.role)
+      role_label: roleLabel(profile?.role),
+      status: "online"
     }).then(() => refreshRealtime());
 
     const unsubscribe = meetingRealtimeService.subscribe(refreshRealtime);
-    const timer = window.setInterval(refreshRealtime, 5000);
+    const timer = window.setInterval(refreshRealtime, 3000);
 
     return () => {
       alive = false;
@@ -290,7 +302,7 @@ export function LiveMeetingPage() {
       return;
     }
     const newParticipant: Participant = {
-      id: `admitted-${person.id}`,
+      id: stableParticipantId(meetingRealtimeService.meetingId, `admitted-${person.id}`),
       name: person.name,
       role: "member",
       status: "online",
@@ -300,7 +312,20 @@ export function LiveMeetingPage() {
       room: "Main Room",
       symbol: "👤"
     };
-    setParticipants((current) => [...current, newParticipant]);
+    setParticipants((current) => [...current.filter((item) => item.id !== newParticipant.id), newParticipant]);
+    meetingRealtimeService.upsertParticipant({
+      id: `admitted-${person.id}`,
+      displayName: person.name,
+      fullName: person.name,
+      email: "",
+      role: "approved_member",
+      status: "approved"
+    } as any, {
+      status: "online",
+      display_name: person.name,
+      role_label: "member",
+      room_name: "Main Room"
+    } as any);
     setWaitingList((current) => current.filter((item) => item.id !== person.id));
     meetingRealtimeService.raiseAlert(`${person.name} admitted`, "waiting_resolved");
     notify(`${person.name} admitted to meeting.`);
@@ -434,7 +459,7 @@ export function LiveMeetingPage() {
         <section className="participants-grid with-panel">
           {people.map((person) => (
             <article key={person.id} className={`participant-tile ${person.id === "me" ? "speaking" : ""} ${person.status === "blocked" ? "blocked-tile" : ""}`}>
-              <button className="participant-click-zone" onClick={() => person.id !== "me" ? setMenuFor(person) : notify("This is your tile.")}>
+              <button className="participant-click-zone" onClick={() => { setSidebarOpen(true); setPanel("attendees"); if (person.id !== "me") setSelectedAttendee(person); else notify("This is your tile."); }}>
                 <div className="participant-avatar clean-avatar">
                   {person.avatarUrl ? <img src={person.avatarUrl} alt={person.name} /> : person.camera && person.id === "me" ? <span className="camera-placeholder">Camera on</span> : <span>{person.symbol}</span>}
                 </div>
@@ -443,9 +468,6 @@ export function LiveMeetingPage() {
                 <em className={person.mic ? "mic-on" : "mic-off"}>{person.mic ? "Mic on" : person.canUnmute ? "Can unmute" : "Muted"}</em>
                 <div className={`mini-eq ${person.mic ? "active" : ""}`}><i></i><i></i><i></i><i></i></div>
               </button>
-              {menuFor?.id === person.id && (
-                <MiniParticipantMenu participant={person} canHost={canHost} onClose={() => setMenuFor(null)} onAction={(action, patch) => actOnParticipant(person, action, patch)} />
-              )}
             </article>
           ))}
         </section>
@@ -523,7 +545,7 @@ export function LiveMeetingPage() {
                   <input placeholder="Search participants" />
                   {people.map((person) => (
                     <div className="attendee-row attendee-line" key={`${person.id}-row`}>
-                      <button className="attendee-main-button" onClick={() => person.id !== "me" ? setMenuFor(person) : notify("You selected yourself.")}>
+                      <button className="attendee-main-button" onClick={() => person.id !== "me" ? setSelectedAttendee(person) : notify("You selected yourself.")}>
                         <span className="attendee-mini-avatar">{person.avatarUrl ? <img src={person.avatarUrl} alt="" /> : person.symbol}</span>
                         <span>{person.name} {person.handRaised ? "✋" : ""}</span>
                         <small>{person.role} · {person.room}</small>
@@ -533,6 +555,33 @@ export function LiveMeetingPage() {
                           {person.mic ? "🎙" : "🔇"}
                         </button>
                       )}
+                    </div>
+                  ))}
+
+                  {selectedAttendee && (
+                    <div className="side-attendee-actions">
+                      <div className="mini-menu-head">
+                        <strong>{selectedAttendee.name}</strong>
+                        <button onClick={() => setSelectedAttendee(null)}>×</button>
+                      </div>
+                      <button onClick={() => { setPanel("chat"); setChatScope("direct"); setDirectTargetId(selectedAttendee.id); notify(`Direct message selected for ${selectedAttendee.name}.`); }}>Message</button>
+                      {canHost && <button onClick={() => actOnParticipant(selectedAttendee, "Moved to Prayer Room", { room: "Prayer Room" })}>Move to Prayer Room</button>}
+                      {canHost && <button onClick={() => actOnParticipant(selectedAttendee, "Moved to Main Room", { room: "Main Room" })}>Move to Main Room</button>}
+                      {canMicControl && <button onClick={() => toggleParticipantMic(selectedAttendee)}>{selectedAttendee.mic ? "Mute microphone" : "Allow / unmute microphone"}</button>}
+                      {canHost && <button className="danger" onClick={() => {
+                        actOnParticipant(selectedAttendee, "Removed from meeting", { status: "removed" });
+                        meetingRealtimeService.updateParticipant(selectedAttendee.id, { status: "removed" });
+                        setSelectedAttendee(null);
+                      }}>Kick / remove from meeting</button>}
+                      {canHost && <button className="danger" onClick={() => {
+                        actOnParticipant(selectedAttendee, "Blocked from meeting", { status: "blocked" });
+                        meetingRealtimeService.updateParticipant(selectedAttendee.id, { status: "blocked" });
+                        setSelectedAttendee(null);
+                      }}>Block account in meeting</button>}
+                    </div>
+                  )}
+                </div>
+              )}
                     </div>
                   ))}
                 </div>
