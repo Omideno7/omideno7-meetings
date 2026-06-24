@@ -1,7 +1,7 @@
 {
   "name": "omideno7-meetings-react",
   "private": true,
-  "version": "1.27.0-clean-live-page-rebuild",
+  "version": "1.28.0-livekit-connect-stable",
   "type": "module",
   "description": "OmideNo7 Meetings \u2014 Vite + React + TypeScript conversion starter",
   "scripts": {
@@ -39,5 +39,5 @@
     "typescript": "latest",
     "vite": "latest"
   },
-  "appStage": "steps-901-to-980-clean-live-page-rebuild"
+  "appStage": "steps-981-to-1040-livekit-connect-stable"
 }

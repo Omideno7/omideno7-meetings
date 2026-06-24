@@ -1,5 +1,5 @@
 {
   "app": "OmideNo7 Meetings",
-  "version": "1.27.0",
-  "build": "clean-live-page-rebuild"
+  "version": "1.28.0",
+  "build": "livekit-connect-stable"
 }

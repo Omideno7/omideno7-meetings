@@ -24,7 +24,6 @@ type LiveTile = {
   cameraTrack: any | null;
   microphoneTrack: any | null;
   audioLevel: number;
-  speaking: boolean;
 };
 
 function VideoTrackView({ track, muted }: { track: any | null; muted?: boolean }) {
@@ -34,13 +33,17 @@ function VideoTrackView({ track, muted }: { track: any | null; muted?: boolean }
     const element = ref.current;
     if (!element || !track) return;
 
-    track.attach(element);
+    try {
+      track.attach(element);
+    } catch {
+      // ignore
+    }
 
     return () => {
       try {
         track.detach(element);
       } catch {
-        // ignore detach errors
+        // ignore
       }
     };
   }, [track]);
@@ -65,13 +68,17 @@ function AudioTrackView({ track }: { track: any | null }) {
     const element = ref.current;
     if (!element || !track) return;
 
-    track.attach(element);
+    try {
+      track.attach(element);
+    } catch {
+      // ignore
+    }
 
     return () => {
       try {
         track.detach(element);
       } catch {
-        // ignore detach errors
+        // ignore
       }
     };
   }, [track]);
@@ -123,7 +130,6 @@ function tileFromParticipant(participant: any, isLocal: boolean): LiveTile {
     Boolean(microphoneTrack?.isMuted);
 
   const audioLevel = Math.max(0, Math.min(Number(participant?.audioLevel || 0), 1));
-  const speaking = Boolean(participant?.isSpeaking) || audioLevel > 0.08;
 
   return {
     key: participant?.sid || participant?.identity || participant?.name || (isLocal ? "local" : crypto.randomUUID()),
@@ -133,25 +139,8 @@ function tileFromParticipant(participant: any, isLocal: boolean): LiveTile {
     micOn: Boolean(microphoneTrack && !micMuted),
     cameraTrack,
     microphoneTrack,
-    audioLevel,
-    speaking
+    audioLevel
   };
-}
-
-function withTimeout<T>(promise: Promise<T>, ms: number, message: string): Promise<T> {
-  return new Promise((resolve, reject) => {
-    const timer = window.setTimeout(() => reject(new Error(message)), ms);
-
-    promise
-      .then((value) => {
-        window.clearTimeout(timer);
-        resolve(value);
-      })
-      .catch((error) => {
-        window.clearTimeout(timer);
-        reject(error);
-      });
-  });
 }
 
 function initials(name: string) {
@@ -178,12 +167,24 @@ function isHostRole(profile: UserProfile | null) {
   ].includes(profile.role);
 }
 
+function browserNotice() {
+  const ua = navigator.userAgent || "";
+  const isSafari = /^((?!chrome|android).)*safari/i.test(ua);
+  const isIOS = /iPad|iPhone|iPod/.test(ua);
+
+  if (isSafari || isIOS) {
+    return "Safari/iOS can block WebRTC. Chrome is recommended for the first stable version.";
+  }
+
+  return "";
+}
+
 export function RealLiveKitRoom({
   profile,
   admitted,
   meetingId,
-  autoStart = true,
-  confirmBeforeStart = false,
+  autoStart = false,
+  confirmBeforeStart = true,
   onConnectionChange,
   onMediaStateChange,
   onLeave
@@ -199,6 +200,7 @@ export function RealLiveKitRoom({
   const [cameraOn, setCameraOn] = useState(false);
   const [tiles, setTiles] = useState<LiveTile[]>([]);
   const [needsStart, setNeedsStart] = useState(Boolean(confirmBeforeStart));
+  const [notice] = useState(browserNotice());
 
   const canEnter = Boolean(profile?.status === "approved" && (isHostRole(profile) || admitted));
 
@@ -220,7 +222,42 @@ export function RealLiveKitRoom({
     setTiles(nextTiles);
   }
 
-  async function connect() {
+  function wireRoom(room: Room) {
+    const update = () => refreshTiles(room);
+
+    room.on(RoomEvent.Connected, async () => {
+      setConnected(true);
+      setStatus("Connected");
+      setError("");
+      refreshTiles(room);
+      await onConnectionChange?.(true);
+
+      setMicOn(false);
+      setCameraOn(false);
+      await onMediaStateChange?.({ mic: false, camera: false });
+    });
+
+    room.on(RoomEvent.Disconnected, async () => {
+      setConnected(false);
+      setStatus("Disconnected");
+      refreshTiles(room);
+      await onConnectionChange?.(false);
+    });
+
+    room.on(RoomEvent.ParticipantConnected, update);
+    room.on(RoomEvent.ParticipantDisconnected, update);
+    room.on(RoomEvent.TrackSubscribed, update);
+    room.on(RoomEvent.TrackUnsubscribed, update);
+    room.on(RoomEvent.TrackPublished, update);
+    room.on(RoomEvent.TrackUnpublished, update);
+    room.on(RoomEvent.TrackMuted, update);
+    room.on(RoomEvent.TrackUnmuted, update);
+    room.on(RoomEvent.LocalTrackPublished, update);
+    room.on(RoomEvent.LocalTrackUnpublished, update);
+    room.on(RoomEvent.ActiveSpeakersChanged, update);
+  }
+
+  async function connect(forceStart = false) {
     if (connectingRef.current || connected) return;
 
     if (!canEnter) {
@@ -229,12 +266,13 @@ export function RealLiveKitRoom({
       return;
     }
 
-    if (needsStart) {
+    if (needsStart && !forceStart) {
       setStatus("Ready to start");
       return;
     }
 
     connectingRef.current = true;
+    setNeedsStart(false);
     setError("");
     setStatus("Requesting secure LiveKit token...");
 
@@ -252,69 +290,45 @@ export function RealLiveKitRoom({
         return;
       }
 
+      // Always create a fresh room on each explicit enter.
+      if (roomRef.current) {
+        try {
+          roomRef.current.disconnect();
+        } catch {
+          // ignore
+        }
+        roomRef.current = null;
+      }
+
       setStatus("Connecting to LiveKit room...");
 
       const room = new Room({
         adaptiveStream: true,
-        dynacast: true,
-        stopLocalTrackOnUnpublish: true
+        dynacast: true
       });
 
       roomRef.current = room;
+      wireRoom(room);
 
-      const update = () => refreshTiles(room);
-
-      room.on(RoomEvent.Connected, async () => {
-        setConnected(true);
-        setStatus("Connected");
-        setError("");
-        refreshTiles(room);
-        await onConnectionChange?.(true);
-
-        try {
-          await room.localParticipant.setMicrophoneEnabled(false);
-          await room.localParticipant.setCameraEnabled(false);
-        } catch {
-          // keep default off
-        }
-
-        setMicOn(false);
-        setCameraOn(false);
-        await onMediaStateChange?.({ mic: false, camera: false });
+      // Do not wrap room.connect in our own timeout.
+      // Previous timeout/abort handling could trigger "Abort handler called" in some browsers.
+      await room.connect(result.wsUrl || liveKitReadyConfig.wsUrl, result.token, {
+        autoSubscribe: true
       });
-
-      room.on(RoomEvent.Disconnected, async () => {
-        setConnected(false);
-        setStatus("Disconnected");
-        refreshTiles(room);
-        await onConnectionChange?.(false);
-      });
-
-      room.on(RoomEvent.ParticipantConnected, update);
-      room.on(RoomEvent.ParticipantDisconnected, update);
-      room.on(RoomEvent.TrackSubscribed, update);
-      room.on(RoomEvent.TrackUnsubscribed, update);
-      room.on(RoomEvent.TrackPublished, update);
-      room.on(RoomEvent.TrackUnpublished, update);
-      room.on(RoomEvent.TrackMuted, update);
-      room.on(RoomEvent.TrackUnmuted, update);
-      room.on(RoomEvent.LocalTrackPublished, update);
-      room.on(RoomEvent.LocalTrackUnpublished, update);
-      room.on(RoomEvent.ActiveSpeakersChanged, update);
-
-      await withTimeout(
-        room.connect(result.wsUrl || liveKitReadyConfig.wsUrl, result.token, {
-          autoSubscribe: true
-        }),
-        35000,
-        "Could not establish signal connection. Safari may block WebRTC/WebSocket. Try Chrome or refresh and sign in again."
-      );
 
       refreshTiles(room);
       window.setTimeout(() => refreshTiles(room), 500);
       window.setTimeout(() => refreshTiles(room), 1500);
     } catch (err: any) {
       console.error("LiveKit connection error:", err);
+
+      try {
+        roomRef.current?.disconnect();
+      } catch {
+        // ignore
+      }
+
+      roomRef.current = null;
       setConnected(false);
       setStatus("Connection failed");
       setError(err?.message || "Could not connect to LiveKit room.");
@@ -348,7 +362,10 @@ export function RealLiveKitRoom({
 
   async function toggleMic() {
     const room = roomRef.current;
-    if (!room || !connected) return;
+    if (!room || !connected) {
+      setError("Enter the live room first.");
+      return;
+    }
 
     const next = !micOn;
     setMicOn(next);
@@ -365,7 +382,10 @@ export function RealLiveKitRoom({
 
   async function toggleCamera() {
     const room = roomRef.current;
-    if (!room || !connected) return;
+    if (!room || !connected) {
+      setError("Enter the live room first.");
+      return;
+    }
 
     const next = !cameraOn;
     setCameraOn(next);
@@ -388,14 +408,7 @@ export function RealLiveKitRoom({
     if (!canEnter) return;
 
     autoTriedRef.current = true;
-    void connect();
-
-    return () => {
-      const room = roomRef.current;
-      if (room) {
-        room.disconnect();
-      }
-    };
+    void connect(true);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [autoStart, needsStart, canEnter, meetingId]);
 
@@ -419,7 +432,11 @@ export function RealLiveKitRoom({
 
   useEffect(() => {
     return () => {
-      roomRef.current?.disconnect();
+      try {
+        roomRef.current?.disconnect();
+      } catch {
+        // ignore
+      }
     };
   }, []);
 
@@ -440,7 +457,7 @@ export function RealLiveKitRoom({
           color: #fff !important;
           overflow: hidden !important;
           box-sizing: border-box !important;
-          min-height: 58vh !important;
+          min-height: 100% !important;
         }
 
         .omide-livekit-clean-head {
@@ -501,7 +518,8 @@ export function RealLiveKitRoom({
           cursor: not-allowed !important;
         }
 
-        .omide-livekit-clean-status {
+        .omide-livekit-clean-status,
+        .omide-livekit-clean-notice {
           width: 100% !important;
           border-radius: 16px !important;
           padding: 9px 12px !important;
@@ -509,6 +527,10 @@ export function RealLiveKitRoom({
           color: #fff !important;
           font-weight: 700 !important;
           font-size: .82rem !important;
+        }
+
+        .omide-livekit-clean-notice {
+          background: rgba(19,191,84,.18) !important;
         }
 
         .omide-livekit-clean-error {
@@ -529,8 +551,8 @@ export function RealLiveKitRoom({
           gap: 12px !important;
           align-items: stretch !important;
           justify-items: stretch !important;
-          min-height: 320px !important;
-          max-height: 72vh !important;
+          min-height: 260px !important;
+          flex: 1 1 auto !important;
           overflow-y: auto !important;
           padding: 2px !important;
           box-sizing: border-box !important;
@@ -542,7 +564,7 @@ export function RealLiveKitRoom({
           min-width: 0 !important;
           aspect-ratio: 1 / 1 !important;
           min-height: 190px !important;
-          max-height: 360px !important;
+          max-height: 420px !important;
           overflow: hidden !important;
           border-radius: 20px !important;
           background: #020617 !important;
@@ -639,20 +661,20 @@ export function RealLiveKitRoom({
 
         .omide-livekit-clean-empty {
           width: 100% !important;
-          min-height: 260px !important;
+          min-height: 240px !important;
           border-radius: 20px !important;
           display: grid !important;
           place-items: center !important;
           background: rgba(2,6,23,.45) !important;
           color: rgba(255,255,255,.86) !important;
           font-weight: 800 !important;
+          flex: 1 1 auto !important;
         }
 
         @media (max-width: 740px) {
           .omide-livekit-clean {
             padding: 8px !important;
             border-radius: 18px !important;
-            min-height: 48vh !important;
           }
 
           .omide-livekit-clean-head {
@@ -668,8 +690,7 @@ export function RealLiveKitRoom({
           .omide-livekit-clean-grid {
             grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
             gap: 8px !important;
-            min-height: 240px !important;
-            max-height: 56vh !important;
+            min-height: 220px !important;
           }
 
           .omide-livekit-clean-tile {
@@ -713,13 +734,10 @@ export function RealLiveKitRoom({
             <button
               className="primary"
               type="button"
-              onClick={() => {
-                setNeedsStart(false);
-                void connect();
-              }}
-              disabled={!canEnter}
+              onClick={() => void connect(true)}
+              disabled={!canEnter || connectingRef.current}
             >
-              {needsStart ? "Start live room" : "Enter live"}
+              {connectingRef.current ? "Connecting..." : "Enter live"}
             </button>
           )}
 
@@ -738,6 +756,12 @@ export function RealLiveKitRoom({
       </div>
 
       <div className="omide-livekit-clean-status">{status}</div>
+
+      {notice && (
+        <div className="omide-livekit-clean-notice">
+          {notice}
+        </div>
+      )}
 
       {error && (
         <div className="omide-livekit-clean-error">
