@@ -202,6 +202,18 @@ function getBrowserMode() {
   return { isIOS, isSafari };
 }
 
+
+function isSafariLikeBrowser() {
+  const ua = navigator.userAgent || "";
+  const isIOS = /iPad|iPhone|iPod/.test(ua) || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
+  const isSafari = /^((?!chrome|android|crios|fxios|edg).)*safari/i.test(ua);
+  return isIOS || isSafari;
+}
+
+function wait(ms: number) {
+  return new Promise((resolve) => window.setTimeout(resolve, ms));
+}
+
 export function RealLiveKitRoom({
   profile,
   admitted,
@@ -230,6 +242,7 @@ export function RealLiveKitRoom({
   const [audioOutputs, setAudioOutputs] = useState<MediaDeviceInfo[]>([]);
   const [sinkIndex, setSinkIndex] = useState(0);
   const [browserMode] = useState(getBrowserMode());
+  const [isSafariMode] = useState(isSafariLikeBrowser());
 
   const canEnter = Boolean(profile?.status === "approved" && (isHostRole(profile) || admitted));
   const currentSinkId = audioOutputs[sinkIndex]?.deviceId || "";
@@ -332,16 +345,65 @@ export function RealLiveKitRoom({
       setStatus("Connecting to LiveKit room...");
 
       const room = new Room({
-        adaptiveStream: true,
-        dynacast: true
-      });
+        adaptiveStream: !isSafariMode,
+        dynacast: !isSafariMode,
+        disconnectOnPageLeave: false,
+        publishDefaults: {
+          simulcast: !isSafariMode,
+          stopMicTrackOnMute: true
+        } as any
+      } as any);
 
       roomRef.current = room;
       wireRoom(room);
 
-      await room.connect(result.wsUrl || liveKitReadyConfig.wsUrl, result.token, {
-        autoSubscribe: true
-      });
+      const wsUrl = result.wsUrl || liveKitReadyConfig.wsUrl;
+
+      if (isSafariMode && typeof (room as any).prepareConnection === "function") {
+        try {
+          setStatus("Safari mode: preparing signal connection...");
+          await (room as any).prepareConnection(wsUrl, result.token);
+          await wait(350);
+        } catch {
+          // prepareConnection is a best-effort Safari preflight.
+        }
+      }
+
+      let lastConnectError: any = null;
+      const attempts = isSafariMode ? 3 : 1;
+
+      for (let attempt = 1; attempt <= attempts; attempt += 1) {
+        try {
+          setStatus(isSafariMode ? `Safari mode: connecting ${attempt}/${attempts}...` : "Connecting to LiveKit room...");
+          await room.connect(wsUrl, result.token, {
+            autoSubscribe: true,
+            rtcConfig: isSafariMode
+              ? {
+                  iceCandidatePoolSize: 0,
+                  bundlePolicy: "balanced",
+                  rtcpMuxPolicy: "require"
+                }
+              : undefined
+          } as any);
+          lastConnectError = null;
+          break;
+        } catch (connectError: any) {
+          lastConnectError = connectError;
+          if (!isSafariMode || attempt === attempts) break;
+
+          try {
+            room.disconnect();
+          } catch {
+            // ignore
+          }
+
+          await wait(900 * attempt);
+        }
+      }
+
+      if (lastConnectError) {
+        throw lastConnectError;
+      }
 
       refreshTiles(room);
       window.setTimeout(() => refreshTiles(room), 500);
@@ -360,7 +422,7 @@ export function RealLiveKitRoom({
       setStatus("Connection failed");
 
       const safariHint = browserMode.isIOS || browserMode.isSafari
-        ? " Safari/iOS mode: keep this page open in Safari browser, allow camera/microphone, and try again."
+        ? " Safari/iOS: permission is OK, but the LiveKit signal connection failed. Close every other OmideNo7 tab/web-app window, turn off VPN/iCloud Private Relay for this test, then try again."
         : "";
 
       setError(`${err?.message || "Could not connect to LiveKit room."}${safariHint}`);

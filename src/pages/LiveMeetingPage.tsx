@@ -864,7 +864,7 @@ export function LiveMeetingPage() {
         fontSize: ".82rem",
         textAlign: "center"
       }}>
-        Build 1.38 Safari cache-bypass is loaded
+        Build 1.39 Safari signal-fix is loaded
       </div>
 
       <section style={{

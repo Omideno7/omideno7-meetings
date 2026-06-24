@@ -1,7 +1,6 @@
 {
   "app": "OmideNo7 Meetings",
-  "version": "1.38.0",
-  "build": "safari-cache-bypass-no-dependency-change",
-  "base": "omideno7-meetings-v133-emergency-live-restore.zip",
-  "note": "No LiveKit dependency version changes. Temporary Safari cache and permission test build."
+  "version": "1.39.0",
+  "build": "safari-signal-fix",
+  "note": "Safari signaling fix: LiveKit 2.18.2 + Safari conservative connect mode."
 }

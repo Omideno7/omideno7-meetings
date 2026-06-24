@@ -1,7 +1,7 @@
 {
   "name": "omideno7-meetings-react",
   "private": true,
-  "version": "1.38.0-safari-cache-bypass-no-dependency-change",
+  "version": "1.39.0-safari-signal-fix",
   "type": "module",
   "description": "OmideNo7 Meetings \u2014 Vite + React + TypeScript conversion starter",
   "scripts": {
@@ -25,7 +25,7 @@
   },
   "dependencies": {
     "@supabase/supabase-js": "latest",
-    "livekit-client": "latest",
+    "livekit-client": "2.18.2",
     "react": "latest",
     "react-dom": "latest",
     "@livekit/components-react": "latest",
@@ -39,5 +39,5 @@
     "typescript": "latest",
     "vite": "latest"
   },
-  "appStage": "safari-cache-bypass-visible-test-no-livekit-dependency-change"
+  "appStage": "steps-1376-to-1425-safari-signal-fix"
 }
