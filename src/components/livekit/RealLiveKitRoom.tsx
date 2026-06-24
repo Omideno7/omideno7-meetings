@@ -317,64 +317,58 @@ export function RealLiveKitRoom({
     connectingRef.current = true;
     setNeedsStart(false);
     setError("");
-    setStatus("Requesting secure LiveKit token...");
 
     try {
-      const result = await liveKitTokenService.requestToken({
-        meetingId,
-        profile,
-        admitted: isHostRole(profile) || admitted
-      });
+      const maxAttempts = isSafariMode ? 4 : 1;
+      let lastError: any = null;
 
-      if (!result.ok) {
-        setStatus("Cannot enter live room");
-        setError(result.message || result.reason || "LiveKit token error.");
-        await onConnectionChange?.(false);
-        return;
-      }
+      for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
+        let attemptRoom: Room | null = null;
 
-      if (roomRef.current) {
         try {
-          roomRef.current.disconnect();
-        } catch {
-          // ignore
-        }
-        roomRef.current = null;
-      }
+          setStatus(isSafariMode ? `Safari mode: requesting token ${attempt}/${maxAttempts}...` : "Requesting secure LiveKit token...");
 
-      setStatus("Connecting to LiveKit room...");
+          const result = await liveKitTokenService.requestToken({
+            meetingId,
+            profile,
+            admitted: isHostRole(profile) || admitted
+          });
 
-      const room = new Room({
-        adaptiveStream: !isSafariMode,
-        dynacast: !isSafariMode,
-        disconnectOnPageLeave: false,
-        publishDefaults: {
-          simulcast: !isSafariMode,
-          stopMicTrackOnMute: true
-        } as any
-      } as any);
+          if (!result.ok) {
+            setStatus("Cannot enter live room");
+            setError(result.message || result.reason || "LiveKit token error.");
+            await onConnectionChange?.(false);
+            return;
+          }
 
-      roomRef.current = room;
-      wireRoom(room);
+          // Always disconnect old room and create a brand-new Room per attempt.
+          // Reusing a Room after Safari aborts signaling can keep the abort state alive.
+          try {
+            roomRef.current?.disconnect();
+          } catch {
+            // ignore
+          }
 
-      const wsUrl = result.wsUrl || liveKitReadyConfig.wsUrl;
+          const room = new Room({
+            adaptiveStream: !isSafariMode,
+            dynacast: !isSafariMode,
+            disconnectOnPageLeave: false,
+            publishDefaults: {
+              simulcast: !isSafariMode,
+              stopMicTrackOnMute: true
+            } as any
+          } as any);
 
-      if (isSafariMode && typeof (room as any).prepareConnection === "function") {
-        try {
-          setStatus("Safari mode: preparing signal connection...");
-          await (room as any).prepareConnection(wsUrl, result.token);
-          await wait(350);
-        } catch {
-          // prepareConnection is a best-effort Safari preflight.
-        }
-      }
+          attemptRoom = room;
+          roomRef.current = room;
+          wireRoom(room);
 
-      let lastConnectError: any = null;
-      const attempts = isSafariMode ? 3 : 1;
+          const wsUrl = result.wsUrl || liveKitReadyConfig.wsUrl;
 
-      for (let attempt = 1; attempt <= attempts; attempt += 1) {
-        try {
-          setStatus(isSafariMode ? `Safari mode: connecting ${attempt}/${attempts}...` : "Connecting to LiveKit room...");
+          setStatus(isSafariMode ? `Safari mode: connecting ${attempt}/${maxAttempts}...` : "Connecting to LiveKit room...");
+
+          // Important: no prepareConnection in this build.
+          // On Safari, prepareConnection can leave an aborted signaling state.
           await room.connect(wsUrl, result.token, {
             autoSubscribe: true,
             rtcConfig: isSafariMode
@@ -385,48 +379,40 @@ export function RealLiveKitRoom({
                 }
               : undefined
           } as any);
-          lastConnectError = null;
-          break;
+
+          lastError = null;
+          refreshTiles(room);
+          window.setTimeout(() => refreshTiles(room), 500);
+          window.setTimeout(() => refreshTiles(room), 1500);
+          return;
         } catch (connectError: any) {
-          lastConnectError = connectError;
-          if (!isSafariMode || attempt === attempts) break;
+          lastError = connectError;
+          console.warn("LiveKit connect attempt failed", attempt, connectError);
 
           try {
-            room.disconnect();
+            attemptRoom?.disconnect();
           } catch {
             // ignore
           }
 
-          await wait(900 * attempt);
+          roomRef.current = null;
+          setConnected(false);
+          await onConnectionChange?.(false);
+
+          if (!isSafariMode || attempt === maxAttempts) {
+            break;
+          }
+
+          setStatus(`Safari mode: retrying after signal abort ${attempt}/${maxAttempts}...`);
+          await wait(1100 * attempt);
         }
       }
 
-      if (lastConnectError) {
-        throw lastConnectError;
-      }
-
-      refreshTiles(room);
-      window.setTimeout(() => refreshTiles(room), 500);
-      window.setTimeout(() => refreshTiles(room), 1500);
-    } catch (err: any) {
-      console.error("LiveKit connection error:", err);
-
-      try {
-        roomRef.current?.disconnect();
-      } catch {
-        // ignore
-      }
-
-      roomRef.current = null;
-      setConnected(false);
       setStatus("Connection failed");
-
-      const safariHint = browserMode.isIOS || browserMode.isSafari
-        ? " Safari/iOS: permission is OK, but the LiveKit signal connection failed. Close every other OmideNo7 tab/web-app window, turn off VPN/iCloud Private Relay for this test, then try again."
+      const safariHint = isSafariMode
+        ? " Safari/iOS: permission is OK, but the LiveKit signal connection still failed after fresh-room retries. Try Wi‑Fi and LTE separately, turn off VPN/iCloud Private Relay, and make sure no other OmideNo7 tab/web-app is open."
         : "";
-
-      setError(`${err?.message || "Could not connect to LiveKit room."}${safariHint}`);
-      await onConnectionChange?.(false);
+      setError(`${lastError?.message || "Could not connect to LiveKit room."}${safariHint}`);
     } finally {
       connectingRef.current = false;
     }

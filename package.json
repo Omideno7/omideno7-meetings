@@ -1,7 +1,7 @@
 {
   "name": "omideno7-meetings-react",
   "private": true,
-  "version": "1.39.0-safari-signal-fix",
+  "version": "1.40.0-safari-fresh-room-retry",
   "type": "module",
   "description": "OmideNo7 Meetings \u2014 Vite + React + TypeScript conversion starter",
   "scripts": {
@@ -39,5 +39,5 @@
     "typescript": "latest",
     "vite": "latest"
   },
-  "appStage": "steps-1376-to-1425-safari-signal-fix"
+  "appStage": "steps-1426-to-1485-safari-fresh-room-retry"
 }

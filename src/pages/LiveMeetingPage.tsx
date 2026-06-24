@@ -864,7 +864,7 @@ export function LiveMeetingPage() {
         fontSize: ".82rem",
         textAlign: "center"
       }}>
-        Build 1.39 Safari signal-fix is loaded
+        Build 1.40 Safari fresh-room retry is loaded
       </div>
 
       <section style={{
