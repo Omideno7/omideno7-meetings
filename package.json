@@ -1,9 +1,9 @@
 {
   "name": "omideno7-meetings-react",
   "private": true,
-  "version": "1.41.0-safari-sdk-native-retry",
+  "version": "1.42.0-clean-livekit-reset",
   "type": "module",
-  "description": "OmideNo7 Meetings \u2014 Vite + React + TypeScript conversion starter",
+  "description": "OmideNo7 Meetings — Vite + React + TypeScript conversion starter",
   "scripts": {
     "dev": "vite",
     "build": "vite build",
@@ -25,7 +25,7 @@
   },
   "dependencies": {
     "@supabase/supabase-js": "latest",
-    "livekit-client": "2.18.2",
+    "livekit-client": "latest",
     "react": "latest",
     "react-dom": "latest",
     "@livekit/components-react": "latest",
@@ -39,5 +39,5 @@
     "typescript": "latest",
     "vite": "latest"
   },
-  "appStage": "steps-1486-to-1520-safari-sdk-native-retry"
+  "appStage": "v142-clean-livekit-reset-from-v128"
 }

@@ -10,10 +10,6 @@ type Props = {
   meetingId: string;
   autoStart?: boolean;
   confirmBeforeStart?: boolean;
-  micAllowed?: boolean;
-  forceMicOff?: boolean;
-  forceCameraOff?: boolean;
-  raisedHands?: Record<string, boolean>;
   onConnectionChange?: (connected: boolean) => void | Promise<void>;
   onMediaStateChange?: (state: { mic: boolean; camera: boolean }) => void | Promise<void>;
   onLeave?: () => void | Promise<void>;
@@ -21,25 +17,14 @@ type Props = {
 
 type LiveTile = {
   key: string;
-  profileId: string;
-  identity: string;
   name: string;
   isLocal: boolean;
   cameraOn: boolean;
   micOn: boolean;
-  handRaised: boolean;
   cameraTrack: any | null;
   microphoneTrack: any | null;
   audioLevel: number;
 };
-
-function parseMetadata(participant: any) {
-  try {
-    return JSON.parse(participant?.metadata || "{}");
-  } catch {
-    return {};
-  }
-}
 
 function VideoTrackView({ track, muted }: { track: any | null; muted?: boolean }) {
   const ref = useRef<HTMLVideoElement | null>(null);
@@ -76,7 +61,7 @@ function VideoTrackView({ track, muted }: { track: any | null; muted?: boolean }
   );
 }
 
-function AudioTrackView({ track, sinkId }: { track: any | null; sinkId?: string }) {
+function AudioTrackView({ track }: { track: any | null }) {
   const ref = useRef<HTMLAudioElement | null>(null);
 
   useEffect(() => {
@@ -98,13 +83,6 @@ function AudioTrackView({ track, sinkId }: { track: any | null; sinkId?: string 
     };
   }, [track]);
 
-  useEffect(() => {
-    const element: any = ref.current;
-    if (!element || !sinkId || typeof element.setSinkId !== "function") return;
-
-    element.setSinkId(sinkId).catch(() => undefined);
-  }, [sinkId]);
-
   if (!track) return null;
 
   return <audio ref={ref} autoPlay playsInline />;
@@ -125,11 +103,8 @@ function pickPublication(publications: any[], source: Track.Source, kind: Track.
   });
 }
 
-function tileFromParticipant(participant: any, isLocal: boolean, raisedHands: Record<string, boolean>): LiveTile {
+function tileFromParticipant(participant: any, isLocal: boolean): LiveTile {
   const publications = getPublications(participant);
-  const metadata = parseMetadata(participant);
-  const identity = participant?.identity || "";
-  const profileId = metadata?.profileId || identity.split(":")[0] || identity;
 
   const cameraPublication = pickPublication(publications, Track.Source.Camera, Track.Kind.Video);
   const micPublication = pickPublication(publications, Track.Source.Microphone, Track.Kind.Audio);
@@ -157,14 +132,11 @@ function tileFromParticipant(participant: any, isLocal: boolean, raisedHands: Re
   const audioLevel = Math.max(0, Math.min(Number(participant?.audioLevel || 0), 1));
 
   return {
-    key: participant?.sid || identity || participant?.name || (isLocal ? "local" : crypto.randomUUID()),
-    profileId,
-    identity,
-    name: participant?.name || identity || (isLocal ? "You" : "Participant"),
+    key: participant?.sid || participant?.identity || participant?.name || (isLocal ? "local" : crypto.randomUUID()),
+    name: participant?.name || participant?.identity || (isLocal ? "You" : "Participant"),
     isLocal,
     cameraOn: Boolean(cameraTrack && !cameraMuted),
     micOn: Boolean(microphoneTrack && !micMuted),
-    handRaised: Boolean(raisedHands[profileId] || raisedHands[identity]),
     cameraTrack,
     microphoneTrack,
     audioLevel
@@ -195,23 +167,16 @@ function isHostRole(profile: UserProfile | null) {
   ].includes(profile.role);
 }
 
-function getBrowserMode() {
+function browserNotice() {
   const ua = navigator.userAgent || "";
+  const isSafari = /^((?!chrome|android).)*safari/i.test(ua);
   const isIOS = /iPad|iPhone|iPod/.test(ua);
-  const isSafari = /^((?!chrome|android|crios|fxios).)*safari/i.test(ua);
-  return { isIOS, isSafari };
-}
 
+  if (isSafari || isIOS) {
+    return "Safari/iOS can block WebRTC. Chrome is recommended for the first stable version.";
+  }
 
-function isSafariLikeBrowser() {
-  const ua = navigator.userAgent || "";
-  const isIOS = /iPad|iPhone|iPod/.test(ua) || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
-  const isSafari = /^((?!chrome|android|crios|fxios|edg).)*safari/i.test(ua);
-  return isIOS || isSafari;
-}
-
-function wait(ms: number) {
-  return new Promise((resolve) => window.setTimeout(resolve, ms));
+  return "";
 }
 
 export function RealLiveKitRoom({
@@ -220,10 +185,6 @@ export function RealLiveKitRoom({
   meetingId,
   autoStart = false,
   confirmBeforeStart = true,
-  micAllowed = true,
-  forceMicOff = false,
-  forceCameraOff = false,
-  raisedHands = {},
   onConnectionChange,
   onMediaStateChange,
   onLeave
@@ -239,13 +200,9 @@ export function RealLiveKitRoom({
   const [cameraOn, setCameraOn] = useState(false);
   const [tiles, setTiles] = useState<LiveTile[]>([]);
   const [needsStart, setNeedsStart] = useState(Boolean(confirmBeforeStart));
-  const [audioOutputs, setAudioOutputs] = useState<MediaDeviceInfo[]>([]);
-  const [sinkIndex, setSinkIndex] = useState(0);
-  const [browserMode] = useState(getBrowserMode());
-  const [isSafariMode] = useState(isSafariLikeBrowser());
+  const [notice] = useState(browserNotice());
 
   const canEnter = Boolean(profile?.status === "approved" && (isHostRole(profile) || admitted));
-  const currentSinkId = audioOutputs[sinkIndex]?.deviceId || "";
 
   function refreshTiles(room?: Room | null) {
     const activeRoom = room || roomRef.current;
@@ -256,9 +213,9 @@ export function RealLiveKitRoom({
     }
 
     const nextTiles: LiveTile[] = [
-      tileFromParticipant(activeRoom.localParticipant, true, raisedHands),
+      tileFromParticipant(activeRoom.localParticipant, true),
       ...Array.from(activeRoom.remoteParticipants.values()).map((participant: any) =>
-        tileFromParticipant(participant, false, raisedHands)
+        tileFromParticipant(participant, false)
       )
     ];
 
@@ -317,7 +274,7 @@ export function RealLiveKitRoom({
     connectingRef.current = true;
     setNeedsStart(false);
     setError("");
-    setStatus(isSafariMode ? "Safari mode: requesting token..." : "Requesting secure LiveKit token...");
+    setStatus("Requesting secure LiveKit token...");
 
     try {
       const result = await liveKitTokenService.requestToken({
@@ -333,44 +290,31 @@ export function RealLiveKitRoom({
         return;
       }
 
-      try {
-        roomRef.current?.disconnect();
-      } catch {
-        // ignore
+      // Always create a fresh room on each explicit enter.
+      if (roomRef.current) {
+        try {
+          roomRef.current.disconnect();
+        } catch {
+          // ignore
+        }
+        roomRef.current = null;
       }
 
+      setStatus("Connecting to LiveKit room...");
+
       const room = new Room({
-        adaptiveStream: !isSafariMode,
-        dynacast: !isSafariMode,
-        disconnectOnPageLeave: false,
-        publishDefaults: {
-          simulcast: !isSafariMode,
-          stopMicTrackOnMute: true
-        } as any
-      } as any);
+        adaptiveStream: true,
+        dynacast: true
+      });
 
       roomRef.current = room;
       wireRoom(room);
 
-      const wsUrl = result.wsUrl || liveKitReadyConfig.wsUrl;
-
-      setStatus(isSafariMode ? "Safari mode: LiveKit SDK native retry connecting..." : "Connecting to LiveKit room...");
-
-      await room.connect(wsUrl, result.token, {
-        autoSubscribe: true,
-        // These options are supported by LiveKit RoomConnectOptions.
-        // Use SDK native retry/timeout instead of our own reconnect loop.
-        maxRetries: isSafariMode ? 6 : 3,
-        websocketTimeout: isSafariMode ? 60000 : 20000,
-        peerConnectionTimeout: isSafariMode ? 60000 : 20000,
-        rtcConfig: isSafariMode
-          ? {
-              iceCandidatePoolSize: 0,
-              bundlePolicy: "balanced",
-              rtcpMuxPolicy: "require"
-            }
-          : undefined
-      } as any);
+      // Do not wrap room.connect in our own timeout.
+      // Previous timeout/abort handling could trigger "Abort handler called" in some browsers.
+      await room.connect(result.wsUrl || liveKitReadyConfig.wsUrl, result.token, {
+        autoSubscribe: true
+      });
 
       refreshTiles(room);
       window.setTimeout(() => refreshTiles(room), 500);
@@ -387,12 +331,7 @@ export function RealLiveKitRoom({
       roomRef.current = null;
       setConnected(false);
       setStatus("Connection failed");
-
-      const safariHint = isSafariMode
-        ? " Safari/iOS: permission is OK, but LiveKit SDK native retry still could not establish the signal connection. This strongly indicates LiveKit Cloud/WebKit/network compatibility rather than app UI."
-        : "";
-
-      setError(`${err?.message || "Could not connect to LiveKit room."}${safariHint}`);
+      setError(err?.message || "Could not connect to LiveKit room.");
       await onConnectionChange?.(false);
     } finally {
       connectingRef.current = false;
@@ -421,18 +360,14 @@ export function RealLiveKitRoom({
     }
   }
 
-  async function setMicEnabled(next: boolean) {
+  async function toggleMic() {
     const room = roomRef.current;
     if (!room || !connected) {
       setError("Enter the live room first.");
       return;
     }
 
-    if (next && !micAllowed && !isHostRole(profile)) {
-      setError("The host has not allowed your microphone yet.");
-      return;
-    }
-
+    const next = !micOn;
     setMicOn(next);
 
     try {
@@ -441,17 +376,18 @@ export function RealLiveKitRoom({
       await onMediaStateChange?.({ mic: next, camera: cameraOn });
     } catch (err: any) {
       setMicOn(!next);
-      setError(err?.message || "Could not change microphone. Check browser mic permission.");
+      setError(err?.message || "Could not change microphone.");
     }
   }
 
-  async function setCameraEnabled(next: boolean) {
+  async function toggleCamera() {
     const room = roomRef.current;
     if (!room || !connected) {
       setError("Enter the live room first.");
       return;
     }
 
+    const next = !cameraOn;
     setCameraOn(next);
 
     try {
@@ -461,34 +397,9 @@ export function RealLiveKitRoom({
       await onMediaStateChange?.({ mic: micOn, camera: next });
     } catch (err: any) {
       setCameraOn(!next);
-      setError(err?.message || "Could not change camera. Check browser camera permission.");
+      setError(err?.message || "Could not change camera.");
     }
   }
-
-  function cycleAudioOutput() {
-    if (audioOutputs.length <= 1) {
-      const unsupported = typeof HTMLMediaElement !== "undefined" &&
-        !("setSinkId" in HTMLMediaElement.prototype);
-      setError(unsupported ? "This browser controls speaker/earpiece from the system. Audio output switching is not supported here." : "No extra audio output device found.");
-      return;
-    }
-
-    setSinkIndex((current) => (current + 1) % audioOutputs.length);
-  }
-
-  useEffect(() => {
-    async function loadOutputs() {
-      try {
-        if (!navigator.mediaDevices?.enumerateDevices) return;
-        const devices = await navigator.mediaDevices.enumerateDevices();
-        setAudioOutputs(devices.filter((device) => device.kind === "audiooutput"));
-      } catch {
-        // ignore unsupported browser
-      }
-    }
-
-    void loadOutputs();
-  }, []);
 
   useEffect(() => {
     if (!autoStart) return;
@@ -497,45 +408,27 @@ export function RealLiveKitRoom({
     if (!canEnter) return;
 
     autoTriedRef.current = true;
-    const timer = window.setTimeout(() => void connect(true), 400);
-    return () => window.clearTimeout(timer);
+    void connect(true);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [autoStart, needsStart, canEnter, meetingId]);
 
   useEffect(() => {
-    if (forceMicOff && micOn) {
-      void setMicEnabled(false);
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [forceMicOff, micOn]);
-
-  useEffect(() => {
-    if (forceCameraOff && cameraOn) {
-      void setCameraEnabled(false);
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [forceCameraOff, cameraOn]);
-
-  useEffect(() => {
     const timer = window.setInterval(() => refreshTiles(), 700);
     return () => window.clearInterval(timer);
-  }, [raisedHands]);
+  }, []);
 
   useEffect(() => {
     function handleLiveKitControl(event: Event) {
       const action = (event as CustomEvent<{ action?: string }>).detail?.action;
-      if (action === "mic") void setMicEnabled(!micOn);
-      if (action === "camera") void setCameraEnabled(!cameraOn);
-      if (action === "speaker") cycleAudioOutput();
+      if (action === "mic") void toggleMic();
+      if (action === "camera") void toggleCamera();
       if (action === "leave") void disconnect(true);
       if (action === "force-disconnect") void disconnect(false);
-      if (action === "force-mic-off") void setMicEnabled(false);
-      if (action === "force-camera-off") void setCameraEnabled(false);
     }
 
     window.addEventListener("omide-livekit-control", handleLiveKitControl as EventListener);
     return () => window.removeEventListener("omide-livekit-control", handleLiveKitControl as EventListener);
-  }, [micOn, cameraOn, connected, audioOutputs, sinkIndex, micAllowed]);
+  }, [micOn, cameraOn, connected]);
 
   useEffect(() => {
     return () => {
@@ -714,22 +607,6 @@ export function RealLiveKitRoom({
           font-size: 1.55rem !important;
         }
 
-        .omide-hand-badge {
-          position: absolute !important;
-          left: 10px !important;
-          top: 10px !important;
-          z-index: 14 !important;
-          width: 34px !important;
-          height: 34px !important;
-          border-radius: 999px !important;
-          display: grid !important;
-          place-items: center !important;
-          background: rgba(19,191,84,.95) !important;
-          color: #fff !important;
-          box-shadow: 0 10px 28px rgba(0,0,0,.26) !important;
-          font-size: 1.05rem !important;
-        }
-
         .omide-livekit-clean-namebar {
           position: absolute !important;
           left: 8px !important;
@@ -843,13 +720,6 @@ export function RealLiveKitRoom({
             border-radius: 18px !important;
             font-size: 1.2rem !important;
           }
-
-          .omide-hand-badge {
-            left: 7px !important;
-            top: 7px !important;
-            width: 28px !important;
-            height: 28px !important;
-          }
         }
       `}</style>
 
@@ -871,16 +741,12 @@ export function RealLiveKitRoom({
             </button>
           )}
 
-          <button type="button" onClick={() => void setMicEnabled(!micOn)} disabled={!connected}>
+          <button type="button" onClick={toggleMic} disabled={!connected}>
             {micOn ? "Mute" : "Unmute"}
           </button>
 
-          <button type="button" onClick={() => void setCameraEnabled(!cameraOn)} disabled={!connected}>
+          <button type="button" onClick={toggleCamera} disabled={!connected}>
             {cameraOn ? "Camera off" : "Camera on"}
-          </button>
-
-          <button type="button" onClick={cycleAudioOutput}>
-            Speaker
           </button>
 
           <button className="danger" type="button" onClick={() => void disconnect(true)}>
@@ -891,9 +757,9 @@ export function RealLiveKitRoom({
 
       <div className="omide-livekit-clean-status">{status}</div>
 
-      {(browserMode.isIOS || browserMode.isSafari) && (
+      {notice && (
         <div className="omide-livekit-clean-notice">
-          Safari/iOS compatibility mode is active. Keep this page open in Safari browser and allow camera/microphone.
+          {notice}
         </div>
       )}
 
@@ -911,8 +777,6 @@ export function RealLiveKitRoom({
         <div className="omide-livekit-clean-grid">
           {tiles.map((tile) => (
             <article className="omide-livekit-clean-tile" key={tile.key}>
-              {tile.handRaised && <div className="omide-hand-badge">✋</div>}
-
               {tile.cameraOn ? (
                 <VideoTrackView track={tile.cameraTrack} muted={tile.isLocal} />
               ) : (
@@ -921,7 +785,7 @@ export function RealLiveKitRoom({
                 </div>
               )}
 
-              <AudioTrackView track={tile.isLocal ? null : tile.microphoneTrack} sinkId={currentSinkId} />
+              <AudioTrackView track={tile.isLocal ? null : tile.microphoneTrack} />
 
               {tile.micOn && (
                 <div className="omide-livekit-clean-eq">

@@ -1,6 +1,5 @@
 {
   "app": "OmideNo7 Meetings",
-  "version": "1.41.0",
-  "build": "safari-sdk-native-retry",
-  "note": "Safari test: use LiveKit SDK native maxRetries/websocketTimeout instead of manual fresh-room loop."
+  "version": "1.42.0",
+  "build": "clean-livekit-reset-from-v128"
 }

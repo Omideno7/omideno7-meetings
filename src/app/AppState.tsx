@@ -83,19 +83,6 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
     }
   }, []);
 
-  useEffect(() => {
-    function handleMissingAuthSession() {
-      localStorage.removeItem("omideno7.react.profile");
-      localStorage.removeItem("omideno7.profile.override");
-      setProfile(null);
-      setRoute("landing");
-      setAuthMessage("Your secure login session expired. Please sign in again before joining LiveKit.");
-    }
-
-    window.addEventListener("omide-auth-session-missing", handleMissingAuthSession);
-    return () => window.removeEventListener("omide-auth-session-missing", handleMissingAuthSession);
-  }, []);
-
   const value = useMemo<AppStateValue>(() => ({
     profile,
     route,
