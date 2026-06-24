@@ -8,7 +8,7 @@ import { meetingRoomService, type RoomParticipant } from "../services/meetingRoo
 export function WaitingRoomPage() {
   const { profile, setRoute } = useAppState();
   const [waiting, setWaiting] = useState<RoomParticipant[]>([]);
-  const [message, setMessage] = useState("Ready");
+  const [message, setMessage] = useState("");
   const canManage = canManageWaitingRoom(profile);
   const canHost = isHostLike(profile);
 
@@ -61,7 +61,7 @@ export function WaitingRoomPage() {
             <Button variant="secondary" onClick={() => setRoute("liveMeeting")}>Open Live Page</Button>
             <Button variant="ghost" onClick={() => setRoute("memberHome")}>Back Home</Button>
           </div>
-          <p className="auth-message">{message}</p>
+          {message && <p className="auth-message">{message}</p>}
         </Card>
       </div>
     );
@@ -78,7 +78,7 @@ export function WaitingRoomPage() {
           <Button variant="secondary" onClick={load}>Refresh</Button>
           <Button variant="ghost" onClick={() => setRoute("memberHome")}>Back Home</Button>
         </div>
-        <p className="auth-message">{message}</p>
+        {message && <p className="auth-message">{message}</p>}
       </Card>
 
       <div className="meeting-list">

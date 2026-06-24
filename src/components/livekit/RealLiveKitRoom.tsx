@@ -180,7 +180,7 @@ function tileFromParticipant(participant: any, isLocal: boolean, participantRows
     microphoneTrack,
     audioLevel,
     profileId,
-    avatarUrl: metadata.avatarUrl || matchedRow?.avatar_url || (isLocal ? localProfile?.avatarUrl || null : null),
+    avatarUrl: matchedRow?.avatar_url || metadata.avatarUrl || (isLocal ? localProfile?.avatarUrl || null : null),
     handRaised: Boolean(matchedRow?.hand_raised)
   };
 }
@@ -435,6 +435,21 @@ export function RealLiveKitRoom({
     }
   }
 
+  async function forceMicOff() {
+    const room = roomRef.current;
+    setMicOn(false);
+
+    try {
+      if (room) {
+        await room.localParticipant.setMicrophoneEnabled(false).catch(() => undefined);
+        refreshTiles(room);
+      }
+      await onMediaStateChange?.({ mic: false, camera: cameraOn });
+    } catch (err: any) {
+      setError(err?.message || "Could not force microphone off.");
+    }
+  }
+
   async function toggleCamera() {
     const room = roomRef.current;
     if (!room || !connected) {
@@ -470,8 +485,10 @@ export function RealLiveKitRoom({
       await (room.localParticipant as any).setScreenShareEnabled(next, {
         audio: true,
         systemAudio: "include",
-        selfBrowserSurface: "include",
-        surfaceSwitching: "include"
+        selfBrowserSurface: "exclude",
+        surfaceSwitching: "include",
+        displaySurface: "browser",
+        preferCurrentTab: false
       });
       refreshTiles(room);
       window.setTimeout(() => refreshTiles(room), 650);
@@ -506,6 +523,7 @@ export function RealLiveKitRoom({
     function handleLiveKitControl(event: Event) {
       const action = (event as CustomEvent<{ action?: string }>).detail?.action;
       if (action === "mic") void toggleMic();
+      if (action === "force-mic-off") void forceMicOff();
       if (action === "camera") void toggleCamera();
       if (action === "screen") void toggleScreenShare();
       if (action === "leave") void disconnect(true);

@@ -1,7 +1,7 @@
 {
   "name": "omideno7-meetings-react",
   "private": true,
-  "version": "1.44.0-host-controls-screen-share",
+  "version": "1.45.0-polish-controls",
   "type": "module",
   "description": "OmideNo7 Meetings — Vite + React + TypeScript conversion starter",
   "scripts": {
@@ -39,5 +39,5 @@
     "typescript": "latest",
     "vite": "latest"
   },
-  "appStage": "v144-host-controls-screen-share"
+  "appStage": "v145-polish-controls"
 }

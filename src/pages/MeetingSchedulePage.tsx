@@ -237,11 +237,13 @@ export function MeetingSchedulePage() {
 
   return (
     <div className="page-grid">
-      <div className={`action-toast action-${kind}`}>
-        <strong>{kind === "loading" ? "Working" : kind === "success" ? "Done" : kind === "error" ? "Error" : "Status"}</strong>
-        <span>{message}</span>
-        <button className="toast-close" onClick={() => { setKind("idle"); setMessage("Ready"); }}>×</button>
-      </div>
+      {kind !== "idle" && (
+        <div className={`action-toast action-${kind}`}>
+          <strong>{kind === "loading" ? "Working" : kind === "success" ? "Done" : kind === "error" ? "Error" : "Status"}</strong>
+          <span>{message}</span>
+          <button className="toast-close" onClick={() => { setKind("idle"); setMessage("Ready"); }}>×</button>
+        </div>
+      )}
 
       <Card>
         <h1>Meeting Schedule</h1>

@@ -461,6 +461,125 @@ function LiveMeetingStyles() {
         font-size: .75rem;
       }
 
+      .person-card-head {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 8px;
+      }
+
+      .person-title {
+        min-width: 0;
+      }
+
+      .attendee-compact-row {
+        padding: 8px 9px;
+        border-radius: 15px;
+        background: rgba(6, 20, 109, .045);
+      }
+
+      .attendee-compact-title strong {
+        display: block;
+        max-width: 180px;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+
+      .attendee-status-line {
+        margin-top: 3px;
+        font-size: .68rem !important;
+      }
+
+      .attendee-actions {
+        display: flex;
+        align-items: center;
+        gap: 5px;
+      }
+
+      .attendee-icon-btn {
+        width: 34px;
+        height: 34px;
+        padding: 0 !important;
+        display: grid;
+        place-items: center;
+        border-radius: 999px !important;
+        box-shadow: none !important;
+        background: rgba(6, 20, 109, .09) !important;
+        color: #06146d !important;
+        font-size: 1rem;
+      }
+
+      .attendee-icon-btn.mic-locked {
+        background: rgba(239, 68, 68, .14) !important;
+        color: #991b1b !important;
+      }
+
+      .attendee-menu {
+        margin-top: 8px;
+        display: grid;
+        gap: 6px;
+        padding: 8px;
+        border-radius: 14px;
+        background: #fff;
+        border: 1px solid rgba(6,20,109,.10);
+        box-shadow: 0 14px 36px rgba(6,20,109,.12);
+      }
+
+      .attendee-menu button {
+        width: 100%;
+        text-align: left;
+        border-radius: 12px !important;
+        box-shadow: none !important;
+      }
+
+      .toolbar-react-wrap {
+        position: relative;
+        display: inline-flex;
+      }
+
+      .reaction-picker {
+        position: absolute;
+        left: 50%;
+        bottom: 48px;
+        transform: translateX(-50%);
+        z-index: 120;
+        display: flex;
+        gap: 7px;
+        padding: 8px;
+        border-radius: 999px;
+        background: #ffffff;
+        box-shadow: 0 20px 54px rgba(6,20,109,.22);
+        border: 1px solid rgba(6,20,109,.10);
+      }
+
+      .reaction-picker button {
+        min-width: 38px !important;
+        width: 38px;
+        height: 38px;
+        padding: 0 !important;
+        display: grid;
+        place-items: center;
+        font-size: 1.05rem;
+        box-shadow: none !important;
+        background: rgba(6, 20, 109, .08) !important;
+        color: #06146d !important;
+      }
+
+      .recording-badge {
+        position: absolute;
+        top: 12px;
+        right: 12px;
+        z-index: 35;
+        padding: 8px 12px;
+        border-radius: 999px;
+        background: #ef4444;
+        color: #fff;
+        font-weight: 950;
+        box-shadow: 0 16px 36px rgba(239,68,68,.28);
+        animation: waiting-red-pulse 1.1s ease-in-out infinite;
+      }
+
       .clean-toolbar {
         display: flex;
         align-items: center;
@@ -560,7 +679,8 @@ const reactionOptions = [
   { key: "heart", emoji: "❤️", label: "Heart" },
   { key: "like", emoji: "👍", label: "Like" },
   { key: "amen", emoji: "Amen", label: "Amen" },
-  { key: "hallelujah", emoji: "🙌", label: "Hallelujah" }
+  { key: "hallelujah", emoji: "🙌", label: "Hallelujah" },
+  { key: "cake", emoji: "🎂", label: "Birthday" }
 ] as const;
 
 type FloatingReaction = {
@@ -588,13 +708,30 @@ function parseReaction(message: string) {
   };
 }
 
+const meetingHostRoles = new Set([
+  "owner",
+  "senior_host",
+  "meeting_host",
+  "co_host",
+  "door_servant",
+  "media_servant",
+  "prayer_servant",
+  "chat_moderator"
+]);
+
+const micControlRoles = new Set(["owner", "senior_host", "meeting_host", "co_host"]);
+const waitingControlRoles = new Set(["owner", "senior_host", "meeting_host", "co_host", "door_servant"]);
+
+function normalizeMeetingRole(value?: string | null) {
+  return String(value || "approved_member").trim().toLowerCase().replaceAll(" ", "_");
+}
+
+function shortParticipantId(person: RoomParticipant) {
+  return (person.profile_id || person.id || "").slice(0, 8);
+}
+
 export function LiveMeetingPage() {
   const { profile, setRoute } = useAppState();
-
-  const canHost = isHostLike(profile);
-  const canWaiting = canManageWaitingRoom(profile);
-  const canEnd = canEndWholeMeeting(profile);
-  const canMicControl = canControlMicrophones(profile);
 
   const [panel, setPanel] = useState<SidePanel>("closed");
   const [toast, setToast] = useState("Ready");
@@ -611,8 +748,17 @@ export function LiveMeetingPage() {
   const [floatingReactions, setFloatingReactions] = useState<FloatingReaction[]>([]);
   const [chatTarget, setChatTarget] = useState<ChatTarget>("everyone");
   const [openPersonMenu, setOpenPersonMenu] = useState<string | null>(null);
+  const [myMeetingRole, setMyMeetingRole] = useState<string>("");
+  const [reactionMenuOpen, setReactionMenuOpen] = useState(false);
+  const [recording, setRecording] = useState(false);
   const seenReactionIds = useRef<Set<string>>(new Set());
   const reactionsBooted = useRef(false);
+
+  const effectiveRole = normalizeMeetingRole(myMeetingRole || profile?.role);
+  const canHost = Boolean(profile?.status === "approved" && meetingHostRoles.has(effectiveRole));
+  const canWaiting = Boolean(profile?.status === "approved" && waitingControlRoles.has(effectiveRole));
+  const canEnd = Boolean(profile?.status === "approved" && micControlRoles.has(effectiveRole));
+  const canMicControl = Boolean(profile?.status === "approved" && micControlRoles.has(effectiveRole));
 
   const panelTitle = useMemo(() => {
     if (panel === "chat") return `Chat (${messages.length})`;
@@ -686,14 +832,18 @@ export function LiveMeetingPage() {
     setMessages(visibleMessages);
 
     if (canHost) {
+      setMyMeetingRole((rows.find((row) => row.profile_id === profile?.id)?.role_label) || roleLabel(profile?.role));
       setMyStatus("online");
       return;
     }
 
     if (!myRow) {
+      setMyMeetingRole("");
       setMyStatus("unknown");
       return;
     }
+
+    setMyMeetingRole(myRow.role_label || "");
 
     if (myRow.status === "removed" || myRow.status === "blocked") {
       setMyStatus(myRow.status);
@@ -703,9 +853,11 @@ export function LiveMeetingPage() {
 
     setMyStatus(myRow.status);
 
-    if (myRow.status === "online" && myRow.allowed_mic === false && micOn) {
-      window.dispatchEvent(new CustomEvent("omide-livekit-control", { detail: { action: "mic" } }));
-      setMicOn(false);
+    if (myRow.status === "online" && myRow.allowed_mic === false) {
+      if (micOn) {
+        window.dispatchEvent(new CustomEvent("omide-livekit-control", { detail: { action: "force-mic-off" } }));
+        setMicOn(false);
+      }
     }
   }
 
@@ -874,7 +1026,13 @@ export function LiveMeetingPage() {
     }
   }
 
-  function sendLiveKitControl(action: "mic" | "camera" | "screen" | "leave" | "force-disconnect") {
+  function toggleRecordingMarker() {
+    if (!canHost) return notify("Only host roles can control recording.");
+    setRecording((current) => !current);
+    notify(!recording ? "Recording marker is on. Cloud recording backend still needs LiveKit Egress." : "Recording marker is off.");
+  }
+
+  function sendLiveKitControl(action: "mic" | "camera" | "screen" | "leave" | "force-disconnect" | "force-mic-off") {
     window.dispatchEvent(new CustomEvent("omide-livekit-control", { detail: { action } }));
   }
 
@@ -887,8 +1045,8 @@ export function LiveMeetingPage() {
       mic_on: next.mic,
       camera_on: next.camera,
       display_name: profile?.displayName || "User",
-      role_label: roleLabel(profile?.role),
-      avatar_url: profile?.avatarUrl || null,
+      role_label: myMeetingRole || roleLabel(profile?.role),
+      avatar_url: profile?.avatarUrl || currentRow?.avatar_url || null,
       allowed_mic: true,
       hand_raised: Boolean(currentRow?.hand_raised)
     });
@@ -978,6 +1136,7 @@ export function LiveMeetingPage() {
 
       <main className={panel === "closed" ? "clean-live-main" : "clean-live-main panel-open"}>
         <section className="clean-stage">
+          {recording && <div className="recording-badge">● REC</div>}
           <RealLiveKitRoom
             profile={profile}
             meetingId="main-room"
@@ -999,13 +1158,6 @@ export function LiveMeetingPage() {
             }}
           />
 
-          <div className="reaction-dock" aria-label="Worship reactions">
-            {reactionOptions.map((reaction) => (
-              <button key={reaction.key} onClick={() => sendReaction(reaction.key, reaction.emoji, reaction.label)} title={reaction.label}>
-                {reaction.emoji}
-              </button>
-            ))}
-          </div>
 
           <div className="live-reaction-layer">
             {floatingReactions.map((reaction) => (
@@ -1105,18 +1257,16 @@ export function LiveMeetingPage() {
                     participants.map((person) => {
                       const isMe = person.id === roomParticipantId(meetingRoomService.meetingId, profile?.id);
                       return (
-                        <article className="clean-person-card" key={person.id}>
-                          <div className="person-card-head">
-                            <div className="person-title">
-                              <div className="attendee-avatar-sm">
-                                {person.avatar_url ? <img src={person.avatar_url} alt="" /> : <span>{person.display_name?.slice(0, 2).toUpperCase() || "O7"}</span>}
-                              </div>
+                        <article className="clean-person-card attendee-compact-row" key={person.id}>
+                          <div className="person-card-head attendee-compact-head">
+                            <div className="person-title attendee-compact-title">
                               <strong>{person.hand_raised ? "✋ " : ""}{person.display_name}</strong>
+                              <small>ID: {shortParticipantId(person)} · {person.role_label?.replaceAll("_", " ")}</small>
                             </div>
                             {canHost && !isMe && (
                               <div className="attendee-actions">
                                 {canMicControl && (
-                                  <button className="attendee-icon-btn" title={person.allowed_mic === false ? "Allow unmute" : "Mute/lock mic"} onClick={() => togglePersonMicPermission(person)}>
+                                  <button className={person.allowed_mic === false ? "attendee-icon-btn mic-locked" : "attendee-icon-btn"} title={person.allowed_mic === false ? "Allow this member to unmute" : "Mute and lock this member microphone"} onClick={() => togglePersonMicPermission(person)}>
                                     {person.allowed_mic === false ? "🔇" : person.mic_on ? "🎙️" : "🎤"}
                                   </button>
                                 )}
@@ -1124,8 +1274,7 @@ export function LiveMeetingPage() {
                               </div>
                             )}
                           </div>
-                          <span>{person.role_label} · {person.room_name}</span>
-                          <small>{person.allowed_mic === false ? "Mic locked" : person.mic_on ? "Mic on" : "Muted"} · {person.camera_on ? "Camera on" : "Camera off"}</small>
+                          <small className="attendee-status-line">{person.allowed_mic === false ? "Mic locked" : person.mic_on ? "Mic on" : "Muted"} · {person.camera_on ? "Camera on" : "Camera off"}</small>
                           {canHost && !isMe && openPersonMenu === person.id && (
                             <div className="attendee-menu">
                               <button onClick={() => makeCoHost(person)}>Make co-host</button>
@@ -1175,19 +1324,31 @@ export function LiveMeetingPage() {
         <button onClick={() => liveKitConnected ? sendLiveKitControl("screen") : notify("Enter live room first.")}>
           Share screen
         </button>
-        <button onClick={toggleHandRaised}>✋ Hand</button>
-        {reactionOptions.map((reaction) => (
-          <button key={reaction.key} onClick={() => sendReaction(reaction.key, reaction.emoji, reaction.label)}>
-            {reaction.emoji}
+        {canHost && (
+          <button className={recording ? "danger" : ""} onClick={toggleRecordingMarker}>
+            {recording ? "REC on" : "Record"}
           </button>
-        ))}
+        )}
+        <div className="toolbar-react-wrap">
+          <button onClick={() => setReactionMenuOpen((current) => !current)}>React</button>
+          {reactionMenuOpen && (
+            <div className="reaction-picker">
+              <button title="Raise hand" onClick={() => { setReactionMenuOpen(false); void toggleHandRaised(); }}>✋</button>
+              {reactionOptions.map((reaction) => (
+                <button key={reaction.key} title={reaction.label} onClick={() => { setReactionMenuOpen(false); void sendReaction(reaction.key, reaction.emoji, reaction.label); }}>
+                  {reaction.emoji}
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
         <button onClick={() => setPanel(panel === "chat" ? "closed" : "chat")}>Chat</button>
         <button onClick={() => setPanel(panel === "attendees" ? "closed" : "attendees")}>People</button>
         <button className="danger" onClick={leaveOnly}>Leave</button>
         {canEnd && <button className="danger" onClick={endForEveryone}>End all</button>}
       </footer>
 
-      <div className={toast === "Ready" ? "live-toast-clean" : "live-toast-clean alert-red"}>{toast}</div>
+      {toast !== "Ready" && <div className="live-toast-clean alert-red">{toast}</div>}
     </div>
   );
 }

@@ -69,9 +69,9 @@ export function MemberHomePage() {
               </button>
             </>
           )}
-          <button className="quick-action" onClick={() => setRoute("liveMeeting")}>
-            <span>⬆</span>
-            <strong>Join</strong>
+          <button className="quick-action" onClick={() => setRoute(canHost ? "liveMeeting" : "waitingRoom")}>
+            <span>⏳</span>
+            <strong>{canHost ? "Join" : "Waiting"}</strong>
           </button>
         </div>
       </section>
@@ -86,13 +86,22 @@ export function MemberHomePage() {
       </section>
 
       <section className="home-action-grid">
-        <ActionCard title="Live Meeting" desc="Open meeting room UI" icon="▣" onClick={() => setRoute("liveMeeting")} />
-        <ActionCard title="Test Meeting" desc="Practice with servants" icon="🧪" onClick={() => setRoute("liveMeeting")} />
-        <ActionCard title="Waiting Room" desc="Enter or manage waiting room" icon="⏳" onClick={() => setRoute("liveMeeting")} />
-        <ActionCard title="Video / Audio Test" desc="Camera and microphone check" icon="🎙" onClick={() => setRoute("deviceTest")} />
-        <ActionCard title="Recordings" desc="Media library and archives" icon="◉" onClick={() => setRoute("mediaLibrary")} />
-        {canHost && <ActionCard title="Host Panel" desc="Servant controls preview" icon="◎" onClick={() => setRoute("servantDashboard")} />}
-        {canHost && <ActionCard title="Reports" desc="Attendance and logs" icon="📊" onClick={() => setRoute("reports")} />}
+        {canHost ? (
+          <>
+            <ActionCard title="Live Meeting" desc="Open and manage the live room" icon="▣" onClick={() => setRoute("liveMeeting")} />
+            <ActionCard title="Waiting Room" desc="Admit or reject members" icon="⏳" onClick={() => setRoute("waitingRoom")} />
+            <ActionCard title="Meeting Schedule" desc="Church meeting schedule" icon="📅" onClick={() => setRoute("meetingSchedule")} />
+            <ActionCard title="Recordings" desc="Media library and archives" icon="◉" onClick={() => setRoute("mediaLibrary")} />
+            <ActionCard title="Host Panel" desc="Servant controls preview" icon="◎" onClick={() => setRoute("servantDashboard")} />
+            <ActionCard title="Reports" desc="Attendance and logs" icon="📊" onClick={() => setRoute("reports")} />
+          </>
+        ) : (
+          <>
+            <ActionCard title="Waiting Room" desc="Request to join the live meeting" icon="⏳" onClick={() => setRoute("waitingRoom")} />
+            <ActionCard title="Meetings" desc="View church meeting schedule" icon="📅" onClick={() => setRoute("meetingSchedule")} />
+            <ActionCard title="Profile" desc="Change your name and photo" icon="◉" onClick={() => setRoute("profile")} />
+          </>
+        )}
       </section>
 
       {profile?.status === "approved" && profile?.role === roles.OWNER && (
