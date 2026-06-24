@@ -1,7 +1,7 @@
 {
   "name": "omideno7-meetings-react",
   "private": true,
-  "version": "1.28.0-livekit-connect-stable",
+  "version": "1.29.0-host-controls-member-autojoin-safari-mode",
   "type": "module",
   "description": "OmideNo7 Meetings \u2014 Vite + React + TypeScript conversion starter",
   "scripts": {
@@ -39,5 +39,5 @@
     "typescript": "latest",
     "vite": "latest"
   },
-  "appStage": "steps-981-to-1040-livekit-connect-stable"
+  "appStage": "steps-1041-to-1120-host-controls-member-autojoin-safari-mode"
 }

@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState, type KeyboardEvent } from "react";
 import { useAppState } from "../app/AppState";
 import {
+  canControlMicrophones,
   canEndWholeMeeting,
   canManageWaitingRoom,
   isHostLike,
@@ -9,6 +10,7 @@ import {
 import {
   meetingRoomService,
   roomParticipantId,
+  type MeetingRoomSettings,
   type RoomChatMessage,
   type RoomParticipant
 } from "../services/meetingRoomService";
@@ -40,13 +42,15 @@ function WaitingGate({
     <div className="live-clean-page waiting-only">
       <section className="waiting-only-card">
         <h1>Waiting Room</h1>
-        <p>You must wait for a host to admit you before entering the main meeting.</p>
+        <p>You are not inside the live room until a host admits you.</p>
         <strong>
           {status === "online"
             ? "You are admitted. Opening meeting..."
             : status === "waiting"
               ? "Waiting for host approval..."
-              : "You are not in the waiting room yet."}
+              : status === "removed"
+                ? "You were removed from the previous meeting. Re-enter the waiting room if needed."
+                : "Enter the waiting room to request access."}
         </strong>
         <div className="clean-button-row">
           <button onClick={onEnterWaiting}>Enter Waiting Room</button>
@@ -156,13 +160,15 @@ function LiveMeetingStyles() {
       }
 
       .clean-live-actions button.green,
-      .clean-button-row button.green {
+      .clean-button-row button.green,
+      .clean-panel button.green {
         background: #13bf54;
       }
 
       .clean-live-actions button.danger,
       .clean-button-row button.danger,
-      .clean-toolbar button.danger {
+      .clean-toolbar button.danger,
+      .clean-panel button.danger {
         background: #ef4444;
       }
 
@@ -172,6 +178,12 @@ function LiveMeetingStyles() {
         background: rgba(6, 20, 109, .08);
         color: #06146d;
         box-shadow: none;
+      }
+
+      .clean-live-actions button.active,
+      .clean-toolbar button.active {
+        background: #13bf54;
+        color: #fff;
       }
 
       .clean-live-main {
@@ -187,7 +199,7 @@ function LiveMeetingStyles() {
       }
 
       .clean-live-main.panel-open {
-        grid-template-columns: minmax(0, 1fr) minmax(320px, 380px);
+        grid-template-columns: minmax(0, 1fr) minmax(320px, 390px);
         gap: 10px;
       }
 
@@ -268,7 +280,7 @@ function LiveMeetingStyles() {
         display: flex;
         flex-direction: column;
         gap: 8px;
-        min-height: 240px;
+        min-height: 220px;
       }
 
       .clean-message {
@@ -312,17 +324,24 @@ function LiveMeetingStyles() {
         font: inherit;
       }
 
-      .clean-emoji-row {
+      .clean-emoji-row,
+      .clean-mode-row {
         display: flex;
         flex-wrap: wrap;
         gap: 6px;
       }
 
-      .clean-emoji-row button {
+      .clean-emoji-row button,
+      .clean-mode-row button {
         box-shadow: none;
         background: rgba(6, 20, 109, .07);
         color: #06146d;
         padding: 7px 9px;
+      }
+
+      .clean-mode-row button.active {
+        background: #13bf54;
+        color: #fff;
       }
 
       .clean-person-card {
@@ -341,6 +360,18 @@ function LiveMeetingStyles() {
         display: block;
         color: #64748b;
         font-size: .75rem;
+      }
+
+      .clean-card-actions {
+        display: flex;
+        gap: 6px;
+        flex-wrap: wrap;
+        margin-top: 8px;
+      }
+
+      .clean-card-actions button {
+        padding: 7px 9px;
+        font-size: .72rem;
       }
 
       .clean-toolbar {
@@ -443,25 +474,44 @@ export function LiveMeetingPage() {
   const canHost = isHostLike(profile);
   const canWaiting = canManageWaitingRoom(profile);
   const canEnd = canEndWholeMeeting(profile);
+  const canMicControl = canControlMicrophones(profile);
 
   const [panel, setPanel] = useState<SidePanel>("closed");
   const [toast, setToast] = useState("Ready");
   const [myStatus, setMyStatus] = useState<"unknown" | "waiting" | "online" | "removed" | "blocked" | "left">("unknown");
+  const [myRow, setMyRow] = useState<RoomParticipant | null>(null);
   const [participants, setParticipants] = useState<RoomParticipant[]>([]);
   const [waiting, setWaiting] = useState<RoomParticipant[]>([]);
   const [messages, setMessages] = useState<RoomChatMessage[]>([]);
+  const [settings, setSettings] = useState<MeetingRoomSettings>({
+    meeting_id: "main-room",
+    chat_mode: "public",
+    live_open: true,
+    active_room_name: "Main Room"
+  });
   const [chatInput, setChatInput] = useState("");
   const [liveKitConnected, setLiveKitConnected] = useState(false);
   const [micOn, setMicOn] = useState(false);
   const [cameraOn, setCameraOn] = useState(false);
-  const [roomIsOpen, setRoomIsOpen] = useState(false);
+
+  const onlineParticipants = participants.filter((row) => row.status === "online");
+  const raisedHands = useMemo(() => {
+    const map: Record<string, boolean> = {};
+    [...onlineParticipants, ...waiting].forEach((row) => {
+      if (row.hand_raised) {
+        if (row.profile_id) map[row.profile_id] = true;
+        map[row.id] = true;
+      }
+    });
+    return map;
+  }, [onlineParticipants, waiting]);
 
   const panelTitle = useMemo(() => {
     if (panel === "chat") return `Chat (${messages.length})`;
     if (panel === "waiting") return `Waiting Room (${waiting.length})`;
-    if (panel === "attendees") return `Attendees (${participants.length})`;
+    if (panel === "attendees") return `Attendees (${onlineParticipants.length})`;
     return "Panel";
-  }, [panel, messages.length, waiting.length, participants.length]);
+  }, [panel, messages.length, waiting.length, onlineParticipants.length]);
 
   function notify(text: string) {
     setToast(text);
@@ -469,35 +519,46 @@ export function LiveMeetingPage() {
   }
 
   async function refreshRoom() {
-    const [rows, chatRows, myRow, settings] = await Promise.all([
+    const [rows, chatRows, current, currentSettings] = await Promise.all([
       meetingRoomService.listParticipants(),
       meetingRoomService.listChat(),
       meetingRoomService.getMyRow(profile),
       meetingRoomService.getSettings()
     ]);
 
-    setRoomIsOpen(Boolean(settings?.live_open));
-    setParticipants(rows.filter((row) => row.status === "online"));
+    setSettings(currentSettings);
+    setParticipants(rows);
     setWaiting(rows.filter((row) => row.status === "waiting"));
     setMessages(chatRows);
+    setMyRow(current);
 
     if (canHost) {
       setMyStatus("online");
       return;
     }
 
-    if (!myRow) {
+    if (!current) {
       setMyStatus("unknown");
       return;
     }
 
-    if (myRow.status === "removed" || myRow.status === "blocked") {
-      setMyStatus(myRow.status);
+    if (current.status === "removed" || current.status === "blocked") {
+      setMyStatus(current.status);
       setRoute("memberHome");
       return;
     }
 
-    setMyStatus(myRow.status);
+    setMyStatus(current.status);
+
+    if (current.status === "online") {
+      if (micOn && (!current.allowed_mic || current.mic_on === false)) {
+        window.dispatchEvent(new CustomEvent("omide-livekit-control", { detail: { action: "force-mic-off" } }));
+      }
+
+      if (cameraOn && current.camera_on === false) {
+        window.dispatchEvent(new CustomEvent("omide-livekit-control", { detail: { action: "force-camera-off" } }));
+      }
+    }
   }
 
   useEffect(() => {
@@ -515,6 +576,12 @@ export function LiveMeetingPage() {
           avatar_url: profile?.avatarUrl || null,
           allowed_mic: true
         });
+      } else if (profile?.status === "approved") {
+        const current = await meetingRoomService.getMyRow(profile);
+        if (!current || current.status === "left") {
+          await meetingRoomService.joinWaiting(profile);
+          await meetingRoomService.raiseAlert(`${profile?.displayName || "A member"} is waiting for admission.`, "waiting_room", "red", "active");
+        }
       }
 
       await refreshRoom();
@@ -522,7 +589,7 @@ export function LiveMeetingPage() {
 
     void boot();
     const unsubscribe = meetingRoomService.subscribe(() => void refreshRoom());
-    const timer = window.setInterval(() => void refreshRoom(), 2500);
+    const timer = window.setInterval(() => void refreshRoom(), 2200);
 
     return () => {
       alive = false;
@@ -560,16 +627,77 @@ export function LiveMeetingPage() {
     await refreshRoom();
   }
 
+  async function mutePerson(person: RoomParticipant) {
+    if (!canMicControl) return notify("Only authorized hosts can control microphones.");
+    await meetingRoomService.updateParticipant(person.id, { mic_on: false });
+    notify(`${person.display_name} muted.`);
+    await refreshRoom();
+  }
+
+  async function allowMic(person: RoomParticipant) {
+    if (!canMicControl) return notify("Only authorized hosts can allow microphones.");
+    await meetingRoomService.updateParticipant(person.id, { allowed_mic: true });
+    notify(`${person.display_name} may unmute now.`);
+    await refreshRoom();
+  }
+
+  async function lockMic(person: RoomParticipant) {
+    if (!canMicControl) return notify("Only authorized hosts can lock microphones.");
+    await meetingRoomService.updateParticipant(person.id, { allowed_mic: false, mic_on: false });
+    notify(`${person.display_name} microphone locked.`);
+    await refreshRoom();
+  }
+
+  async function stopCamera(person: RoomParticipant) {
+    if (!canHost) return notify("Only hosts can stop camera.");
+    await meetingRoomService.updateParticipant(person.id, { camera_on: false });
+    notify(`${person.display_name} camera stopped.`);
+    await refreshRoom();
+  }
+
+  async function requestCamera(person: RoomParticipant) {
+    if (!canHost) return;
+    await meetingRoomService.sendChat(profile, `Host asks ${person.display_name} to turn camera on if they agree.`, "direct", person.profile_id);
+    notify(`Camera request sent to ${person.display_name}.`);
+    await refreshRoom();
+  }
+
+  async function clearRaisedHand(person: RoomParticipant) {
+    await meetingRoomService.updateParticipant(person.id, { hand_raised: false });
+    notify(`${person.display_name} hand lowered.`);
+    await refreshRoom();
+  }
+
+  async function toggleMyHand() {
+    if (!myRow) return;
+    await meetingRoomService.updateParticipant(myRow.id, { hand_raised: !myRow.hand_raised });
+    notify(myRow.hand_raised ? "Hand lowered." : "Hand raised.");
+    await refreshRoom();
+  }
+
+  async function setChatMode(mode: MeetingRoomSettings["chat_mode"]) {
+    if (!canHost) return notify("Only hosts can change chat mode.");
+    await meetingRoomService.updateSettings({ chat_mode: mode });
+    notify(`Chat mode: ${mode}`);
+    await refreshRoom();
+  }
+
   async function startHostRoom() {
     if (!canHost) return;
     await meetingRoomService.openMeetingForEveryone();
-    setRoomIsOpen(true);
     notify("Live room opened.");
+    await refreshRoom();
   }
 
   async function sendMessage() {
     const text = chatInput.trim();
     if (!text) return;
+
+    if (!canHost && settings.chat_mode !== "public") {
+      notify(settings.chat_mode === "closed" ? "Chat is closed by host." : "Chat is host-only now.");
+      return;
+    }
+
     await meetingRoomService.sendChat(profile, text, "everyone", null);
     setChatInput("");
     notify("Message sent.");
@@ -583,7 +711,7 @@ export function LiveMeetingPage() {
     }
   }
 
-  function sendLiveKitControl(action: "mic" | "camera" | "leave" | "force-disconnect") {
+  function sendLiveKitControl(action: "mic" | "camera" | "speaker" | "leave" | "force-disconnect") {
     window.dispatchEvent(new CustomEvent("omide-livekit-control", { detail: { action } }));
   }
 
@@ -597,7 +725,7 @@ export function LiveMeetingPage() {
       display_name: profile?.displayName || "User",
       role_label: roleLabel(profile?.role),
       avatar_url: profile?.avatarUrl || null,
-      allowed_mic: true
+      allowed_mic: canHost || Boolean(myRow?.allowed_mic)
     });
 
     await refreshRoom();
@@ -619,7 +747,6 @@ export function LiveMeetingPage() {
     setLiveKitConnected(false);
     setMicOn(false);
     setCameraOn(false);
-    setRoomIsOpen(false);
     notify("Meeting ended and chat cleared.");
     setRoute(canHost ? "ownerDashboard" : "memberHome");
   }
@@ -648,12 +775,12 @@ export function LiveMeetingPage() {
         <div className="clean-live-brand">
           <strong>OmideNo7 Main Room</strong>
           <span>
-            {canHost ? "Host control" : "Member room"} · {meetingRoomService.isReady() ? "Supabase realtime" : "Local mode"} · {liveKitConnected ? "LiveKit connected" : "LiveKit ready"}
+            {canHost ? "Host control" : "Member room"} · {meetingRoomService.isReady() ? "Supabase realtime" : "Local mode"} · {liveKitConnected ? "LiveKit connected" : "LiveKit ready"} · Chat: {settings.chat_mode}
           </span>
         </div>
 
         <div className="clean-live-actions">
-          {canHost && !roomIsOpen && (
+          {canHost && !settings.live_open && (
             <button className="green" onClick={startHostRoom}>
               Open meeting
             </button>
@@ -665,11 +792,11 @@ export function LiveMeetingPage() {
             </button>
           )}
 
-          <button className="ghost" onClick={() => setPanel(panel === "chat" ? "closed" : "chat")}>
+          <button className={panel === "chat" ? "active" : "ghost"} onClick={() => setPanel(panel === "chat" ? "closed" : "chat")}>
             Chat
           </button>
 
-          <button className="ghost" onClick={() => setPanel(panel === "attendees" ? "closed" : "attendees")}>
+          <button className={panel === "attendees" ? "active" : "ghost"} onClick={() => setPanel(panel === "attendees" ? "closed" : "attendees")}>
             Attendees
           </button>
         </div>
@@ -681,13 +808,17 @@ export function LiveMeetingPage() {
             profile={profile}
             meetingId="main-room"
             admitted={canHost || myStatus === "online"}
-            autoStart={!canHost}
+            autoStart={!canHost && myStatus === "online"}
             confirmBeforeStart={canHost}
+            micAllowed={canHost || Boolean(myRow?.allowed_mic)}
+            forceMicOff={!canHost && Boolean(myRow) && (!myRow?.allowed_mic || myRow?.mic_on === false)}
+            forceCameraOff={!canHost && Boolean(myRow) && myRow?.camera_on === false}
+            raisedHands={raisedHands}
             onConnectionChange={async (connected) => {
               setLiveKitConnected(connected);
               if (connected && canHost) {
                 await meetingRoomService.openMeetingForEveryone();
-                setRoomIsOpen(true);
+                await refreshRoom();
               }
             }}
             onMediaStateChange={handleMediaState}
@@ -714,6 +845,14 @@ export function LiveMeetingPage() {
             <div className="clean-panel-body">
               {panel === "chat" && (
                 <>
+                  {canHost && (
+                    <div className="clean-mode-row">
+                      <button className={settings.chat_mode === "public" ? "active" : ""} onClick={() => setChatMode("public")}>Public</button>
+                      <button className={settings.chat_mode === "admin" ? "active" : ""} onClick={() => setChatMode("admin")}>Host-only</button>
+                      <button className={settings.chat_mode === "closed" ? "active" : ""} onClick={() => setChatMode("closed")}>Closed</button>
+                    </div>
+                  )}
+
                   <div className="clean-chat-messages">
                     {messages.length === 0 ? (
                       <p>No messages yet.</p>
@@ -728,37 +867,47 @@ export function LiveMeetingPage() {
                     )}
                   </div>
 
-                  <div className="clean-chat-compose">
-                    <div className="clean-emoji-row">
-                      {["Amen", "❤️", "👍", "🙏", "✝️", "🙌"].map((emoji) => (
-                        <button key={emoji} type="button" onClick={() => setChatInput((current) => `${current}${current ? " " : ""}${emoji}`)}>
-                          {emoji}
-                        </button>
-                      ))}
+                  {(canHost || settings.chat_mode === "public") ? (
+                    <div className="clean-chat-compose">
+                      <div className="clean-emoji-row">
+                        {["Amen", "❤️", "👍", "🙏", "✝️", "🙌"].map((emoji) => (
+                          <button key={emoji} type="button" onClick={() => setChatInput((current) => `${current}${current ? " " : ""}${emoji}`)}>
+                            {emoji}
+                          </button>
+                        ))}
+                      </div>
+                      <textarea
+                        value={chatInput}
+                        onChange={(event) => setChatInput(event.target.value)}
+                        onKeyDown={sendWithKeyboard}
+                        placeholder="Write a message..."
+                      />
+                      <button className="chat-send-button" onClick={sendMessage}>Send message</button>
                     </div>
-                    <textarea
-                      value={chatInput}
-                      onChange={(event) => setChatInput(event.target.value)}
-                      onKeyDown={sendWithKeyboard}
-                      placeholder="Write a message..."
-                    />
-                    <button className="chat-send-button" onClick={sendMessage}>Send message</button>
-                  </div>
+                  ) : (
+                    <p>Chat is controlled by the host.</p>
+                  )}
                 </>
               )}
 
               {panel === "attendees" && (
                 <div>
-                  {participants.length === 0 ? (
+                  {onlineParticipants.length === 0 ? (
                     <p>No one is online yet.</p>
                   ) : (
-                    participants.map((person) => (
+                    onlineParticipants.map((person) => (
                       <article className="clean-person-card" key={person.id}>
-                        <strong>{person.display_name}</strong>
+                        <strong>{person.hand_raised ? "✋ " : ""}{person.display_name}</strong>
                         <span>{person.role_label} · {person.room_name}</span>
-                        <small>{person.mic_on ? "Mic on" : "Muted"} · {person.camera_on ? "Camera on" : "Camera off"}</small>
+                        <small>{person.mic_on ? "Mic on" : "Muted"} · {person.camera_on ? "Camera on" : "Camera off"} · {person.allowed_mic ? "Mic allowed" : "Mic locked"}</small>
                         {canHost && person.id !== roomParticipantId(meetingRoomService.meetingId, profile?.id) && (
-                          <div className="clean-button-row">
+                          <div className="clean-card-actions">
+                            <button onClick={() => allowMic(person)}>Allow mic</button>
+                            <button onClick={() => lockMic(person)}>Lock mic</button>
+                            <button onClick={() => mutePerson(person)}>Mute</button>
+                            <button onClick={() => stopCamera(person)}>Stop camera</button>
+                            <button onClick={() => requestCamera(person)}>Ask camera</button>
+                            {person.hand_raised && <button onClick={() => clearRaisedHand(person)}>Lower hand</button>}
                             <button className="danger" onClick={() => removePerson(person)}>Remove</button>
                           </div>
                         )}
@@ -775,10 +924,10 @@ export function LiveMeetingPage() {
                   ) : (
                     waiting.map((person) => (
                       <article className="clean-person-card" key={person.id}>
-                        <strong>{person.display_name}</strong>
+                        <strong>{person.hand_raised ? "✋ " : ""}{person.display_name}</strong>
                         <span>{person.role_label}</span>
                         <small>{person.id}</small>
-                        <div className="clean-button-row">
+                        <div className="clean-card-actions">
                           <button className="green" onClick={() => admitPerson(person)}>Admit</button>
                           <button className="danger" onClick={() => rejectPerson(person)}>Reject</button>
                         </div>
@@ -799,6 +948,14 @@ export function LiveMeetingPage() {
         <button onClick={() => liveKitConnected ? sendLiveKitControl("camera") : notify("Enter live room first.")}>
           {cameraOn ? "Camera off" : "Camera on"}
         </button>
+        <button onClick={() => liveKitConnected ? sendLiveKitControl("speaker") : notify("Enter live room first.")}>
+          Speaker
+        </button>
+        {!canHost && (
+          <button className={myRow?.hand_raised ? "active" : ""} onClick={toggleMyHand}>
+            {myRow?.hand_raised ? "Lower hand" : "Raise hand"}
+          </button>
+        )}
         <button onClick={() => setPanel(panel === "chat" ? "closed" : "chat")}>Chat</button>
         <button onClick={() => setPanel(panel === "attendees" ? "closed" : "attendees")}>People</button>
         <button className="danger" onClick={leaveOnly}>Leave</button>

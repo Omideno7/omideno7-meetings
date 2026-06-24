@@ -1,5 +1,5 @@
 {
   "app": "OmideNo7 Meetings",
-  "version": "1.28.0",
-  "build": "livekit-connect-stable"
+  "version": "1.29.0",
+  "build": "host-controls-member-autojoin-safari-mode"
 }
