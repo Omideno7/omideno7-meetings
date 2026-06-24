@@ -30,8 +30,16 @@ async function applyRemoteProfileSettings(profile: UserProfile | null) {
 
 function applyProfileOverride(profile: UserProfile | null) {
   try {
-    const override = JSON.parse(localStorage.getItem("omideno7.profile.override") || "{}");
-    if (!profile || !override) return profile;
+    if (!profile) return profile;
+
+    const scoped = JSON.parse(localStorage.getItem(`omideno7.profile.settings.v2.${profile.id}`) || "{}");
+    const legacy = JSON.parse(localStorage.getItem("omideno7.profile.override") || "{}");
+    const override = scoped?.avatarUrl || scoped?.displayName
+      ? scoped
+      : legacy?.profileId === profile.id
+        ? legacy
+        : {};
+
     return {
       ...profile,
       displayName: override.displayName || profile.displayName,

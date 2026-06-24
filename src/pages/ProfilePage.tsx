@@ -30,7 +30,7 @@ export function ProfilePage() {
     setAvatarUrl(cleanAvatar || "");
     updateProfile({ displayName: cleanName, fullName: cleanName, avatarUrl: cleanAvatar });
 
-    const override = { displayName: cleanName, avatarUrl: cleanAvatar || "" };
+    const override = { profileId: profile.id, displayName: cleanName, avatarUrl: cleanAvatar || "" };
     localStorage.setItem("omideno7.profile.override", JSON.stringify(override));
     localStorage.setItem(`omideno7.profile.settings.v2.${profile.id}`, JSON.stringify({ displayName: cleanName, avatarUrl: cleanAvatar }));
 

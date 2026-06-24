@@ -482,13 +482,14 @@ export function RealLiveKitRoom({
     setScreenOn(next);
 
     try {
+      // Let Chrome show the full native chooser: Entire screen, window, or browser tab.
+      // Do not force displaySurface to "browser", because that can hide desktop/window choices.
       await (room.localParticipant as any).setScreenShareEnabled(next, {
         audio: true,
         systemAudio: "include",
-        selfBrowserSurface: "exclude",
+        selfBrowserSurface: "include",
         surfaceSwitching: "include",
-        displaySurface: "browser",
-        preferCurrentTab: false
+        monitorTypeSurfaces: "include"
       });
       refreshTiles(room);
       window.setTimeout(() => refreshTiles(room), 650);
@@ -522,6 +523,7 @@ export function RealLiveKitRoom({
   useEffect(() => {
     function handleLiveKitControl(event: Event) {
       const action = (event as CustomEvent<{ action?: string }>).detail?.action;
+      if (action === "enter-live") void connect(true);
       if (action === "mic") void toggleMic();
       if (action === "force-mic-off") void forceMicOff();
       if (action === "camera") void toggleCamera();
@@ -733,12 +735,6 @@ export function RealLiveKitRoom({
           color: #111827 !important;
           font-weight: 950 !important;
           box-shadow: 0 12px 26px rgba(0,0,0,.32) !important;
-          animation: omide-hand-pulse 1.3s ease-in-out infinite !important;
-        }
-
-        @keyframes omide-hand-pulse {
-          0%, 100% { transform: scale(1); }
-          50% { transform: scale(1.08); }
         }
 
         .omide-livekit-clean-namebar {

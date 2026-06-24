@@ -539,17 +539,17 @@ function LiveMeetingStyles() {
       }
 
       .reaction-picker {
-        position: absolute;
+        position: fixed;
         left: 50%;
-        bottom: 48px;
+        bottom: 86px;
         transform: translateX(-50%);
-        z-index: 120;
+        z-index: 9999;
         display: flex;
         gap: 7px;
-        padding: 8px;
+        padding: 9px;
         border-radius: 999px;
         background: #ffffff;
-        box-shadow: 0 20px 54px rgba(6,20,109,.22);
+        box-shadow: 0 24px 60px rgba(6,20,109,.28);
         border: 1px solid rgba(6,20,109,.10);
       }
 
@@ -578,6 +578,21 @@ function LiveMeetingStyles() {
         font-weight: 950;
         box-shadow: 0 16px 36px rgba(239,68,68,.28);
         animation: waiting-red-pulse 1.1s ease-in-out infinite;
+      }
+
+      .recording-helper {
+        position: absolute;
+        top: 54px;
+        right: 12px;
+        z-index: 35;
+        max-width: min(420px, calc(100% - 24px));
+        padding: 8px 10px;
+        border-radius: 14px;
+        background: rgba(255,255,255,.92);
+        color: #7f1d1d;
+        font-weight: 800;
+        font-size: .72rem;
+        box-shadow: 0 12px 28px rgba(0,0,0,.16);
       }
 
       .clean-toolbar {
@@ -730,6 +745,12 @@ function shortParticipantId(person: RoomParticipant) {
   return (person.profile_id || person.id || "").slice(0, 8);
 }
 
+function formatDuration(totalSeconds: number) {
+  const minutes = Math.floor(totalSeconds / 60).toString().padStart(2, "0");
+  const seconds = Math.max(0, totalSeconds % 60).toString().padStart(2, "0");
+  return `${minutes}:${seconds}`;
+}
+
 export function LiveMeetingPage() {
   const { profile, setRoute } = useAppState();
 
@@ -751,6 +772,8 @@ export function LiveMeetingPage() {
   const [myMeetingRole, setMyMeetingRole] = useState<string>("");
   const [reactionMenuOpen, setReactionMenuOpen] = useState(false);
   const [recording, setRecording] = useState(false);
+  const [recordingStartedAt, setRecordingStartedAt] = useState<number | null>(null);
+  const [recordingElapsed, setRecordingElapsed] = useState("00:00");
   const seenReactionIds = useRef<Set<string>>(new Set());
   const reactionsBooted = useRef(false);
 
@@ -782,6 +805,21 @@ export function LiveMeetingPage() {
       setFloatingReactions((current) => current.filter((item) => item.id !== id));
     }, 3400);
   }
+
+  useEffect(() => {
+    if (!recording || !recordingStartedAt) {
+      setRecordingElapsed("00:00");
+      return;
+    }
+
+    const update = () => {
+      setRecordingElapsed(formatDuration(Math.floor((Date.now() - recordingStartedAt) / 1000)));
+    };
+
+    update();
+    const timer = window.setInterval(update, 1000);
+    return () => window.clearInterval(timer);
+  }, [recording, recordingStartedAt]);
 
   function canSendChatNow() {
     if (chatMode === "public") return true;
@@ -876,6 +914,7 @@ export function LiveMeetingPage() {
           avatar_url: profile?.avatarUrl || null,
           allowed_mic: true
         });
+        await meetingRoomService.openMeetingForEveryone();
       }
 
       await refreshRoom();
@@ -942,7 +981,7 @@ export function LiveMeetingPage() {
     if (!canMicControl) return notify("Only host roles can control microphones.");
     const allow = person.allowed_mic === false;
     await meetingRoomService.setParticipantMicPermission(person.id, allow);
-    notify(allow ? `${person.display_name} can unmute now.` : `${person.display_name} microphone locked.`);
+    notify(allow ? `${person.display_name} can unmute now. They must press Unmute themselves.` : `${person.display_name} microphone locked and will be muted automatically.`);
     await refreshRoom();
   }
 
@@ -971,9 +1010,20 @@ export function LiveMeetingPage() {
 
   async function startHostRoom() {
     if (!canHost) return;
+    await meetingRoomService.enterOnline(profile, {
+      mic_on: false,
+      camera_on: false,
+      display_name: profile?.displayName || "Host",
+      role_label: myMeetingRole || roleLabel(profile?.role),
+      avatar_url: profile?.avatarUrl || null,
+      allowed_mic: true
+    });
     await meetingRoomService.openMeetingForEveryone();
     setRoomIsOpen(true);
-    notify("Live room opened.");
+    notify("Live room opened. Entering live now...");
+    window.setTimeout(() => {
+      window.dispatchEvent(new CustomEvent("omide-livekit-control", { detail: { action: "enter-live" } }));
+    }, 150);
   }
 
   async function sendMessage() {
@@ -997,10 +1047,11 @@ export function LiveMeetingPage() {
 
   async function changeChatMode(mode: "public" | "admin" | "closed") {
     if (!canHost) return notify("Only host roles can control chat.");
-    await meetingRoomService.updateSettings({ chat_mode: mode });
     setChatMode(mode);
+    const saved = await meetingRoomService.updateSettings({ chat_mode: mode });
     notify(mode === "public" ? "Chat is open for everyone." : mode === "admin" ? "Chat is limited to servants/hosts." : "Chat is closed for everyone.");
-    await refreshRoom();
+    if (!saved) notify("Chat mode did not save in Supabase. Run the v1.46 SQL patch.");
+    window.setTimeout(() => void refreshRoom(), 650);
   }
 
   async function sendReaction(key: string, emoji: string, label: string) {
@@ -1028,11 +1079,13 @@ export function LiveMeetingPage() {
 
   function toggleRecordingMarker() {
     if (!canHost) return notify("Only host roles can control recording.");
-    setRecording((current) => !current);
-    notify(!recording ? "Recording marker is on. Cloud recording backend still needs LiveKit Egress." : "Recording marker is off.");
+    const next = !recording;
+    setRecording(next);
+    setRecordingStartedAt(next ? Date.now() : null);
+    notify(next ? "REC marker started. Real cloud recording still needs LiveKit Egress setup." : "REC marker stopped.");
   }
 
-  function sendLiveKitControl(action: "mic" | "camera" | "screen" | "leave" | "force-disconnect" | "force-mic-off") {
+  function sendLiveKitControl(action: "enter-live" | "mic" | "camera" | "screen" | "leave" | "force-disconnect" | "force-mic-off") {
     window.dispatchEvent(new CustomEvent("omide-livekit-control", { detail: { action } }));
   }
 
@@ -1106,7 +1159,7 @@ export function LiveMeetingPage() {
         <div className="clean-live-actions">
           {canHost && !roomIsOpen && (
             <button className="green" onClick={startHostRoom}>
-              Open meeting
+              Open & enter live
             </button>
           )}
 
@@ -1136,7 +1189,8 @@ export function LiveMeetingPage() {
 
       <main className={panel === "closed" ? "clean-live-main" : "clean-live-main panel-open"}>
         <section className="clean-stage">
-          {recording && <div className="recording-badge">● REC</div>}
+          {recording && <div className="recording-badge">● REC {recordingElapsed}</div>}
+          {recording && <div className="recording-helper">Recording marker only. Real saved recordings require LiveKit Egress/storage setup.</div>}
           <RealLiveKitRoom
             profile={profile}
             meetingId="main-room"

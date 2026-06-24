@@ -191,6 +191,17 @@ export const meetingRoomService = {
   },
 
   async setParticipantMicPermission(id: string, allowed: boolean) {
+    if (supabase) {
+      const { error: rpcError } = await supabase.rpc("host_set_participant_mic_permission", {
+        p_participant_id: id,
+        p_allowed: allowed
+      });
+      if (!rpcError) {
+        await this.raiseAlert(allowed ? "Microphone permission was allowed." : "Microphone permission was locked by host.", "mic_permission", "red", "active");
+        return;
+      }
+    }
+
     await this.updateParticipant(id, {
       allowed_mic: allowed,
       mic_on: allowed ? undefined : false
@@ -199,7 +210,19 @@ export const meetingRoomService = {
   },
 
   async updateParticipantRole(id: string, roleLabel: string) {
-    await this.updateParticipant(id, { role_label: roleLabel });
+    const normalized = String(roleLabel || "approved_member").replaceAll(" ", "_");
+    if (supabase) {
+      const { error: rpcError } = await supabase.rpc("host_update_participant_role", {
+        p_participant_id: id,
+        p_role_label: normalized
+      });
+      if (!rpcError) return;
+    }
+
+    await this.updateParticipant(id, {
+      role_label: normalized,
+      allowed_mic: normalized === "co_host" ? true : undefined
+    } as Partial<RoomParticipant>);
   },
 
   async updateProfileRole(profileId: string | null, role: string) {
@@ -269,7 +292,7 @@ export const meetingRoomService = {
     });
   },
 
-  async updateSettings(patch: Partial<MeetingRoomSettings>) {
+  async updateSettings(patch: Partial<MeetingRoomSettings>): Promise<boolean> {
     const next = {
       meeting_id: MEETING_ID,
       ...patch,
@@ -282,16 +305,22 @@ export const meetingRoomService = {
         p_live_open: typeof patch.live_open === "boolean" ? patch.live_open : null,
         p_active_room_name: patch.active_room_name ?? null
       });
-      if (!rpcError) return;
+      if (!rpcError) return true;
+
+      console.warn("host_update_room_settings RPC failed", rpcError.message);
 
       const { error } = await supabase
         .from("meeting_room_settings")
         .upsert(next, { onConflict: "meeting_id" });
-      if (!error) return;
+      if (!error) return true;
+
+      console.warn("meeting_room_settings upsert failed", error.message);
+      return false;
     }
 
     const current = await this.getSettings();
     writeLocal(LOCAL_SETTINGS, { ...current, ...next });
+    return true;
   },
 
   async clearChat() {
@@ -332,15 +361,6 @@ export const meetingRoomService = {
   },
 
   async openMeetingForEveryone() {
-    if (supabase) {
-      const { error } = await supabase.rpc("host_update_room_settings", {
-        p_chat_mode: null,
-        p_live_open: true,
-        p_active_room_name: "Main Room"
-      });
-      if (!error) return;
-    }
-
     await this.updateSettings({
       live_open: true,
       active_room_name: "Main Room"
