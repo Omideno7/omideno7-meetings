@@ -1,6 +1,6 @@
 {
   "app": "OmideNo7 Meetings",
-  "version": "1.40.0",
-  "build": "safari-fresh-room-retry",
-  "note": "Safari fix: fresh Room and fresh token per retry. No prepareConnection."
+  "version": "1.41.0",
+  "build": "safari-sdk-native-retry",
+  "note": "Safari test: use LiveKit SDK native maxRetries/websocketTimeout instead of manual fresh-room loop."
 }

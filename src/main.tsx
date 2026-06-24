@@ -1,3 +1,22 @@
+// omide-v141-cache-bypass: temporary Safari cache/service-worker cleanup for LiveKit testing
+if (typeof window !== "undefined") {
+  try {
+    if ("serviceWorker" in navigator) {
+      navigator.serviceWorker.getRegistrations().then((registrations) => {
+        registrations.forEach((registration) => registration.unregister());
+      }).catch(() => undefined);
+    }
+
+    if ("caches" in window) {
+      caches.keys().then((keys) => {
+        keys.forEach((key) => caches.delete(key));
+      }).catch(() => undefined);
+    }
+  } catch {
+    // ignore cache cleanup errors
+  }
+}
+
 // omide-v140-cache-bypass: temporary Safari cache/service-worker cleanup for LiveKit testing
 if (typeof window !== "undefined") {
   try {
