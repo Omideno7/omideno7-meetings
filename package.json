@@ -1,7 +1,7 @@
 {
   "name": "omideno7-meetings-react",
   "private": true,
-  "version": "1.36.0-safari-visible-permission-button",
+  "version": "1.37.0-safari-cache-bypass",
   "type": "module",
   "description": "OmideNo7 Meetings \u2014 Vite + React + TypeScript conversion starter",
   "scripts": {
@@ -39,5 +39,5 @@
     "typescript": "latest",
     "vite": "latest"
   },
-  "appStage": "steps-1311-to-1345-safari-visible-permission-button"
+  "appStage": "steps-1346-to-1375-safari-cache-bypass"
 }

@@ -919,6 +919,19 @@ export function LiveMeetingPage() {
     <div className="live-clean-page">
       <LiveMeetingStyles />
 
+      <div style={{
+        margin: "8px 10px 0",
+        padding: "8px 12px",
+        borderRadius: 16,
+        background: "#111827",
+        color: "#fff",
+        fontWeight: 900,
+        fontSize: ".82rem",
+        textAlign: "center"
+      }}>
+        Build 1.37 Safari cache-bypass is loaded
+      </div>
+
       <header className="clean-live-topbar">
         <div className="clean-live-brand">
           <strong>OmideNo7 Main Room</strong>

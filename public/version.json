@@ -1,5 +1,6 @@
 {
   "app": "OmideNo7 Meetings",
-  "version": "1.36.0",
-  "build": "safari-visible-permission-button"
+  "version": "1.37.0",
+  "build": "safari-cache-bypass",
+  "note": "Temporary test build: service worker/cache bypass enabled."
 }
