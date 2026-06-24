@@ -1,7 +1,7 @@
 {
   "name": "omideno7-meetings-react",
   "private": true,
-  "version": "1.31.0-session-mobile-waiting-fix",
+  "version": "1.32.0-controls-reactions-safari-hardening",
   "type": "module",
   "description": "OmideNo7 Meetings \u2014 Vite + React + TypeScript conversion starter",
   "scripts": {
@@ -39,5 +39,5 @@
     "typescript": "latest",
     "vite": "latest"
   },
-  "appStage": "steps-1161-to-1225-session-mobile-waiting-fix"
+  "appStage": "steps-1226-to-1300-controls-reactions-safari-hardening"
 }

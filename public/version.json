@@ -1,5 +1,5 @@
 {
   "app": "OmideNo7 Meetings",
-  "version": "1.31.0",
-  "build": "session-mobile-waiting-fix"
+  "version": "1.32.0",
+  "build": "controls-reactions-safari-hardening"
 }

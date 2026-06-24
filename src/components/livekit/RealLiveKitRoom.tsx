@@ -24,6 +24,7 @@ type LiveTile = {
   profileId: string;
   identity: string;
   name: string;
+  avatarUrl: string;
   isLocal: boolean;
   cameraOn: boolean;
   micOn: boolean;
@@ -130,6 +131,7 @@ function tileFromParticipant(participant: any, isLocal: boolean, raisedHands: Re
   const metadata = parseMetadata(participant);
   const identity = participant?.identity || "";
   const profileId = metadata?.profileId || identity.split(":")[0] || identity;
+  const avatarUrl = typeof metadata?.avatarUrl === "string" ? metadata.avatarUrl : "";
 
   const cameraPublication = pickPublication(publications, Track.Source.Camera, Track.Kind.Video);
   const micPublication = pickPublication(publications, Track.Source.Microphone, Track.Kind.Audio);
@@ -161,6 +163,7 @@ function tileFromParticipant(participant: any, isLocal: boolean, raisedHands: Re
     profileId,
     identity,
     name: participant?.name || identity || (isLocal ? "You" : "Participant"),
+    avatarUrl,
     isLocal,
     cameraOn: Boolean(cameraTrack && !cameraMuted),
     micOn: Boolean(microphoneTrack && !micMuted),
@@ -306,68 +309,94 @@ export function RealLiveKitRoom({
     setError("");
     setStatus("Requesting secure LiveKit token...");
 
-    try {
-      const result = await liveKitTokenService.requestToken({
-        meetingId,
-        profile,
-        admitted: isHostRole(profile) || admitted
-      });
+    let lastError: any = null;
+    const maxAttempts = (browserMode.isIOS || browserMode.isSafari) ? 3 : 2;
 
-      if (!result.ok) {
-        setStatus("Cannot enter live room");
-        setError(result.message || result.reason || "LiveKit token error.");
-        await onConnectionChange?.(false);
+    for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
+      try {
+        const result = await liveKitTokenService.requestToken({
+          meetingId,
+          profile,
+          admitted: isHostRole(profile) || admitted
+        });
+
+        if (!result.ok) {
+          setStatus("Cannot enter live room");
+          setError(result.message || result.reason || "LiveKit token error.");
+          await onConnectionChange?.(false);
+          return;
+        }
+
+        if (roomRef.current) {
+          try {
+            roomRef.current.disconnect();
+          } catch {
+            // ignore
+          }
+          roomRef.current = null;
+        }
+
+        setStatus(attempt === 1 ? "Connecting to LiveKit room..." : `Retrying LiveKit connection ${attempt}/${maxAttempts}...`);
+
+        const room = new Room({
+          adaptiveStream: !(browserMode.isIOS || browserMode.isSafari),
+          dynacast: !(browserMode.isIOS || browserMode.isSafari)
+        } as any);
+
+        roomRef.current = room;
+        wireRoom(room);
+
+        await room.connect(result.wsUrl || liveKitReadyConfig.wsUrl, result.token, {
+          autoSubscribe: true,
+          websocketTimeout: 30000,
+          rtcConfig: {
+            iceTransportPolicy: "all",
+            bundlePolicy: "max-bundle",
+            rtcpMuxPolicy: "require"
+          }
+        } as any);
+
+        refreshTiles(room);
+        window.setTimeout(() => refreshTiles(room), 500);
+        window.setTimeout(() => refreshTiles(room), 1500);
+        connectingRef.current = false;
         return;
-      }
+      } catch (err: any) {
+        lastError = err;
+        console.error("LiveKit connection error:", err);
 
-      if (roomRef.current) {
         try {
-          roomRef.current.disconnect();
+          roomRef.current?.disconnect();
         } catch {
           // ignore
         }
+
         roomRef.current = null;
+        setConnected(false);
+        await onConnectionChange?.(false);
+
+        // Safari/iOS can sometimes fail its first WebRTC signaling attempt after a fresh load.
+        // Give it a short pause and try with a fresh token/device identity.
+        if (attempt < maxAttempts) {
+          try {
+            sessionStorage.removeItem("omideno7.livekit.deviceId.v5");
+          } catch {
+            // ignore
+          }
+          await new Promise((resolve) => window.setTimeout(resolve, 900 * attempt));
+          continue;
+        }
       }
-
-      setStatus("Connecting to LiveKit room...");
-
-      const room = new Room({
-        adaptiveStream: true,
-        dynacast: true
-      });
-
-      roomRef.current = room;
-      wireRoom(room);
-
-      await room.connect(result.wsUrl || liveKitReadyConfig.wsUrl, result.token, {
-        autoSubscribe: true
-      });
-
-      refreshTiles(room);
-      window.setTimeout(() => refreshTiles(room), 500);
-      window.setTimeout(() => refreshTiles(room), 1500);
-    } catch (err: any) {
-      console.error("LiveKit connection error:", err);
-
-      try {
-        roomRef.current?.disconnect();
-      } catch {
-        // ignore
-      }
-
-      roomRef.current = null;
-      setConnected(false);
-      setStatus("Connection failed");
-
-      const safariHint = browserMode.isIOS || browserMode.isSafari
-        ? " Safari/iOS mode: keep this page open in Safari browser, allow camera/microphone, and try again."
-        : "";
-
-      setError(`${err?.message || "Could not connect to LiveKit room."}${safariHint}`);
-      await onConnectionChange?.(false);
-    } finally {
-      connectingRef.current = false;
     }
+
+    setStatus("Connection failed");
+
+    const safariHint = browserMode.isIOS || browserMode.isSafari
+      ? " Safari/iOS: close other meeting tabs, allow camera/microphone, disable Private Relay/VPN if active, then try again."
+      : "";
+
+    setError(`${lastError?.message || "Could not connect to LiveKit room."}${safariHint}`);
+    connectingRef.current = false;
   }
 
   async function disconnect(markLeave = true) {
@@ -392,6 +421,36 @@ export function RealLiveKitRoom({
     }
   }
 
+  async function ensureMicrophonePermission() {
+    if (!navigator.mediaDevices?.getUserMedia) return;
+
+    const stream = await navigator.mediaDevices.getUserMedia({
+      audio: {
+        echoCancellation: true,
+        noiseSuppression: true,
+        autoGainControl: true
+      } as MediaTrackConstraints,
+      video: false
+    });
+
+    stream.getTracks().forEach((track) => track.stop());
+  }
+
+  async function ensureCameraPermission() {
+    if (!navigator.mediaDevices?.getUserMedia) return;
+
+    const stream = await navigator.mediaDevices.getUserMedia({
+      audio: false,
+      video: {
+        width: { ideal: 1280 },
+        height: { ideal: 720 },
+        facingMode: "user"
+      } as MediaTrackConstraints
+    });
+
+    stream.getTracks().forEach((track) => track.stop());
+  }
+
   async function setMicEnabled(next: boolean) {
     const room = roomRef.current;
     if (!room || !connected) {
@@ -407,6 +466,11 @@ export function RealLiveKitRoom({
     setMicOn(next);
 
     try {
+      if (next) {
+        setStatus("Requesting microphone permission...");
+        await ensureMicrophonePermission();
+      }
+
       await room.localParticipant.setMicrophoneEnabled(next);
       refreshTiles(room);
       await onMediaStateChange?.({ mic: next, camera: cameraOn });
@@ -426,6 +490,11 @@ export function RealLiveKitRoom({
     setCameraOn(next);
 
     try {
+      if (next) {
+        setStatus("Requesting camera permission...");
+        await ensureCameraPermission();
+      }
+
       await room.localParticipant.setCameraEnabled(next);
       refreshTiles(room);
       window.setTimeout(() => refreshTiles(room), 650);
@@ -673,6 +742,14 @@ export function RealLiveKitRoom({
           background: radial-gradient(circle at top, #0b5798, #06146d) !important;
         }
 
+        .omide-livekit-clean-avatar img {
+          width: 100% !important;
+          height: 100% !important;
+          object-fit: cover !important;
+          border-radius: 0 !important;
+          display: block !important;
+        }
+
         .omide-livekit-clean-avatar span {
           width: 70px !important;
           height: 70px !important;
@@ -888,7 +965,11 @@ export function RealLiveKitRoom({
                 <VideoTrackView track={tile.cameraTrack} muted={tile.isLocal} />
               ) : (
                 <div className="omide-livekit-clean-avatar">
-                  <span>{initials(tile.name)}</span>
+                  {tile.avatarUrl ? (
+                    <img src={tile.avatarUrl} alt={tile.name} />
+                  ) : (
+                    <span>{initials(tile.name)}</span>
+                  )}
                 </div>
               )}
 
