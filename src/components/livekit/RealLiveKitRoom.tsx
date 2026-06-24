@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Room, RoomEvent, Track } from "livekit-client";
 import type { UserProfile } from "../../types/roles";
 import { liveKitTokenService } from "../../services/liveKitTokenService";
@@ -90,19 +90,17 @@ function getPublications(participant: any) {
   return Array.from(publications.values()) as any[];
 }
 
-function pickTrack(publications: any[], source: Track.Source, kind: Track.Kind) {
+function pickPublication(publications: any[], source: Track.Source, kind: Track.Kind) {
   return publications.find((publication: any) => {
-    const bySource = publication?.source === source;
-    const byKind = publication?.kind === kind;
-    return bySource || byKind;
+    return publication?.source === source || publication?.kind === kind;
   });
 }
 
 function tileFromParticipant(participant: any, isLocal: boolean): LiveTile {
   const publications = getPublications(participant);
 
-  const cameraPublication = pickTrack(publications, Track.Source.Camera, Track.Kind.Video);
-  const micPublication = pickTrack(publications, Track.Source.Microphone, Track.Kind.Audio);
+  const cameraPublication = pickPublication(publications, Track.Source.Camera, Track.Kind.Video);
+  const micPublication = pickPublication(publications, Track.Source.Microphone, Track.Kind.Audio);
 
   const cameraTrack =
     cameraPublication?.track ||
@@ -192,6 +190,7 @@ export function RealLiveKitRoom({
 }: Props) {
   const roomRef = useRef<Room | null>(null);
   const connectingRef = useRef(false);
+  const autoTriedRef = useRef(false);
 
   const [connected, setConnected] = useState(false);
   const [status, setStatus] = useState("Ready");
@@ -201,12 +200,7 @@ export function RealLiveKitRoom({
   const [tiles, setTiles] = useState<LiveTile[]>([]);
   const [needsStart, setNeedsStart] = useState(Boolean(confirmBeforeStart));
 
-  const canStart = useMemo(() => {
-    if (!profile) return false;
-    if (profile.status !== "approved") return false;
-    if (isHostRole(profile)) return true;
-    return admitted;
-  }, [profile, admitted]);
+  const canEnter = Boolean(profile?.status === "approved" && (isHostRole(profile) || admitted));
 
   function refreshTiles(room?: Room | null) {
     const activeRoom = room || roomRef.current;
@@ -229,9 +223,9 @@ export function RealLiveKitRoom({
   async function connect() {
     if (connectingRef.current || connected) return;
 
-    if (!canStart) {
-      setError("Members enter after host admission.");
-      setStatus("Waiting for host admission");
+    if (!canEnter) {
+      setError("Members must wait for host admission.");
+      setStatus("Waiting Room");
       return;
     }
 
@@ -248,7 +242,7 @@ export function RealLiveKitRoom({
       const result = await liveKitTokenService.requestToken({
         meetingId,
         profile,
-        admitted
+        admitted: isHostRole(profile) || admitted
       });
 
       if (!result.ok) {
@@ -258,11 +252,12 @@ export function RealLiveKitRoom({
         return;
       }
 
-      setStatus("Token received. Connecting to LiveKit room...");
+      setStatus("Connecting to LiveKit room...");
 
       const room = new Room({
         adaptiveStream: true,
-        dynacast: true
+        dynacast: true,
+        stopLocalTrackOnUnpublish: true
       });
 
       roomRef.current = room;
@@ -275,6 +270,17 @@ export function RealLiveKitRoom({
         setError("");
         refreshTiles(room);
         await onConnectionChange?.(true);
+
+        try {
+          await room.localParticipant.setMicrophoneEnabled(false);
+          await room.localParticipant.setCameraEnabled(false);
+        } catch {
+          // keep default off
+        }
+
+        setMicOn(false);
+        setCameraOn(false);
+        await onMediaStateChange?.({ mic: false, camera: false });
       });
 
       room.on(RoomEvent.Disconnected, async () => {
@@ -290,6 +296,8 @@ export function RealLiveKitRoom({
       room.on(RoomEvent.TrackUnsubscribed, update);
       room.on(RoomEvent.TrackPublished, update);
       room.on(RoomEvent.TrackUnpublished, update);
+      room.on(RoomEvent.TrackMuted, update);
+      room.on(RoomEvent.TrackUnmuted, update);
       room.on(RoomEvent.LocalTrackPublished, update);
       room.on(RoomEvent.LocalTrackUnpublished, update);
       room.on(RoomEvent.ActiveSpeakersChanged, update);
@@ -303,6 +311,8 @@ export function RealLiveKitRoom({
       );
 
       refreshTiles(room);
+      window.setTimeout(() => refreshTiles(room), 500);
+      window.setTimeout(() => refreshTiles(room), 1500);
     } catch (err: any) {
       console.error("LiveKit connection error:", err);
       setConnected(false);
@@ -314,7 +324,7 @@ export function RealLiveKitRoom({
     }
   }
 
-  async function disconnect() {
+  async function disconnect(markLeave = true) {
     const room = roomRef.current;
 
     try {
@@ -332,7 +342,7 @@ export function RealLiveKitRoom({
       setStatus("Left meeting");
       await onMediaStateChange?.({ mic: false, camera: false });
       await onConnectionChange?.(false);
-      await onLeave?.();
+      if (markLeave) await onLeave?.();
     }
   }
 
@@ -363,6 +373,7 @@ export function RealLiveKitRoom({
     try {
       await room.localParticipant.setCameraEnabled(next);
       refreshTiles(room);
+      window.setTimeout(() => refreshTiles(room), 650);
       await onMediaStateChange?.({ mic: micOn, camera: next });
     } catch (err: any) {
       setCameraOn(!next);
@@ -373,6 +384,10 @@ export function RealLiveKitRoom({
   useEffect(() => {
     if (!autoStart) return;
     if (needsStart) return;
+    if (autoTriedRef.current) return;
+    if (!canEnter) return;
+
+    autoTriedRef.current = true;
     void connect();
 
     return () => {
@@ -382,17 +397,36 @@ export function RealLiveKitRoom({
       }
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [autoStart, needsStart, canStart, meetingId]);
+  }, [autoStart, needsStart, canEnter, meetingId]);
 
   useEffect(() => {
     const timer = window.setInterval(() => refreshTiles(), 700);
     return () => window.clearInterval(timer);
   }, []);
 
+  useEffect(() => {
+    function handleLiveKitControl(event: Event) {
+      const action = (event as CustomEvent<{ action?: string }>).detail?.action;
+      if (action === "mic") void toggleMic();
+      if (action === "camera") void toggleCamera();
+      if (action === "leave") void disconnect(true);
+      if (action === "force-disconnect") void disconnect(false);
+    }
+
+    window.addEventListener("omide-livekit-control", handleLiveKitControl as EventListener);
+    return () => window.removeEventListener("omide-livekit-control", handleLiveKitControl as EventListener);
+  }, [micOn, cameraOn, connected]);
+
+  useEffect(() => {
+    return () => {
+      roomRef.current?.disconnect();
+    };
+  }, []);
+
   return (
-    <section className="omide-livekit-fixed">
+    <section className="omide-livekit-clean">
       <style>{`
-        .omide-livekit-fixed {
+        .omide-livekit-clean {
           width: 100% !important;
           min-width: 0 !important;
           max-width: none !important;
@@ -406,9 +440,10 @@ export function RealLiveKitRoom({
           color: #fff !important;
           overflow: hidden !important;
           box-sizing: border-box !important;
+          min-height: 58vh !important;
         }
 
-        .omide-livekit-fixed-head {
+        .omide-livekit-clean-head {
           display: flex !important;
           align-items: center !important;
           justify-content: space-between !important;
@@ -416,26 +451,26 @@ export function RealLiveKitRoom({
           width: 100% !important;
         }
 
-        .omide-livekit-fixed-title {
+        .omide-livekit-clean-title {
           display: flex !important;
           flex-direction: column !important;
           gap: 2px !important;
           min-width: 0 !important;
         }
 
-        .omide-livekit-fixed-title strong {
+        .omide-livekit-clean-title strong {
           color: #fff !important;
           font-size: 1rem !important;
           line-height: 1.1 !important;
         }
 
-        .omide-livekit-fixed-title span {
+        .omide-livekit-clean-title span {
           color: rgba(255,255,255,.78) !important;
           font-size: .76rem !important;
           line-height: 1.2 !important;
         }
 
-        .omide-livekit-fixed-actions {
+        .omide-livekit-clean-actions {
           display: flex !important;
           align-items: center !important;
           justify-content: flex-end !important;
@@ -443,7 +478,7 @@ export function RealLiveKitRoom({
           flex-wrap: wrap !important;
         }
 
-        .omide-livekit-fixed-actions button {
+        .omide-livekit-clean-actions button {
           border: 0 !important;
           border-radius: 999px !important;
           padding: 9px 12px !important;
@@ -453,15 +488,20 @@ export function RealLiveKitRoom({
           cursor: pointer !important;
         }
 
-        .omide-livekit-fixed-actions button.primary {
+        .omide-livekit-clean-actions button.primary {
           background: #13bf54 !important;
         }
 
-        .omide-livekit-fixed-actions button.danger {
+        .omide-livekit-clean-actions button.danger {
           background: #ef4444 !important;
         }
 
-        .omide-livekit-fixed-status {
+        .omide-livekit-clean-actions button:disabled {
+          opacity: .5 !important;
+          cursor: not-allowed !important;
+        }
+
+        .omide-livekit-clean-status {
           width: 100% !important;
           border-radius: 16px !important;
           padding: 9px 12px !important;
@@ -471,7 +511,7 @@ export function RealLiveKitRoom({
           font-size: .82rem !important;
         }
 
-        .omide-livekit-fixed-error {
+        .omide-livekit-clean-error {
           width: 100% !important;
           border-radius: 16px !important;
           padding: 9px 12px !important;
@@ -482,10 +522,10 @@ export function RealLiveKitRoom({
           font-size: .82rem !important;
         }
 
-        .omide-livekit-fixed-grid {
+        .omide-livekit-clean-grid {
           width: 100% !important;
           display: grid !important;
-          grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)) !important;
+          grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)) !important;
           gap: 12px !important;
           align-items: stretch !important;
           justify-items: stretch !important;
@@ -496,7 +536,7 @@ export function RealLiveKitRoom({
           box-sizing: border-box !important;
         }
 
-        .omide-livekit-fixed-tile {
+        .omide-livekit-clean-tile {
           position: relative !important;
           width: 100% !important;
           min-width: 0 !important;
@@ -525,7 +565,7 @@ export function RealLiveKitRoom({
           transform: none !important;
         }
 
-        .omide-livekit-fixed-avatar {
+        .omide-livekit-clean-avatar {
           width: 100% !important;
           height: 100% !important;
           display: grid !important;
@@ -533,7 +573,7 @@ export function RealLiveKitRoom({
           background: radial-gradient(circle at top, #0b5798, #06146d) !important;
         }
 
-        .omide-livekit-fixed-avatar span {
+        .omide-livekit-clean-avatar span {
           width: 70px !important;
           height: 70px !important;
           border-radius: 22px !important;
@@ -545,7 +585,7 @@ export function RealLiveKitRoom({
           font-size: 1.55rem !important;
         }
 
-        .omide-livekit-fixed-namebar {
+        .omide-livekit-clean-namebar {
           position: absolute !important;
           left: 8px !important;
           right: 8px !important;
@@ -562,7 +602,7 @@ export function RealLiveKitRoom({
           backdrop-filter: blur(8px) !important;
         }
 
-        .omide-livekit-fixed-namebar strong {
+        .omide-livekit-clean-namebar strong {
           color: #fff !important;
           font-size: .78rem !important;
           line-height: 1.1 !important;
@@ -571,13 +611,13 @@ export function RealLiveKitRoom({
           text-overflow: ellipsis !important;
         }
 
-        .omide-livekit-fixed-namebar small {
+        .omide-livekit-clean-namebar small {
           color: rgba(255,255,255,.86) !important;
           font-size: .68rem !important;
           white-space: nowrap !important;
         }
 
-        .omide-livekit-fixed-eq {
+        .omide-livekit-clean-eq {
           position: absolute !important;
           left: 10px !important;
           bottom: 48px !important;
@@ -589,7 +629,7 @@ export function RealLiveKitRoom({
           z-index: 12 !important;
         }
 
-        .omide-livekit-fixed-eq span {
+        .omide-livekit-clean-eq span {
           display: block !important;
           height: 100% !important;
           border-radius: 999px !important;
@@ -597,7 +637,7 @@ export function RealLiveKitRoom({
           transition: width .18s ease !important;
         }
 
-        .omide-livekit-fixed-empty {
+        .omide-livekit-clean-empty {
           width: 100% !important;
           min-height: 260px !important;
           border-radius: 20px !important;
@@ -609,50 +649,51 @@ export function RealLiveKitRoom({
         }
 
         @media (max-width: 740px) {
-          .omide-livekit-fixed {
+          .omide-livekit-clean {
             padding: 8px !important;
             border-radius: 18px !important;
+            min-height: 48vh !important;
           }
 
-          .omide-livekit-fixed-head {
+          .omide-livekit-clean-head {
             align-items: flex-start !important;
             flex-direction: column !important;
           }
 
-          .omide-livekit-fixed-actions {
+          .omide-livekit-clean-actions {
             width: 100% !important;
             justify-content: flex-start !important;
           }
 
-          .omide-livekit-fixed-grid {
+          .omide-livekit-clean-grid {
             grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
             gap: 8px !important;
             min-height: 240px !important;
             max-height: 56vh !important;
           }
 
-          .omide-livekit-fixed-tile {
+          .omide-livekit-clean-tile {
             min-height: 135px !important;
             max-height: 190px !important;
             border-radius: 16px !important;
           }
 
-          .omide-livekit-fixed-namebar {
+          .omide-livekit-clean-namebar {
             left: 6px !important;
             right: 6px !important;
             bottom: 6px !important;
             padding: 5px 7px !important;
           }
 
-          .omide-livekit-fixed-namebar strong {
+          .omide-livekit-clean-namebar strong {
             font-size: .65rem !important;
           }
 
-          .omide-livekit-fixed-namebar small {
+          .omide-livekit-clean-namebar small {
             font-size: .55rem !important;
           }
 
-          .omide-livekit-fixed-avatar span {
+          .omide-livekit-clean-avatar span {
             width: 52px !important;
             height: 52px !important;
             border-radius: 18px !important;
@@ -661,13 +702,13 @@ export function RealLiveKitRoom({
         }
       `}</style>
 
-      <div className="omide-livekit-fixed-head">
-        <div className="omide-livekit-fixed-title">
+      <div className="omide-livekit-clean-head">
+        <div className="omide-livekit-clean-title">
           <strong>OmideNo7 Live Room</strong>
           <span>{connected ? "Connected to LiveKit" : "Members enter after host admission"}</span>
         </div>
 
-        <div className="omide-livekit-fixed-actions">
+        <div className="omide-livekit-clean-actions">
           {!connected && (
             <button
               className="primary"
@@ -676,8 +717,9 @@ export function RealLiveKitRoom({
                 setNeedsStart(false);
                 void connect();
               }}
+              disabled={!canEnter}
             >
-              Enter live
+              {needsStart ? "Start live room" : "Enter live"}
             </button>
           )}
 
@@ -689,32 +731,32 @@ export function RealLiveKitRoom({
             {cameraOn ? "Camera off" : "Camera on"}
           </button>
 
-          <button className="danger" type="button" onClick={() => void disconnect()}>
+          <button className="danger" type="button" onClick={() => void disconnect(true)}>
             Leave
           </button>
         </div>
       </div>
 
-      <div className="omide-livekit-fixed-status">{status}</div>
+      <div className="omide-livekit-clean-status">{status}</div>
 
       {error && (
-        <div className="omide-livekit-fixed-error">
+        <div className="omide-livekit-clean-error">
           {error}
         </div>
       )}
 
       {tiles.length === 0 ? (
-        <div className="omide-livekit-fixed-empty">
-          {connected ? "Waiting for participants..." : "Ready to enter live room"}
+        <div className="omide-livekit-clean-empty">
+          {canEnter ? "Ready to enter live room" : "Waiting for host admission"}
         </div>
       ) : (
-        <div className="omide-livekit-fixed-grid">
+        <div className="omide-livekit-clean-grid">
           {tiles.map((tile) => (
-            <article className="omide-livekit-fixed-tile" key={tile.key}>
+            <article className="omide-livekit-clean-tile" key={tile.key}>
               {tile.cameraOn ? (
                 <VideoTrackView track={tile.cameraTrack} muted={tile.isLocal} />
               ) : (
-                <div className="omide-livekit-fixed-avatar">
+                <div className="omide-livekit-clean-avatar">
                   <span>{initials(tile.name)}</span>
                 </div>
               )}
@@ -722,12 +764,12 @@ export function RealLiveKitRoom({
               <AudioTrackView track={tile.isLocal ? null : tile.microphoneTrack} />
 
               {tile.micOn && (
-                <div className="omide-livekit-fixed-eq">
+                <div className="omide-livekit-clean-eq">
                   <span style={{ width: `${Math.max(8, Math.round(tile.audioLevel * 100))}%` }} />
                 </div>
               )}
 
-              <div className="omide-livekit-fixed-namebar">
+              <div className="omide-livekit-clean-namebar">
                 <strong>{tile.name}</strong>
                 <small>
                   {tile.isLocal ? "You" : "Member"} · {tile.micOn ? "Mic on" : "Muted"}

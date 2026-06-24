@@ -266,9 +266,21 @@ export const meetingRoomService = {
     writeLocal(LOCAL_SETTINGS, { ...current, ...next });
   },
 
+  async clearChat() {
+    if (supabase) {
+      await supabase
+        .from("meeting_room_chat_messages")
+        .delete()
+        .eq("meeting_id", MEETING_ID);
+    }
+
+    writeLocal(LOCAL_CHAT, []);
+  },
+
   async endMeetingForEveryone() {
     if (supabase) {
       const { error } = await supabase.rpc("host_end_meeting_for_everyone");
+      await this.clearChat();
       if (!error) return;
     }
 
@@ -287,6 +299,7 @@ export const meetingRoomService = {
       updated_at: new Date().toISOString()
     })));
 
+    writeLocal(LOCAL_CHAT, []);
     await this.raiseAlert("The host ended the meeting for everyone.", "meeting_ended", "red", "active");
   },
 

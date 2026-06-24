@@ -1,7 +1,7 @@
 {
   "name": "omideno7-meetings-react",
   "private": true,
-  "version": "1.25.0-auth-session-guard-livekit-cache-fix",
+  "version": "1.27.0-clean-live-page-rebuild",
   "type": "module",
   "description": "OmideNo7 Meetings \u2014 Vite + React + TypeScript conversion starter",
   "scripts": {
@@ -39,5 +39,5 @@
     "typescript": "latest",
     "vite": "latest"
   },
-  "appStage": "steps-761-to-820-auth-session-guard-livekit-cache-fix"
+  "appStage": "steps-901-to-980-clean-live-page-rebuild"
 }

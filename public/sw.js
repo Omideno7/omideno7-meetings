@@ -1,4 +1,4 @@
-const CACHE_NAME = "omideno7-meetings-pwa-v25-auth-session-guard";
+const CACHE_NAME = "omideno7-meetings-pwa-v127-clean-live-page";
 const APP_SHELL = [
   "/offline.html",
   "/manifest.webmanifest",
