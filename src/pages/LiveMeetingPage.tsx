@@ -186,6 +186,52 @@ function LiveMeetingStyles() {
         color: #fff;
       }
 
+      .safari-permission-card {
+        margin: 10px 10px 0;
+        padding: 12px 14px;
+        border-radius: 20px;
+        background: #ffffff;
+        border: 1px solid rgba(6, 20, 109, .10);
+        box-shadow: 0 12px 34px rgba(6, 20, 109, .10);
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 10px;
+        color: #06146d;
+      }
+
+      .safari-permission-card strong {
+        color: #06146d;
+        font-size: .92rem;
+      }
+
+      .safari-permission-card span {
+        color: #475569;
+        font-size: .78rem;
+        line-height: 1.3;
+      }
+
+      .safari-permission-card button {
+        border: 0;
+        border-radius: 999px;
+        padding: 9px 13px;
+        background: #13bf54;
+        color: #fff;
+        font-weight: 900;
+        cursor: pointer;
+        white-space: nowrap;
+      }
+
+      .safari-permission-card.ok {
+        border-color: rgba(19, 191, 84, .35);
+        background: rgba(19, 191, 84, .08);
+      }
+
+      .safari-permission-card.warn {
+        border-color: rgba(245, 158, 11, .35);
+        background: rgba(245, 158, 11, .08);
+      }
+
       .clean-live-main {
         flex: 1 1 auto;
         display: grid;
@@ -412,6 +458,16 @@ function LiveMeetingStyles() {
       }
 
       @media (max-width: 900px) {
+        .safari-permission-card {
+          align-items: flex-start;
+          flex-direction: column;
+          margin: 8px 8px 0;
+        }
+
+        .safari-permission-card button {
+          width: 100%;
+        }
+
         .clean-live-topbar {
           align-items: flex-start;
           flex-direction: column;
@@ -494,6 +550,8 @@ export function LiveMeetingPage() {
   const [micOn, setMicOn] = useState(false);
   const [cameraOn, setCameraOn] = useState(false);
   const [sessionExpired, setSessionExpired] = useState(false);
+  const [safariPermissionStatus, setSafariPermissionStatus] = useState("Safari camera/microphone not tested yet.");
+  const [safariPermissionOk, setSafariPermissionOk] = useState(false);
 
   const onlineParticipants = participants.filter((row) => row.status === "online");
   const raisedHands = useMemo(() => {
@@ -517,6 +575,50 @@ export function LiveMeetingPage() {
   function notify(text: string) {
     setToast(text);
     window.setTimeout(() => setToast("Ready"), 2800);
+  }
+
+  async function testSafariCameraMicrophonePermission() {
+    setSafariPermissionOk(false);
+    setSafariPermissionStatus("Testing camera and microphone permission...");
+    notify("Testing Safari camera/microphone...");
+
+    if (!navigator.mediaDevices?.getUserMedia) {
+      setSafariPermissionStatus("mediaDevices.getUserMedia is not available. Open this site directly in Safari browser.");
+      return false;
+    }
+
+    let stream: MediaStream | null = null;
+
+    try {
+      stream = await navigator.mediaDevices.getUserMedia({
+        audio: {
+          echoCancellation: true,
+          noiseSuppression: true,
+          autoGainControl: true
+        } as MediaTrackConstraints,
+        video: {
+          width: { ideal: 640 },
+          height: { ideal: 360 },
+          facingMode: "user"
+        } as MediaTrackConstraints
+      });
+
+      setSafariPermissionOk(true);
+      setSafariPermissionStatus("Permission OK. Safari allowed camera and microphone. Now press Enter live.");
+      notify("Safari permission OK.");
+      return true;
+    } catch (error: any) {
+      const message = error?.message || String(error || "");
+      setSafariPermissionStatus(
+        "Permission blocked or not shown. In Safari, open Settings > Websites > Camera and Microphone and set this site to Ask/Allow. Error: " + message
+      );
+      notify("Safari permission blocked.");
+      return false;
+    } finally {
+      if (stream) {
+        stream.getTracks().forEach((track) => track.stop());
+      }
+    }
   }
 
   async function refreshRoom() {
@@ -847,6 +949,16 @@ export function LiveMeetingPage() {
           </button>
         </div>
       </header>
+
+      <section className={`safari-permission-card ${safariPermissionOk ? "ok" : "warn"}`}>
+        <div>
+          <strong>Safari camera/mic test</strong>
+          <span>{safariPermissionStatus}</span>
+        </div>
+        <button type="button" onClick={() => void testSafariCameraMicrophonePermission()}>
+          Test Safari camera/mic
+        </button>
+      </section>
 
       <main className={panel === "closed" ? "clean-live-main" : "clean-live-main panel-open"}>
         <section className="clean-stage">
