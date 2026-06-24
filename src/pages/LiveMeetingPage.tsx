@@ -493,6 +493,7 @@ export function LiveMeetingPage() {
   const [liveKitConnected, setLiveKitConnected] = useState(false);
   const [micOn, setMicOn] = useState(false);
   const [cameraOn, setCameraOn] = useState(false);
+  const [sessionExpired, setSessionExpired] = useState(false);
 
   const onlineParticipants = participants.filter((row) => row.status === "online");
   const raisedHands = useMemo(() => {
@@ -542,9 +543,14 @@ export function LiveMeetingPage() {
       return;
     }
 
-    if (current.status === "removed" || current.status === "blocked") {
+    if (current.status === "blocked") {
       setMyStatus(current.status);
       setRoute("memberHome");
+      return;
+    }
+
+    if (current.status === "removed" || current.status === "left") {
+      setMyStatus(current.status);
       return;
     }
 
@@ -567,6 +573,15 @@ export function LiveMeetingPage() {
     async function boot() {
       if (!alive) return;
 
+      const recoveredSession = await getRecoveredSupabaseSession();
+      if (!recoveredSession && profile?.status === "approved") {
+        setSessionExpired(true);
+        notify("Please sign in again before entering LiveKit.");
+        return;
+      }
+
+      setSessionExpired(false);
+
       if (canHost) {
         await meetingRoomService.enterOnline(profile, {
           mic_on: false,
@@ -578,7 +593,7 @@ export function LiveMeetingPage() {
         });
       } else if (profile?.status === "approved") {
         const current = await meetingRoomService.getMyRow(profile);
-        if (!current || current.status === "left") {
+        if (!current || current.status === "left" || current.status === "removed") {
           await meetingRoomService.joinWaiting(profile);
           await meetingRoomService.raiseAlert(`${profile?.displayName || "A member"} is waiting for admission.`, "waiting_room", "red", "active");
         }
@@ -749,6 +764,37 @@ export function LiveMeetingPage() {
     setCameraOn(false);
     notify("Meeting ended and chat cleared.");
     setRoute(canHost ? "ownerDashboard" : "memberHome");
+  }
+
+
+  if (sessionExpired) {
+    return (
+      <>
+        <LiveMeetingStyles />
+        <div className="live-clean-page waiting-only">
+          <section className="waiting-only-card">
+            <h1>Login session expired</h1>
+            <p>Your secure Supabase login session is missing. LiveKit cannot create a secure token until you sign in again.</p>
+            <strong>Press the button below, sign in again, then open Live Meeting.</strong>
+            <div className="clean-button-row">
+              <button
+                onClick={async () => {
+                  await meetingRoomService.leaveMeeting(profile);
+                  localStorage.removeItem("omideno7.react.profile");
+                  localStorage.removeItem("omideno7.profile.override");
+                  setRoute("landing");
+                }}
+              >
+                Go to Login
+              </button>
+              <button className="ghost" onClick={() => setRoute(canHost ? "ownerDashboard" : "memberHome")}>
+                Back
+              </button>
+            </div>
+          </section>
+        </div>
+      </>
+    );
   }
 
   const memberBlocked = !canHost && myStatus !== "online";

@@ -1,7 +1,7 @@
 {
   "name": "omideno7-meetings-react",
   "private": true,
-  "version": "1.30.0-auth-session-recovery",
+  "version": "1.31.0-session-mobile-waiting-fix",
   "type": "module",
   "description": "OmideNo7 Meetings \u2014 Vite + React + TypeScript conversion starter",
   "scripts": {
@@ -39,5 +39,5 @@
     "typescript": "latest",
     "vite": "latest"
   },
-  "appStage": "steps-1121-to-1160-auth-session-recovery"
+  "appStage": "steps-1161-to-1225-session-mobile-waiting-fix"
 }

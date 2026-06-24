@@ -5017,3 +5017,162 @@ button.secondary {
   width: 100% !important;
   flex: 1 1 100% !important;
 }
+
+
+/* ============================================================
+   OmideNo7 Meetings 1.31 — Mobile permission/settings layout fix
+   Prevents permission pages from going outside the screen.
+   ============================================================ */
+@media (max-width: 760px) {
+  html,
+  body,
+  #root {
+    width: 100% !important;
+    max-width: 100% !important;
+    min-height: 100dvh !important;
+    overflow-x: hidden !important;
+    overflow-y: auto !important;
+  }
+
+  .app-shell,
+  .app-layout,
+  .dashboard-shell {
+    width: 100% !important;
+    max-width: 100% !important;
+    min-height: 100dvh !important;
+    height: auto !important;
+    display: block !important;
+    overflow-x: hidden !important;
+    overflow-y: visible !important;
+  }
+
+  .sidebar {
+    width: 100% !important;
+    max-width: 100% !important;
+    height: auto !important;
+    max-height: none !important;
+    position: relative !important;
+    overflow: visible !important;
+  }
+
+  .sidebar nav {
+    width: 100% !important;
+    max-height: none !important;
+    display: grid !important;
+    grid-template-columns: 1fr 1fr !important;
+    overflow: visible !important;
+  }
+
+  .main-content,
+  main,
+  .page,
+  .mobile-page {
+    width: 100% !important;
+    max-width: 100% !important;
+    height: auto !important;
+    min-height: 0 !important;
+    overflow-x: hidden !important;
+    overflow-y: visible !important;
+    padding-left: 12px !important;
+    padding-right: 12px !important;
+    box-sizing: border-box !important;
+  }
+
+  .page-grid,
+  .dashboard-grid,
+  .report-grid,
+  .permission-grid,
+  .settings-grid,
+  .form-grid,
+  .owner-grid,
+  .template-grid,
+  .templates-grid,
+  .security-grid,
+  .home-action-grid,
+  .quick-actions,
+  .quick-actions.three,
+  .quick-actions.one {
+    display: grid !important;
+    grid-template-columns: 1fr !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    min-width: 0 !important;
+  }
+
+  .card,
+  .panel-card,
+  .permission-check,
+  .role-summary-card,
+  .meeting-hero-card,
+  .home-action-card,
+  .recent-meeting-item,
+  .action-toast {
+    width: 100% !important;
+    max-width: 100% !important;
+    min-width: 0 !important;
+    box-sizing: border-box !important;
+    overflow-wrap: anywhere !important;
+  }
+
+  .permission-check {
+    display: grid !important;
+    grid-template-columns: auto minmax(0, 1fr) !important;
+  }
+
+  .permission-table,
+  table {
+    max-width: 100% !important;
+  }
+
+  .permission-table,
+  .data-table,
+  .responsive-table,
+  table {
+    display: block !important;
+    overflow-x: auto !important;
+    -webkit-overflow-scrolling: touch !important;
+  }
+
+  .permission-table tbody,
+  .permission-table thead,
+  .permission-table tr,
+  .permission-table td,
+  .permission-table th {
+    white-space: normal !important;
+  }
+
+  input,
+  select,
+  textarea,
+  button {
+    max-width: 100% !important;
+    box-sizing: border-box !important;
+  }
+
+  .clean-live-page {
+    min-height: 100dvh !important;
+    height: auto !important;
+    overflow-x: hidden !important;
+    overflow-y: auto !important;
+  }
+
+  .clean-live-main,
+  .clean-live-main.panel-open {
+    overflow: visible !important;
+  }
+
+  .clean-panel {
+    width: 100% !important;
+    max-width: 100% !important;
+  }
+
+  .clean-toolbar {
+    position: sticky !important;
+    bottom: 0 !important;
+    z-index: 60 !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    overflow-x: auto !important;
+    -webkit-overflow-scrolling: touch !important;
+  }
+}

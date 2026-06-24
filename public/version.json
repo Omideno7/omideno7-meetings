@@ -1,5 +1,5 @@
 {
   "app": "OmideNo7 Meetings",
-  "version": "1.30.0",
-  "build": "auth-session-recovery"
+  "version": "1.31.0",
+  "build": "session-mobile-waiting-fix"
 }

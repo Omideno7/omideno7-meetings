@@ -89,7 +89,7 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
       localStorage.removeItem("omideno7.profile.override");
       setProfile(null);
       setRoute("landing");
-      setAuthMessage("Your secure login session expired. Please sign in again.");
+      setAuthMessage("Your secure login session expired. Please sign in again before joining LiveKit.");
     }
 
     window.addEventListener("omide-auth-session-missing", handleMissingAuthSession);

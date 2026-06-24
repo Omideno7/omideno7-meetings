@@ -7,7 +7,7 @@ export type LiveKitTokenResponse =
   | { ok: false; reason: string; message?: string };
 
 function getDeviceId() {
-  const key = "omideno7.livekit.deviceId.v4";
+  const key = "omideno7.livekit.deviceId.v5";
   let existing = sessionStorage.getItem(key);
   if (!existing) {
     existing = crypto.randomUUID();
@@ -20,6 +20,73 @@ function timeoutSignal(ms: number) {
   const controller = new AbortController();
   const timer = window.setTimeout(() => controller.abort(), ms);
   return { signal: controller.signal, cancel: () => window.clearTimeout(timer) };
+}
+
+function readStoredSupabaseAccessToken() {
+  const stores: Storage[] = [];
+  try { stores.push(localStorage); } catch { /* ignore */ }
+  try { stores.push(sessionStorage); } catch { /* ignore */ }
+
+  for (const store of stores) {
+    for (let index = 0; index < store.length; index += 1) {
+      const key = store.key(index) || "";
+      if (!key.includes("auth-token") && !key.includes("supabase.auth.token")) continue;
+
+      try {
+        const raw = store.getItem(key);
+        if (!raw) continue;
+
+        const parsed = JSON.parse(raw);
+        const token =
+          parsed?.currentSession?.access_token ||
+          parsed?.access_token ||
+          parsed?.session?.access_token ||
+          parsed?.data?.session?.access_token;
+
+        if (typeof token === "string" && token.length > 20) return token;
+      } catch {
+        // ignore malformed storage entry
+      }
+    }
+  }
+
+  return "";
+}
+
+async function waitForAccessToken() {
+  if (!supabase) return "";
+
+  for (let attempt = 0; attempt < 6; attempt += 1) {
+    const sessionResult = await supabase.auth.getSession();
+    const token = sessionResult.data.session?.access_token;
+    if (token) return token;
+
+    try {
+      const refreshed = await supabase.auth.refreshSession();
+      if (refreshed.data.session?.access_token) return refreshed.data.session.access_token;
+    } catch {
+      // refresh may fail when session is truly missing
+    }
+
+    const stored = readStoredSupabaseAccessToken();
+    if (stored) return stored;
+
+    await new Promise((resolve) => window.setTimeout(resolve, 450));
+  }
+
+  return "";
+}
+
+function failMissingSession(): LiveKitTokenResponse {
+  localStorage.removeItem("omideno7.react.profile");
+  localStorage.removeItem("omideno7.profile.override");
+  window.dispatchEvent(new CustomEvent("omide-auth-session-missing"));
+
+  return {
+    ok: false,
+    reason: "missing_supabase_session",
+    message: "Secure login session expired. Please sign in again, then enter the live room."
+  };
 }
 
 export const liveKitTokenService = {
@@ -43,34 +110,10 @@ export const liveKitTokenService = {
       return { ok: false, reason: "waiting_room_admission_required", message: "Member must be admitted from Waiting Room first." };
     }
 
-    let sessionResult = await supabase?.auth.getSession();
-    let accessToken = sessionResult?.data.session?.access_token;
+    const accessToken = await waitForAccessToken();
+    if (!accessToken) return failMissingSession();
 
-    // Some browsers, especially Safari/iOS after a deployment or app refresh,
-    // can have a profile loaded while the auth session is not hydrated yet.
-    // Try a Supabase refresh before failing.
-    if (!accessToken) {
-      try {
-        const refreshed = await supabase?.auth.refreshSession();
-        sessionResult = refreshed as any;
-        accessToken = refreshed?.data.session?.access_token;
-      } catch {
-        // ignore and fall through to the real missing-session response
-      }
-    }
-
-    if (!accessToken) {
-      localStorage.removeItem("omideno7.react.profile");
-      localStorage.removeItem("omideno7.profile.override");
-      window.dispatchEvent(new CustomEvent("omide-auth-session-missing"));
-      return {
-        ok: false,
-        reason: "missing_supabase_session",
-        message: "Auth session missing. Please sign in again, then enter the live room."
-      };
-    }
-
-    const timeout = timeoutSignal(15000);
+    const timeout = timeoutSignal(30000);
 
     try {
       const response = await fetch(liveKitReadyConfig.tokenEndpoint, {
@@ -100,6 +143,10 @@ export const liveKitTokenService = {
       }
 
       if (!response.ok || !data.ok) {
+        if (data.reason === "missing_supabase_session" || data.reason === "invalid_supabase_session") {
+          return failMissingSession();
+        }
+
         return {
           ok: false,
           reason: data.reason || `http_${response.status}`,
@@ -113,7 +160,7 @@ export const liveKitTokenService = {
         return {
           ok: false,
           reason: "token_request_timeout",
-          message: "LiveKit token request timed out after 15 seconds. Check /api/livekit/debug and Vercel Environment Variables."
+          message: "LiveKit token request timed out after 30 seconds. Check /api/livekit/debug and Vercel Environment Variables."
         };
       }
 
