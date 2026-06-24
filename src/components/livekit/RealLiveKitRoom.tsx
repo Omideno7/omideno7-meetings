@@ -215,21 +215,29 @@ function wait(ms: number) {
 }
 
 async function safariMediaPreflight() {
-  if (!navigator.mediaDevices?.getUserMedia) return;
+  if (!navigator.mediaDevices?.getUserMedia) {
+    throw new Error("Safari mediaDevices.getUserMedia is not available. Open the site directly in Safari, not inside another app.");
+  }
 
-  // Safari is much more stable when getUserMedia is initiated from the same
-  // user gesture before the WebRTC room starts negotiating.
   let stream: MediaStream | null = null;
 
   try {
+    // Request both camera and microphone from the user's direct click.
+    // If Safari has already blocked this site, it may fail immediately without a popup.
     stream = await navigator.mediaDevices.getUserMedia({
       audio: {
         echoCancellation: true,
         noiseSuppression: true,
         autoGainControl: true
       } as MediaTrackConstraints,
-      video: false
+      video: {
+        width: { ideal: 640 },
+        height: { ideal: 360 },
+        facingMode: "user"
+      } as MediaTrackConstraints
     });
+
+    return true;
   } finally {
     if (stream) {
       stream.getTracks().forEach((track) => track.stop());
@@ -323,6 +331,26 @@ export function RealLiveKitRoom({
     room.on(RoomEvent.ActiveSpeakersChanged, update);
   }
 
+  async function requestSafariPermissionTest() {
+    setError("");
+    setSafariPermissionStatus("Checking Safari camera and microphone permission...");
+
+    try {
+      await safariMediaPreflight();
+      setSafariPermissionStatus("Safari camera and microphone permission is OK.");
+      return true;
+    } catch (permissionError: any) {
+      const message = permissionError?.message || String(permissionError || "");
+      setSafariPermissionStatus("Safari did not allow camera/microphone.");
+      setError(
+        message.includes("Permission denied") || message.includes("NotAllowed")
+          ? "Safari has blocked camera/microphone for this site. Open Safari Settings > Websites > Camera and Microphone, set this domain to Allow or Ask, then refresh and try again."
+          : message || "Safari could not open camera/microphone permission."
+      );
+      return false;
+    }
+  }
+
   async function connect(forceStart = false) {
     if (connectingRef.current || connected) return;
 
@@ -342,12 +370,10 @@ export function RealLiveKitRoom({
     setError("");
 
     if (isSafariMode) {
-      setStatus("Safari mode: checking microphone permission...");
-      try {
-        await safariMediaPreflight();
-      } catch (permissionError: any) {
+      setStatus("Safari mode: checking camera and microphone permission...");
+      const permissionOk = await requestSafariPermissionTest();
+      if (!permissionOk) {
         setStatus("Safari permission required");
-        setError(permissionError?.message || "Safari blocked microphone permission. Allow microphone/camera for this website, then try again.");
         connectingRef.current = false;
         return;
       }
@@ -963,9 +989,25 @@ export function RealLiveKitRoom({
 
       <div className="omide-livekit-clean-status">{status}</div>
 
-      {(browserMode.isIOS || browserMode.isSafari) && (
+      {(browserMode.isIOS || browserMode.isSafari || isSafariMode) && (
         <div className="omide-livekit-clean-notice">
-          Safari/iOS compatibility mode is active. Microphone permission is checked before LiveKit connects.
+          <button
+            type="button"
+            onClick={() => void requestSafariPermissionTest()}
+            style={{
+              border: 0,
+              borderRadius: 999,
+              padding: "8px 12px",
+              marginRight: 8,
+              background: "#13bf54",
+              color: "#fff",
+              fontWeight: 800,
+              cursor: "pointer"
+            }}
+          >
+            Test Safari camera/mic
+          </button>
+          <span>{safariPermissionStatus || "First press this button. Safari should ask for camera/microphone permission."}</span>
         </div>
       )}
 

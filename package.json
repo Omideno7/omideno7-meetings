@@ -1,7 +1,7 @@
 {
   "name": "omideno7-meetings-react",
   "private": true,
-  "version": "1.34.0-safari-livekit-connection-fix",
+  "version": "1.35.0-safari-permission-test",
   "type": "module",
   "description": "OmideNo7 Meetings \u2014 Vite + React + TypeScript conversion starter",
   "scripts": {
@@ -39,5 +39,5 @@
     "typescript": "latest",
     "vite": "latest"
   },
-  "appStage": "steps-1226-to-1275-safari-livekit-connection-fix"
+  "appStage": "steps-1276-to-1310-safari-permission-test"
 }
