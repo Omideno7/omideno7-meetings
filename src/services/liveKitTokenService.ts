@@ -43,13 +43,31 @@ export const liveKitTokenService = {
       return { ok: false, reason: "waiting_room_admission_required", message: "Member must be admitted from Waiting Room first." };
     }
 
-    const sessionResult = await supabase?.auth.getSession();
-    const accessToken = sessionResult?.data.session?.access_token;
+    let sessionResult = await supabase?.auth.getSession();
+    let accessToken = sessionResult?.data.session?.access_token;
+
+    // Some browsers, especially Safari/iOS after a deployment or app refresh,
+    // can have a profile loaded while the auth session is not hydrated yet.
+    // Try a Supabase refresh before failing.
+    if (!accessToken) {
+      try {
+        const refreshed = await supabase?.auth.refreshSession();
+        sessionResult = refreshed as any;
+        accessToken = refreshed?.data.session?.access_token;
+      } catch {
+        // ignore and fall through to the real missing-session response
+      }
+    }
 
     if (!accessToken) {
       localStorage.removeItem("omideno7.react.profile");
       localStorage.removeItem("omideno7.profile.override");
-      return { ok: false, reason: "missing_supabase_session", message: "Auth session missing. Please logout, refresh, and sign in again with email/password." };
+      window.dispatchEvent(new CustomEvent("omide-auth-session-missing"));
+      return {
+        ok: false,
+        reason: "missing_supabase_session",
+        message: "Auth session missing. Please sign in again, then enter the live room."
+      };
     }
 
     const timeout = timeoutSignal(15000);

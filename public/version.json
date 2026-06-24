@@ -1,5 +1,5 @@
 {
   "app": "OmideNo7 Meetings",
-  "version": "1.29.0",
-  "build": "host-controls-member-autojoin-safari-mode"
+  "version": "1.30.0",
+  "build": "auth-session-recovery"
 }

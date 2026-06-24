@@ -1,4 +1,4 @@
-const CACHE_NAME = "omideno7-meetings-pwa-v129-host-controls-safari";
+const CACHE_NAME = "omideno7-meetings-pwa-v130-auth-session-recovery";
 const APP_SHELL = [
   "/offline.html",
   "/manifest.webmanifest",

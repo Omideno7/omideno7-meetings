@@ -1,7 +1,7 @@
 {
   "name": "omideno7-meetings-react",
   "private": true,
-  "version": "1.29.0-host-controls-member-autojoin-safari-mode",
+  "version": "1.30.0-auth-session-recovery",
   "type": "module",
   "description": "OmideNo7 Meetings \u2014 Vite + React + TypeScript conversion starter",
   "scripts": {
@@ -39,5 +39,5 @@
     "typescript": "latest",
     "vite": "latest"
   },
-  "appStage": "steps-1041-to-1120-host-controls-member-autojoin-safari-mode"
+  "appStage": "steps-1121-to-1160-auth-session-recovery"
 }
