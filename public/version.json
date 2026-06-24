@@ -1,5 +1,5 @@
 {
   "app": "OmideNo7 Meetings",
-  "version": "1.42.0",
-  "build": "clean-livekit-reset-from-v128"
+  "version": "1.43.0",
+  "build": "live-controls-reactions-clean"
 }
