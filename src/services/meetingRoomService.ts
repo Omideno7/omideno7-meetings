@@ -69,6 +69,35 @@ function writeLocal<T>(key: string, value: T) {
   localStorage.setItem(key, JSON.stringify(value));
 }
 
+
+async function hydrateParticipantProfiles(rows: RoomParticipant[]): Promise<RoomParticipant[]> {
+  if (!supabase || rows.length === 0) return rows;
+
+  const ids = Array.from(new Set(rows.map((row) => row.profile_id).filter(Boolean))) as string[];
+  if (ids.length === 0) return rows;
+
+  const { data, error } = await supabase
+    .from("profiles")
+    .select("id,email,display_name,full_name,avatar_url,role,status")
+    .in("id", ids);
+
+  if (error || !data) return rows;
+
+  const byId = new Map<string, any>(data.map((row: any) => [row.id, row]));
+
+  return rows.map((row) => {
+    const profile = row.profile_id ? byId.get(row.profile_id) : null;
+    if (!profile) return row;
+
+    return {
+      ...row,
+      display_name: profile.display_name || profile.full_name || profile.email || row.display_name,
+      avatar_url: profile.avatar_url || row.avatar_url || null,
+      role_label: profile.role || row.role_label || "approved_member"
+    };
+  });
+}
+
 function toParticipant(profile: UserProfile | null, status: RoomParticipantStatus, patch: Partial<RoomParticipant> = {}): RoomParticipant {
   const profileId = profile?.id || "guest";
   return {
@@ -86,6 +115,40 @@ function toParticipant(profile: UserProfile | null, status: RoomParticipantStatu
     status,
     ...patch
   };
+}
+
+
+async function enrichParticipantsFromProfiles(rows: RoomParticipant[]): Promise<RoomParticipant[]> {
+  if (!supabase || rows.length === 0) return rows;
+
+  const ids = Array.from(new Set(rows.map((row) => row.profile_id).filter(Boolean))) as string[];
+  if (ids.length === 0) return rows;
+
+  const { data, error } = await supabase
+    .from("profiles")
+    .select("id,display_name,full_name,email,avatar_url,role")
+    .in("id", ids);
+
+  if (error || !data) return rows;
+
+  const byId = new Map<string, any>();
+  data.forEach((item: any) => byId.set(item.id, item));
+
+  return rows.map((row) => {
+    const linked = row.profile_id ? byId.get(row.profile_id) : null;
+    if (!linked) return row;
+
+    const cleanName = linked.display_name || linked.full_name || linked.email || row.display_name;
+    const cleanAvatar = linked.avatar_url || row.avatar_url || null;
+    const cleanRole = row.role_label || linked.role || "approved_member";
+
+    return {
+      ...row,
+      display_name: cleanName,
+      avatar_url: cleanAvatar,
+      role_label: cleanRole
+    };
+  });
 }
 
 export const meetingRoomService = {
@@ -151,14 +214,14 @@ export const meetingRoomService = {
         .order("updated_at", { ascending: false });
       if (status) query = query.eq("status", status);
       const { data, error } = await query;
-      if (!error && data) return data as RoomParticipant[];
+      if (!error && data) return hydrateParticipantProfiles(data as RoomParticipant[]);
     }
 
     const rows = readLocal<RoomParticipant[]>(LOCAL_PARTICIPANTS, []);
     return status ? rows.filter((item) => item.status === status) : rows;
   },
 
-  async updateParticipant(id: string, patch: Partial<RoomParticipant>) {
+  async updateParticipant(id: string, patch: Partial<RoomParticipant>): Promise<boolean> {
     const cleanPatch = Object.fromEntries(
       Object.entries(patch).filter(([, value]) => typeof value !== "undefined")
     ) as Partial<RoomParticipant>;
@@ -168,11 +231,13 @@ export const meetingRoomService = {
         .from("meeting_room_participants")
         .update({ ...cleanPatch, updated_at: new Date().toISOString() })
         .eq("id", id);
-      if (!error) return;
+      if (!error) return true;
+      console.warn("meeting_room_participants update failed", error.message);
     }
 
     const local = readLocal<RoomParticipant[]>(LOCAL_PARTICIPANTS, []);
     writeLocal(LOCAL_PARTICIPANTS, local.map((item) => item.id === id ? { ...item, ...cleanPatch, updated_at: new Date().toISOString() } : item));
+    return false;
   },
 
   async admitParticipant(id: string) {
@@ -190,7 +255,7 @@ export const meetingRoomService = {
     await this.raiseAlert("A participant was removed from the meeting.", "security", "red", "active");
   },
 
-  async setParticipantMicPermission(id: string, allowed: boolean) {
+  async setParticipantMicPermission(id: string, allowed: boolean): Promise<boolean> {
     if (supabase) {
       const { error: rpcError } = await supabase.rpc("host_set_participant_mic_permission", {
         p_participant_id: id,
@@ -198,15 +263,17 @@ export const meetingRoomService = {
       });
       if (!rpcError) {
         await this.raiseAlert(allowed ? "Microphone permission was allowed." : "Microphone permission was locked by host.", "mic_permission", "red", "active");
-        return;
+        return true;
       }
+      console.warn("host_set_participant_mic_permission RPC failed", rpcError.message);
     }
 
-    await this.updateParticipant(id, {
+    const saved = await this.updateParticipant(id, {
       allowed_mic: allowed,
       mic_on: allowed ? undefined : false
     } as Partial<RoomParticipant>);
     await this.raiseAlert(allowed ? "Microphone permission was allowed." : "Microphone permission was locked by host.", "mic_permission", "red", "active");
+    return saved;
   },
 
   async updateParticipantRole(id: string, roleLabel: string) {
@@ -216,13 +283,20 @@ export const meetingRoomService = {
         p_participant_id: id,
         p_role_label: normalized
       });
-      if (!rpcError) return;
+      if (!rpcError) return true;
+
+      const { error } = await supabase
+        .from("meeting_room_participants")
+        .update({ role_label: normalized, allowed_mic: normalized === "co_host" ? true : undefined, updated_at: new Date().toISOString() })
+        .eq("id", id);
+      if (!error) return true;
     }
 
     await this.updateParticipant(id, {
       role_label: normalized,
       allowed_mic: normalized === "co_host" ? true : undefined
     } as Partial<RoomParticipant>);
+    return true;
   },
 
   async updateProfileRole(profileId: string | null, role: string) {
@@ -235,6 +309,28 @@ export const meetingRoomService = {
       if (!error) return true;
     }
     return false;
+  },
+
+  async setMyHandRaised(profile: UserProfile | null, raised: boolean) {
+    if (!profile?.id) return false;
+    const id = roomParticipantId(MEETING_ID, profile.id);
+
+    if (supabase) {
+      const { error: rpcError } = await supabase.rpc("set_my_hand_raised", {
+        p_meeting_id: MEETING_ID,
+        p_hand_raised: raised
+      });
+      if (!rpcError) return true;
+
+      const { error } = await supabase
+        .from("meeting_room_participants")
+        .update({ hand_raised: raised, updated_at: new Date().toISOString() })
+        .eq("id", id);
+      if (!error) return true;
+    }
+
+    await this.updateParticipant(id, { hand_raised: raised });
+    return true;
   },
 
   async sendChat(profile: UserProfile | null, message: string, targetType: RoomChatMessage["target_type"] = "everyone", targetId: string | null = null) {

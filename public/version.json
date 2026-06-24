@@ -1,5 +1,5 @@
 {
-  "version": "1.46.0",
-  "stage": "room-control-fix",
-  "label": "v146 chat/role/avatar/reactions/screen-share fixes"
+  "version": "1.47.0",
+  "stage": "v147-meeting-state-media-fix",
+  "label": "OmideNo7 Meetings v1.47 meeting state media fix"
 }

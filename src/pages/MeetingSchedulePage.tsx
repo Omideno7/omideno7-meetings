@@ -351,8 +351,8 @@ export function MeetingSchedulePage() {
               </div>
 
               <div className="button-row">
-                <Button onClick={() => setRoute("waitingRoom")}>Waiting Room</Button>
-                <Button variant="secondary" onClick={() => setRoute("liveMeeting")}>Live UI</Button>
+                <Button onClick={() => setRoute("waitingRoom")}>{isHost ? "Waiting Room" : "Request to Join"}</Button>
+                {isHost && <Button variant="secondary" onClick={() => setRoute("liveMeeting")}>Live UI</Button>}
                 {group.items.length > 1 && <Button variant="ghost" onClick={() => toggleSeries(group.key)}>{expanded ? "Hide occurrences" : "Show occurrences"}</Button>}
                 {isHost && (
                   <>

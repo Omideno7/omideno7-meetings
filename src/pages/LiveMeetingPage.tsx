@@ -770,6 +770,7 @@ export function LiveMeetingPage() {
   const [chatTarget, setChatTarget] = useState<ChatTarget>("everyone");
   const [openPersonMenu, setOpenPersonMenu] = useState<string | null>(null);
   const [myMeetingRole, setMyMeetingRole] = useState<string>("");
+  const [handRaised, setHandRaised] = useState(false);
   const [reactionMenuOpen, setReactionMenuOpen] = useState(false);
   const [recording, setRecording] = useState(false);
   const [recordingStartedAt, setRecordingStartedAt] = useState<number | null>(null);
@@ -839,6 +840,7 @@ export function LiveMeetingPage() {
     setChatMode(settings?.chat_mode || "public");
     setParticipants(rows.filter((row) => row.status === "online"));
     setWaiting(rows.filter((row) => row.status === "waiting"));
+    if (myRow) setHandRaised(Boolean(myRow.hand_raised));
 
     const visibleMessages: RoomChatMessage[] = [];
     const reactionRows: RoomChatMessage[] = [];
@@ -929,7 +931,7 @@ export function LiveMeetingPage() {
       window.clearInterval(timer);
       unsubscribe();
     };
-  }, [profile?.id, profile?.avatarUrl, canHost]);
+  }, [profile?.id, profile?.displayName, profile?.avatarUrl, profile?.role, canHost]);
 
   useEffect(() => {
     if (!profile?.id) return;
@@ -980,24 +982,26 @@ export function LiveMeetingPage() {
   async function togglePersonMicPermission(person: RoomParticipant) {
     if (!canMicControl) return notify("Only host roles can control microphones.");
     const allow = person.allowed_mic === false;
-    await meetingRoomService.setParticipantMicPermission(person.id, allow);
-    notify(allow ? `${person.display_name} can unmute now. They must press Unmute themselves.` : `${person.display_name} microphone locked and will be muted automatically.`);
+    const saved = await meetingRoomService.setParticipantMicPermission(person.id, allow);
+    notify(saved
+      ? (allow ? `${person.display_name} can unmute now. They must press Unmute themselves.` : `${person.display_name} microphone locked and will be muted automatically.`)
+      : "Microphone control did not save in Supabase. Run the v1.47 SQL patch.");
     await refreshRoom();
   }
 
   async function makeCoHost(person: RoomParticipant) {
     if (!canHost) return notify("Only host roles can change meeting roles.");
-    await meetingRoomService.updateParticipantRole(person.id, "co_host");
-    await meetingRoomService.updateProfileRole(person.profile_id, "co_host");
-    notify(`${person.display_name} is now co-host.`);
+    const roleSaved = await meetingRoomService.updateParticipantRole(person.id, "co_host");
+    const profileSaved = await meetingRoomService.updateProfileRole(person.profile_id, "co_host");
+    notify(roleSaved || profileSaved ? `${person.display_name} is now co-host.` : "Co-host change did not save. Run the v1.47 SQL patch.");
     await refreshRoom();
   }
 
   async function makeMember(person: RoomParticipant) {
     if (!canHost) return notify("Only host roles can change meeting roles.");
-    await meetingRoomService.updateParticipantRole(person.id, "approved_member");
-    await meetingRoomService.updateProfileRole(person.profile_id, "approved_member");
-    notify(`${person.display_name} is now member.`);
+    const roleSaved = await meetingRoomService.updateParticipantRole(person.id, "approved_member");
+    const profileSaved = await meetingRoomService.updateProfileRole(person.profile_id, "approved_member");
+    notify(roleSaved || profileSaved ? `${person.display_name} is now member.` : "Role change did not save. Run the v1.47 SQL patch.");
     await refreshRoom();
   }
 
@@ -1064,9 +1068,10 @@ export function LiveMeetingPage() {
     if (!profile?.id) return;
     const myId = roomParticipantId(meetingRoomService.meetingId, profile.id);
     const myRow = participants.find((item) => item.id === myId) || await meetingRoomService.getMyRow(profile);
-    const next = !Boolean(myRow?.hand_raised);
-    await meetingRoomService.updateParticipant(myId, { hand_raised: next });
-    notify(next ? "Hand raised." : "Hand lowered.");
+    const next = !Boolean(myRow?.hand_raised ?? handRaised);
+    setHandRaised(next);
+    const saved = await meetingRoomService.setMyHandRaised(profile, next);
+    notify(saved ? (next ? "Hand raised." : "Hand lowered.") : "Hand status did not save. Run the v1.47 SQL patch.");
     await refreshRoom();
   }
 
@@ -1101,7 +1106,7 @@ export function LiveMeetingPage() {
       role_label: myMeetingRole || roleLabel(profile?.role),
       avatar_url: profile?.avatarUrl || currentRow?.avatar_url || null,
       allowed_mic: true,
-      hand_raised: Boolean(currentRow?.hand_raised)
+      hand_raised: Boolean(currentRow?.hand_raised ?? handRaised)
     });
 
     await refreshRoom();

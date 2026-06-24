@@ -1,9 +1,9 @@
 {
   "name": "omideno7-meetings-react",
   "private": true,
-  "version": "1.46.0-room-control-fix",
+  "version": "1.47.0-meeting-state-media-fix",
   "type": "module",
-  "description": "OmideNo7 Meetings \u2014 Vite + React + TypeScript conversion starter",
+  "description": "OmideNo7 Meetings — Vite + React + TypeScript conversion starter",
   "scripts": {
     "dev": "vite",
     "build": "vite build",
@@ -39,5 +39,5 @@
     "typescript": "latest",
     "vite": "latest"
   },
-  "appStage": "v145-polish-controls"
+  "appStage": "v147-meeting-state-media-fix"
 }

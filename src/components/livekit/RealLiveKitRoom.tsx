@@ -161,12 +161,13 @@ function tileFromParticipant(participant: any, isLocal: boolean, participantRows
 
   const audioLevel = Math.max(0, Math.min(Number(participant?.audioLevel || 0), 1));
   const metadata = safeMetadata(participant);
-  const name = participant?.name || participant?.identity || (isLocal ? "You" : "Participant");
-  const profileId = metadata.profileId || String(participant?.identity || "").split(":")[0] || null;
+  const rawName = participant?.name || participant?.identity || (isLocal ? "You" : "Participant");
+  const profileId = metadata.profileId || (isLocal ? localProfile?.id : null) || String(participant?.identity || "").split(":")[0] || null;
   const matchedRow = participantRows.find((row) => {
     if (profileId && row.profile_id === profileId) return true;
-    return row.display_name === name;
+    return row.display_name === rawName;
   });
+  const name = matchedRow?.display_name || rawName;
 
   return {
     key: participant?.sid || participant?.identity || participant?.name || (isLocal ? "local" : crypto.randomUUID()),
@@ -242,6 +243,12 @@ export function RealLiveKitRoom({
   const [micOn, setMicOn] = useState(false);
   const [cameraOn, setCameraOn] = useState(false);
   const [screenOn, setScreenOn] = useState(false);
+  const [micLevel, setMicLevel] = useState(0);
+  const [audioSettingsOpen, setAudioSettingsOpen] = useState(false);
+  const [musicMode, setMusicMode] = useState(false);
+  const [noiseSuppression, setNoiseSuppression] = useState(true);
+  const [echoCancellation, setEchoCancellation] = useState(true);
+  const [autoGainControl, setAutoGainControl] = useState(true);
   const [tiles, setTiles] = useState<LiveTile[]>([]);
   const [needsStart, setNeedsStart] = useState(Boolean(confirmBeforeStart));
   const [notice] = useState(browserNotice());
@@ -426,7 +433,12 @@ export function RealLiveKitRoom({
     setMicOn(next);
 
     try {
-      await room.localParticipant.setMicrophoneEnabled(next);
+      const audioOptions = next ? {
+        echoCancellation: musicMode ? false : echoCancellation,
+        noiseSuppression: musicMode ? false : noiseSuppression,
+        autoGainControl: musicMode ? false : autoGainControl
+      } : undefined;
+      await (room.localParticipant as any).setMicrophoneEnabled(next, audioOptions);
       refreshTiles(room);
       await onMediaStateChange?.({ mic: next, camera: cameraOn });
     } catch (err: any) {
@@ -487,7 +499,7 @@ export function RealLiveKitRoom({
       await (room.localParticipant as any).setScreenShareEnabled(next, {
         audio: true,
         systemAudio: "include",
-        selfBrowserSurface: "include",
+        selfBrowserSurface: "exclude",
         surfaceSwitching: "include",
         monitorTypeSurfaces: "include"
       });
@@ -519,6 +531,21 @@ export function RealLiveKitRoom({
     refreshTiles();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [participants]);
+
+  useEffect(() => {
+    if (!micOn || !roomRef.current) {
+      setMicLevel(0);
+      return;
+    }
+
+    const timer = window.setInterval(() => {
+      const local = roomRef.current?.localParticipant as any;
+      const level = Math.max(0, Math.min(Number(local?.audioLevel || 0), 1));
+      setMicLevel(level);
+    }, 160);
+
+    return () => window.clearInterval(timer);
+  }, [micOn]);
 
   useEffect(() => {
     function handleLiveKitControl(event: Event) {
@@ -892,6 +919,22 @@ export function RealLiveKitRoom({
             {screenOn ? "Stop share" : "Share screen"}
           </button>
 
+          <div className="omide-audio-settings-wrap">
+            <button type="button" onClick={() => setAudioSettingsOpen((value) => !value)}>
+              Audio <span className="omide-local-mic-meter"><span style={{ width: `${Math.max(4, Math.round(micLevel * 100))}%` }} /></span>
+            </button>
+            {audioSettingsOpen && (
+              <div className="omide-audio-settings-popover">
+                <strong>Audio settings</strong>
+                <label>Music / keyboard mode <input type="checkbox" checked={musicMode} onChange={(event) => setMusicMode(event.target.checked)} /></label>
+                <label>Noise suppression <input type="checkbox" checked={noiseSuppression} disabled={musicMode} onChange={(event) => setNoiseSuppression(event.target.checked)} /></label>
+                <label>Echo cancellation <input type="checkbox" checked={echoCancellation} disabled={musicMode} onChange={(event) => setEchoCancellation(event.target.checked)} /></label>
+                <label>Auto gain <input type="checkbox" checked={autoGainControl} disabled={musicMode} onChange={(event) => setAutoGainControl(event.target.checked)} /></label>
+                <small>{musicMode ? "Music mode keeps keyboard/worship sound more natural. Turn mic off/on after changing this." : "Normal speech mode is recommended for preaching."}</small>
+              </div>
+            )}
+          </div>
+
           <button className="danger" type="button" onClick={() => void disconnect(true)}>
             Leave
           </button>
@@ -899,6 +942,7 @@ export function RealLiveKitRoom({
       </div>
 
       <div className="omide-livekit-clean-status">{status}</div>
+      <div className="omide-share-help">Screen share: choose Entire Screen for desktop, Window for another app, or Chrome Tab for YouTube/worship with tab audio.</div>
 
       {notice && (
         <div className="omide-livekit-clean-notice">

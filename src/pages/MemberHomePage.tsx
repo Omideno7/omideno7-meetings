@@ -133,7 +133,7 @@ export function MemberHomePage() {
               <strong>{meeting.title}</strong>
               <span>{meeting.startsAt}</span>
             </div>
-            <Button variant="secondary" onClick={() => setRoute("liveMeeting")}>Join</Button>
+            <Button variant="secondary" onClick={() => setRoute(canHost ? "liveMeeting" : "waitingRoom")}>Join</Button>
           </article>
         ))}
       </div>
