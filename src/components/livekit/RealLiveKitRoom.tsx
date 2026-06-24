@@ -202,49 +202,6 @@ function getBrowserMode() {
   return { isIOS, isSafari };
 }
 
-
-function isSafariLikeBrowser() {
-  const ua = navigator.userAgent || "";
-  const isIOS = /iPad|iPhone|iPod/.test(ua) || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
-  const isSafari = /^((?!chrome|android|crios|fxios|edg).)*safari/i.test(ua);
-  return isIOS || isSafari;
-}
-
-function wait(ms: number) {
-  return new Promise((resolve) => window.setTimeout(resolve, ms));
-}
-
-async function safariMediaPreflight() {
-  if (!navigator.mediaDevices?.getUserMedia) {
-    throw new Error("Safari mediaDevices.getUserMedia is not available. Open the site directly in Safari, not inside another app.");
-  }
-
-  let stream: MediaStream | null = null;
-
-  try {
-    // Request both camera and microphone from the user's direct click.
-    // If Safari has already blocked this site, it may fail immediately without a popup.
-    stream = await navigator.mediaDevices.getUserMedia({
-      audio: {
-        echoCancellation: true,
-        noiseSuppression: true,
-        autoGainControl: true
-      } as MediaTrackConstraints,
-      video: {
-        width: { ideal: 640 },
-        height: { ideal: 360 },
-        facingMode: "user"
-      } as MediaTrackConstraints
-    });
-
-    return true;
-  } finally {
-    if (stream) {
-      stream.getTracks().forEach((track) => track.stop());
-    }
-  }
-}
-
 export function RealLiveKitRoom({
   profile,
   admitted,
@@ -273,7 +230,6 @@ export function RealLiveKitRoom({
   const [audioOutputs, setAudioOutputs] = useState<MediaDeviceInfo[]>([]);
   const [sinkIndex, setSinkIndex] = useState(0);
   const [browserMode] = useState(getBrowserMode());
-  const [isSafariMode] = useState(isSafariLikeBrowser());
 
   const canEnter = Boolean(profile?.status === "approved" && (isHostRole(profile) || admitted));
   const currentSinkId = audioOutputs[sinkIndex]?.deviceId || "";
@@ -331,26 +287,6 @@ export function RealLiveKitRoom({
     room.on(RoomEvent.ActiveSpeakersChanged, update);
   }
 
-  async function requestSafariPermissionTest() {
-    setError("");
-    setSafariPermissionStatus("Checking Safari camera and microphone permission...");
-
-    try {
-      await safariMediaPreflight();
-      setSafariPermissionStatus("Safari camera and microphone permission is OK.");
-      return true;
-    } catch (permissionError: any) {
-      const message = permissionError?.message || String(permissionError || "");
-      setSafariPermissionStatus("Safari did not allow camera/microphone.");
-      setError(
-        message.includes("Permission denied") || message.includes("NotAllowed")
-          ? "Safari has blocked camera/microphone for this site. Open Safari Settings > Websites > Camera and Microphone, set this domain to Allow or Ask, then refresh and try again."
-          : message || "Safari could not open camera/microphone permission."
-      );
-      return false;
-    }
-  }
-
   async function connect(forceStart = false) {
     if (connectingRef.current || connected) return;
 
@@ -368,19 +304,6 @@ export function RealLiveKitRoom({
     connectingRef.current = true;
     setNeedsStart(false);
     setError("");
-
-    if (isSafariMode) {
-      setStatus("Safari mode: checking camera and microphone permission...");
-      const permissionOk = await requestSafariPermissionTest();
-      if (!permissionOk) {
-        setStatus("Safari permission required");
-        connectingRef.current = false;
-        return;
-      }
-
-      await wait(250);
-    }
-
     setStatus("Requesting secure LiveKit token...");
 
     try {
@@ -409,66 +332,16 @@ export function RealLiveKitRoom({
       setStatus("Connecting to LiveKit room...");
 
       const room = new Room({
-        // Safari/iOS mode avoids connection features that can trigger unstable
-        // signaling or negotiation on WebKit. Chrome still uses the stronger mode.
-        adaptiveStream: !isSafariMode,
-        dynacast: !isSafariMode,
-        disconnectOnPageLeave: false,
-        publishDefaults: {
-          simulcast: !isSafariMode,
-          videoCodec: isSafariMode ? "h264" : undefined,
-          stopMicTrackOnMute: true
-        } as any
-      } as any);
+        adaptiveStream: true,
+        dynacast: true
+      });
 
       roomRef.current = room;
       wireRoom(room);
 
-      const wsUrl = result.wsUrl || liveKitReadyConfig.wsUrl;
-
-      if (isSafariMode && typeof (room as any).prepareConnection === "function") {
-        try {
-          setStatus("Safari mode: preparing connection...");
-          await (room as any).prepareConnection(wsUrl, result.token);
-          await wait(300);
-        } catch {
-          // prepareConnection is only a preflight optimization; continue to real connect
-        }
-      }
-
-      let lastConnectError: any = null;
-      const attempts = isSafariMode ? 3 : 1;
-
-      for (let attempt = 1; attempt <= attempts; attempt += 1) {
-        try {
-          setStatus(isSafariMode ? `Safari mode: connecting attempt ${attempt}/${attempts}...` : "Connecting to LiveKit room...");
-          await room.connect(wsUrl, result.token, {
-            autoSubscribe: true,
-            rtcConfig: isSafariMode
-              ? {
-                  iceCandidatePoolSize: 0,
-                  bundlePolicy: "balanced",
-                  rtcpMuxPolicy: "require"
-                }
-              : undefined
-          } as any);
-          lastConnectError = null;
-          break;
-        } catch (connectError: any) {
-          lastConnectError = connectError;
-          if (!isSafariMode || attempt === attempts) break;
-          try {
-            room.disconnect();
-          } catch {
-            // ignore
-          }
-          await wait(900 * attempt);
-        }
-      }
-
-      if (lastConnectError) {
-        throw lastConnectError;
-      }
+      await room.connect(result.wsUrl || liveKitReadyConfig.wsUrl, result.token, {
+        autoSubscribe: true
+      });
 
       refreshTiles(room);
       window.setTimeout(() => refreshTiles(room), 500);
@@ -487,7 +360,7 @@ export function RealLiveKitRoom({
       setStatus("Connection failed");
 
       const safariHint = browserMode.isIOS || browserMode.isSafari
-        ? " Safari/iOS: close other OmideNo7 tabs, allow microphone/camera for this site, disable iCloud Private Relay/VPN for this test, then try again."
+        ? " Safari/iOS mode: keep this page open in Safari browser, allow camera/microphone, and try again."
         : "";
 
       setError(`${err?.message || "Could not connect to LiveKit room."}${safariHint}`);
@@ -989,25 +862,9 @@ export function RealLiveKitRoom({
 
       <div className="omide-livekit-clean-status">{status}</div>
 
-      {(browserMode.isIOS || browserMode.isSafari || isSafariMode) && (
+      {(browserMode.isIOS || browserMode.isSafari) && (
         <div className="omide-livekit-clean-notice">
-          <button
-            type="button"
-            onClick={() => void requestSafariPermissionTest()}
-            style={{
-              border: 0,
-              borderRadius: 999,
-              padding: "8px 12px",
-              marginRight: 8,
-              background: "#13bf54",
-              color: "#fff",
-              fontWeight: 800,
-              cursor: "pointer"
-            }}
-          >
-            Test Safari camera/mic
-          </button>
-          <span>{safariPermissionStatus || "First press this button. Safari should ask for camera/microphone permission."}</span>
+          Safari/iOS compatibility mode is active. Keep this page open in Safari browser and allow camera/microphone.
         </div>
       )}
 

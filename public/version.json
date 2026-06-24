@@ -1,6 +1,7 @@
 {
   "app": "OmideNo7 Meetings",
-  "version": "1.37.0",
-  "build": "safari-cache-bypass",
-  "note": "Temporary test build: service worker/cache bypass enabled."
+  "version": "1.38.0",
+  "build": "safari-cache-bypass-no-dependency-change",
+  "base": "omideno7-meetings-v133-emergency-live-restore.zip",
+  "note": "No LiveKit dependency version changes. Temporary Safari cache and permission test build."
 }

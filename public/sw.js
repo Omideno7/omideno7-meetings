@@ -1,4 +1,4 @@
-const CACHE_NAME = "omideno7-meetings-disabled-v137";
+const CACHE_NAME = "omideno7-meetings-disabled-v138";
 
 self.addEventListener("install", (event) => {
   self.skipWaiting();
@@ -16,5 +16,5 @@ self.addEventListener("activate", (event) => {
 });
 
 self.addEventListener("fetch", () => {
-  // Temporary test build: no custom cache.
+  // No custom cache in this temporary Safari diagnostic build.
 });
