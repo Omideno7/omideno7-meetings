@@ -159,31 +159,59 @@ export const meetingRoomService = {
   },
 
   async updateParticipant(id: string, patch: Partial<RoomParticipant>) {
+    const cleanPatch = Object.fromEntries(
+      Object.entries(patch).filter(([, value]) => typeof value !== "undefined")
+    ) as Partial<RoomParticipant>;
+
     if (supabase) {
       const { error } = await supabase
         .from("meeting_room_participants")
-        .update({ ...patch, updated_at: new Date().toISOString() })
+        .update({ ...cleanPatch, updated_at: new Date().toISOString() })
         .eq("id", id);
       if (!error) return;
     }
 
     const local = readLocal<RoomParticipant[]>(LOCAL_PARTICIPANTS, []);
-    writeLocal(LOCAL_PARTICIPANTS, local.map((item) => item.id === id ? { ...item, ...patch, updated_at: new Date().toISOString() } : item));
+    writeLocal(LOCAL_PARTICIPANTS, local.map((item) => item.id === id ? { ...item, ...cleanPatch, updated_at: new Date().toISOString() } : item));
   },
 
   async admitParticipant(id: string) {
-    await this.updateParticipant(id, { status: "online", room_name: "Main Room" });
-    await this.raiseAlert("A waiting member was admitted.", "waiting_resolved", "green", "resolved");
+    await this.updateParticipant(id, { status: "online", room_name: "Main Room", allowed_mic: true });
+    await this.raiseAlert("A waiting member was admitted.", "waiting_resolved", "red", "resolved");
   },
 
   async rejectParticipant(id: string) {
     await this.updateParticipant(id, { status: "removed" });
-    await this.raiseAlert("A waiting member was rejected.", "waiting_resolved", "green", "resolved");
+    await this.raiseAlert("A waiting member was rejected.", "waiting_resolved", "red", "resolved");
   },
 
   async removeParticipant(id: string) {
-    await this.updateParticipant(id, { status: "removed", mic_on: false, camera_on: false });
+    await this.updateParticipant(id, { status: "removed", mic_on: false, camera_on: false, allowed_mic: false });
     await this.raiseAlert("A participant was removed from the meeting.", "security", "red", "active");
+  },
+
+  async setParticipantMicPermission(id: string, allowed: boolean) {
+    await this.updateParticipant(id, {
+      allowed_mic: allowed,
+      mic_on: allowed ? undefined : false
+    } as Partial<RoomParticipant>);
+    await this.raiseAlert(allowed ? "Microphone permission was allowed." : "Microphone permission was locked by host.", "mic_permission", "red", "active");
+  },
+
+  async updateParticipantRole(id: string, roleLabel: string) {
+    await this.updateParticipant(id, { role_label: roleLabel });
+  },
+
+  async updateProfileRole(profileId: string | null, role: string) {
+    if (!profileId) return false;
+    if (supabase) {
+      const { error } = await supabase
+        .from("profiles")
+        .update({ role, updated_at: new Date().toISOString() })
+        .eq("id", profileId);
+      if (!error) return true;
+    }
+    return false;
   },
 
   async sendChat(profile: UserProfile | null, message: string, targetType: RoomChatMessage["target_type"] = "everyone", targetId: string | null = null) {

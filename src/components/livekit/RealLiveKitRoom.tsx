@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { Room, RoomEvent, Track } from "livekit-client";
 import type { UserProfile } from "../../types/roles";
+import type { RoomParticipant } from "../../services/meetingRoomService";
 import { liveKitTokenService } from "../../services/liveKitTokenService";
 import { liveKitReadyConfig } from "../../config/liveKitReady";
 
@@ -13,6 +14,7 @@ type Props = {
   onConnectionChange?: (connected: boolean) => void | Promise<void>;
   onMediaStateChange?: (state: { mic: boolean; camera: boolean }) => void | Promise<void>;
   onLeave?: () => void | Promise<void>;
+  participants?: RoomParticipant[];
 };
 
 type LiveTile = {
@@ -20,10 +22,15 @@ type LiveTile = {
   name: string;
   isLocal: boolean;
   cameraOn: boolean;
+  screenOn: boolean;
   micOn: boolean;
   cameraTrack: any | null;
+  screenTrack: any | null;
   microphoneTrack: any | null;
   audioLevel: number;
+  profileId: string | null;
+  avatarUrl: string | null;
+  handRaised: boolean;
 };
 
 function VideoTrackView({ track, muted }: { track: any | null; muted?: boolean }) {
@@ -98,16 +105,29 @@ function getPublications(participant: any) {
 }
 
 function pickPublication(publications: any[], source: Track.Source, kind: Track.Kind) {
-  return publications.find((publication: any) => {
-    return publication?.source === source || publication?.kind === kind;
-  });
+  const exactSource = publications.find((publication: any) => publication?.source === source);
+  if (exactSource) return exactSource;
+  return publications.find((publication: any) => publication?.kind === kind);
 }
 
-function tileFromParticipant(participant: any, isLocal: boolean): LiveTile {
+function pickExactSource(publications: any[], source: Track.Source) {
+  return publications.find((publication: any) => publication?.source === source);
+}
+
+function safeMetadata(participant: any) {
+  try {
+    return JSON.parse(participant?.metadata || "{}") as { profileId?: string; avatarUrl?: string; role?: string };
+  } catch {
+    return {} as { profileId?: string; avatarUrl?: string; role?: string };
+  }
+}
+
+function tileFromParticipant(participant: any, isLocal: boolean, participantRows: RoomParticipant[] = [], localProfile?: UserProfile | null): LiveTile {
   const publications = getPublications(participant);
 
   const cameraPublication = pickPublication(publications, Track.Source.Camera, Track.Kind.Video);
   const micPublication = pickPublication(publications, Track.Source.Microphone, Track.Kind.Audio);
+  const screenPublication = pickExactSource(publications, Track.Source.ScreenShare);
 
   const cameraTrack =
     cameraPublication?.track ||
@@ -117,6 +137,11 @@ function tileFromParticipant(participant: any, isLocal: boolean): LiveTile {
   const microphoneTrack =
     micPublication?.track ||
     micPublication?.audioTrack ||
+    null;
+
+  const screenTrack =
+    screenPublication?.track ||
+    screenPublication?.videoTrack ||
     null;
 
   const cameraMuted =
@@ -129,17 +154,34 @@ function tileFromParticipant(participant: any, isLocal: boolean): LiveTile {
     Boolean(micPublication?.muted) ||
     Boolean(microphoneTrack?.isMuted);
 
+  const screenMuted =
+    Boolean(screenPublication?.isMuted) ||
+    Boolean(screenPublication?.muted) ||
+    Boolean(screenTrack?.isMuted);
+
   const audioLevel = Math.max(0, Math.min(Number(participant?.audioLevel || 0), 1));
+  const metadata = safeMetadata(participant);
+  const name = participant?.name || participant?.identity || (isLocal ? "You" : "Participant");
+  const profileId = metadata.profileId || String(participant?.identity || "").split(":")[0] || null;
+  const matchedRow = participantRows.find((row) => {
+    if (profileId && row.profile_id === profileId) return true;
+    return row.display_name === name;
+  });
 
   return {
     key: participant?.sid || participant?.identity || participant?.name || (isLocal ? "local" : crypto.randomUUID()),
-    name: participant?.name || participant?.identity || (isLocal ? "You" : "Participant"),
+    name,
     isLocal,
     cameraOn: Boolean(cameraTrack && !cameraMuted),
+    screenOn: Boolean(screenTrack && !screenMuted),
     micOn: Boolean(microphoneTrack && !micMuted),
     cameraTrack,
+    screenTrack,
     microphoneTrack,
-    audioLevel
+    audioLevel,
+    profileId,
+    avatarUrl: metadata.avatarUrl || matchedRow?.avatar_url || (isLocal ? localProfile?.avatarUrl || null : null),
+    handRaised: Boolean(matchedRow?.hand_raised)
   };
 }
 
@@ -187,7 +229,8 @@ export function RealLiveKitRoom({
   confirmBeforeStart = true,
   onConnectionChange,
   onMediaStateChange,
-  onLeave
+  onLeave,
+  participants = []
 }: Props) {
   const roomRef = useRef<Room | null>(null);
   const connectingRef = useRef(false);
@@ -198,6 +241,7 @@ export function RealLiveKitRoom({
   const [error, setError] = useState("");
   const [micOn, setMicOn] = useState(false);
   const [cameraOn, setCameraOn] = useState(false);
+  const [screenOn, setScreenOn] = useState(false);
   const [tiles, setTiles] = useState<LiveTile[]>([]);
   const [needsStart, setNeedsStart] = useState(Boolean(confirmBeforeStart));
   const [notice] = useState(browserNotice());
@@ -213,9 +257,9 @@ export function RealLiveKitRoom({
     }
 
     const nextTiles: LiveTile[] = [
-      tileFromParticipant(activeRoom.localParticipant, true),
+      tileFromParticipant(activeRoom.localParticipant, true, participants, profile),
       ...Array.from(activeRoom.remoteParticipants.values()).map((participant: any) =>
-        tileFromParticipant(participant, false)
+        tileFromParticipant(participant, false, participants, profile)
       )
     ];
 
@@ -234,6 +278,7 @@ export function RealLiveKitRoom({
 
       setMicOn(false);
       setCameraOn(false);
+      setScreenOn(false);
       await onMediaStateChange?.({ mic: false, camera: false });
     });
 
@@ -352,6 +397,7 @@ export function RealLiveKitRoom({
       setConnected(false);
       setMicOn(false);
       setCameraOn(false);
+      setScreenOn(false);
       setTiles([]);
       setStatus("Left meeting");
       await onMediaStateChange?.({ mic: false, camera: false });
@@ -368,6 +414,15 @@ export function RealLiveKitRoom({
     }
 
     const next = !micOn;
+
+    if (next && !isHostRole(profile)) {
+      const myRow = participants.find((row) => row.profile_id === profile?.id);
+      if (myRow && myRow.allowed_mic === false) {
+        setError("The host has locked your microphone. Please raise your hand or ask the host to allow unmute.");
+        return;
+      }
+    }
+
     setMicOn(next);
 
     try {
@@ -401,6 +456,31 @@ export function RealLiveKitRoom({
     }
   }
 
+  async function toggleScreenShare() {
+    const room = roomRef.current;
+    if (!room || !connected) {
+      setError("Enter the live room first.");
+      return;
+    }
+
+    const next = !screenOn;
+    setScreenOn(next);
+
+    try {
+      await (room.localParticipant as any).setScreenShareEnabled(next, {
+        audio: true,
+        systemAudio: "include",
+        selfBrowserSurface: "include",
+        surfaceSwitching: "include"
+      });
+      refreshTiles(room);
+      window.setTimeout(() => refreshTiles(room), 650);
+    } catch (err: any) {
+      setScreenOn(!next);
+      setError(err?.message || "Could not start screen share. On macOS Chrome, share a browser tab and tick Share tab audio when you need music audio.");
+    }
+  }
+
   useEffect(() => {
     if (!autoStart) return;
     if (needsStart) return;
@@ -418,17 +498,23 @@ export function RealLiveKitRoom({
   }, []);
 
   useEffect(() => {
+    refreshTiles();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [participants]);
+
+  useEffect(() => {
     function handleLiveKitControl(event: Event) {
       const action = (event as CustomEvent<{ action?: string }>).detail?.action;
       if (action === "mic") void toggleMic();
       if (action === "camera") void toggleCamera();
+      if (action === "screen") void toggleScreenShare();
       if (action === "leave") void disconnect(true);
       if (action === "force-disconnect") void disconnect(false);
     }
 
     window.addEventListener("omide-livekit-control", handleLiveKitControl as EventListener);
     return () => window.removeEventListener("omide-livekit-control", handleLiveKitControl as EventListener);
-  }, [micOn, cameraOn, connected]);
+  }, [micOn, cameraOn, screenOn, connected, participants]);
 
   useEffect(() => {
     return () => {
@@ -595,7 +681,8 @@ export function RealLiveKitRoom({
           background: radial-gradient(circle at top, #0b5798, #06146d) !important;
         }
 
-        .omide-livekit-clean-avatar span {
+        .omide-livekit-clean-avatar span,
+        .omide-livekit-clean-avatar-img {
           width: 70px !important;
           height: 70px !important;
           border-radius: 22px !important;
@@ -605,6 +692,35 @@ export function RealLiveKitRoom({
           color: #fff !important;
           font-weight: 950 !important;
           font-size: 1.55rem !important;
+        }
+
+        .omide-livekit-clean-avatar-img {
+          object-fit: cover !important;
+          border: 2px solid rgba(255,255,255,.42) !important;
+          box-shadow: 0 12px 30px rgba(0,0,0,.25) !important;
+        }
+
+        .omide-livekit-hand-badge {
+          position: absolute !important;
+          top: 10px !important;
+          left: 10px !important;
+          z-index: 18 !important;
+          min-width: 34px !important;
+          height: 34px !important;
+          padding: 0 9px !important;
+          border-radius: 999px !important;
+          display: grid !important;
+          place-items: center !important;
+          background: rgba(255, 214, 10, .95) !important;
+          color: #111827 !important;
+          font-weight: 950 !important;
+          box-shadow: 0 12px 26px rgba(0,0,0,.32) !important;
+          animation: omide-hand-pulse 1.3s ease-in-out infinite !important;
+        }
+
+        @keyframes omide-hand-pulse {
+          0%, 100% { transform: scale(1); }
+          50% { transform: scale(1.08); }
         }
 
         .omide-livekit-clean-namebar {
@@ -714,11 +830,20 @@ export function RealLiveKitRoom({
             font-size: .55rem !important;
           }
 
-          .omide-livekit-clean-avatar span {
+          .omide-livekit-clean-avatar span,
+          .omide-livekit-clean-avatar-img {
             width: 52px !important;
             height: 52px !important;
             border-radius: 18px !important;
             font-size: 1.2rem !important;
+          }
+
+          .omide-livekit-hand-badge {
+            top: 7px !important;
+            left: 7px !important;
+            min-width: 30px !important;
+            height: 30px !important;
+            font-size: .9rem !important;
           }
         }
       `}</style>
@@ -749,6 +874,10 @@ export function RealLiveKitRoom({
             {cameraOn ? "Camera off" : "Camera on"}
           </button>
 
+          <button type="button" onClick={toggleScreenShare} disabled={!connected}>
+            {screenOn ? "Stop share" : "Share screen"}
+          </button>
+
           <button className="danger" type="button" onClick={() => void disconnect(true)}>
             Leave
           </button>
@@ -777,12 +906,20 @@ export function RealLiveKitRoom({
         <div className="omide-livekit-clean-grid">
           {tiles.map((tile) => (
             <article className="omide-livekit-clean-tile" key={tile.key}>
-              {tile.cameraOn ? (
-                <VideoTrackView track={tile.cameraTrack} muted={tile.isLocal} />
+              {tile.screenOn || tile.cameraOn ? (
+                <VideoTrackView track={tile.screenTrack || tile.cameraTrack} muted={tile.isLocal} />
               ) : (
                 <div className="omide-livekit-clean-avatar">
-                  <span>{initials(tile.name)}</span>
+                  {tile.avatarUrl ? (
+                    <img className="omide-livekit-clean-avatar-img" src={tile.avatarUrl} alt="" />
+                  ) : (
+                    <span>{initials(tile.name)}</span>
+                  )}
                 </div>
+              )}
+
+              {tile.handRaised && (
+                <div className="omide-livekit-hand-badge" title="Hand raised">✋</div>
               )}
 
               <AudioTrackView track={tile.isLocal ? null : tile.microphoneTrack} />
@@ -796,7 +933,7 @@ export function RealLiveKitRoom({
               <div className="omide-livekit-clean-namebar">
                 <strong>{tile.name}</strong>
                 <small>
-                  {tile.isLocal ? "You" : "Member"} · {tile.micOn ? "Mic on" : "Muted"}
+                  {tile.isLocal ? "You" : "Member"} · {tile.screenOn ? "Screen" : tile.micOn ? "Mic on" : "Muted"}
                 </small>
               </div>
             </article>

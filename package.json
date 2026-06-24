@@ -1,7 +1,7 @@
 {
   "name": "omideno7-meetings-react",
   "private": true,
-  "version": "1.42.0-clean-livekit-reset",
+  "version": "1.44.0-host-controls-screen-share",
   "type": "module",
   "description": "OmideNo7 Meetings — Vite + React + TypeScript conversion starter",
   "scripts": {
@@ -39,5 +39,5 @@
     "typescript": "latest",
     "vite": "latest"
   },
-  "appStage": "v142-clean-livekit-reset-from-v128"
+  "appStage": "v144-host-controls-screen-share"
 }
