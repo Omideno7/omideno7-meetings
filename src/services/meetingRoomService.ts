@@ -69,20 +69,6 @@ function writeLocal<T>(key: string, value: T) {
   localStorage.setItem(key, JSON.stringify(value));
 }
 
-function isHostProfile(profile: UserProfile | null) {
-  if (!profile || profile.status !== "approved") return false;
-  return [
-    "owner",
-    "senior_host",
-    "meeting_host",
-    "co_host",
-    "door_servant",
-    "media_servant",
-    "prayer_servant",
-    "chat_moderator"
-  ].includes(profile.role);
-}
-
 function toParticipant(profile: UserProfile | null, status: RoomParticipantStatus, patch: Partial<RoomParticipant> = {}): RoomParticipant {
   const profileId = profile?.id || "guest";
   return {
@@ -201,25 +187,13 @@ export const meetingRoomService = {
   },
 
   async sendChat(profile: UserProfile | null, message: string, targetType: RoomChatMessage["target_type"] = "everyone", targetId: string | null = null) {
-    const trimmed = message.trim();
-    if (!trimmed) return;
-
-    const isReaction = trimmed.startsWith("__reaction__:");
-
-    // Enforce chat mode on the service layer too, not only in the UI.
-    // Reactions remain allowed because they are lightweight meeting feedback, not ordinary chat.
-    if (!isReaction && targetType === "everyone" && !isHostProfile(profile)) {
-      const settings = await this.getSettings();
-      if (settings.chat_mode !== "public") return;
-    }
-
     const row = {
       meeting_id: MEETING_ID,
       sender_id: profile?.id || null,
       sender_name: profile?.displayName || "Guest",
       target_type: targetType,
       target_id: targetId,
-      message: trimmed
+      message
     };
 
     if (supabase) {
@@ -229,11 +203,6 @@ export const meetingRoomService = {
 
     const local = readLocal<RoomChatMessage[]>(LOCAL_CHAT, []);
     writeLocal(LOCAL_CHAT, [{ id: crypto.randomUUID(), ...row, created_at: new Date().toISOString() } as RoomChatMessage, ...local]);
-  },
-
-  async sendReaction(profile: UserProfile | null, reaction: string) {
-    const safe = reaction.trim().slice(0, 16) || "❤️";
-    await this.sendChat(profile, `__reaction__:${safe}`, "everyone", null);
   },
 
   async listChat(): Promise<RoomChatMessage[]> {
