@@ -1,7 +1,7 @@
 {
   "name": "omideno7-meetings-react",
   "private": true,
-  "version": "1.53.0-speaker-hand-recording-notes",
+  "version": "1.54.0-hand-stability-ios-plan",
   "type": "module",
   "description": "OmideNo7 Meetings — Vite + React + TypeScript conversion starter",
   "scripts": {
@@ -39,5 +39,5 @@
     "typescript": "latest",
     "vite": "latest"
   },
-  "appStage": "v153-speaker-hand-recording-notes"
+  "appStage": "v154-hand-stability-ios-plan"
 }

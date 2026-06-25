@@ -960,6 +960,21 @@ function parseReaction(message: string) {
   };
 }
 
+function encodeHandState(profileId: string | null | undefined, raised: boolean) {
+  return `__hand__:${profileId || "guest"}:${raised ? "1" : "0"}:${Date.now()}`;
+}
+
+function parseHandState(message: string) {
+  if (!message.startsWith("__hand__:")) return null;
+  const [, profileId = "", raised = "0", timestamp = "0"] = message.split(":");
+  if (!profileId) return null;
+  return {
+    profileId,
+    raised: raised === "1" || raised === "true",
+    timestamp: Number(timestamp || 0)
+  };
+}
+
 const meetingHostRoles = new Set([
   "owner",
   "senior_host",
@@ -1026,6 +1041,7 @@ export function LiveMeetingPage() {
   const reactionsBooted = useRef(false);
   const handHoldUntilRef = useRef(0);
   const handIntentRef = useRef<boolean | null>(null);
+  const handStateMapRef = useRef<Map<string, { raised: boolean; timestamp: number }>>(new Map());
 
   const effectiveRole = normalizeMeetingRole(myMeetingRole || profile?.role);
   const canHost = Boolean(profile?.status === "approved" && meetingHostRoles.has(effectiveRole));
@@ -1123,18 +1139,21 @@ export function LiveMeetingPage() {
 
     setRoomIsOpen(Boolean(settings?.live_open));
     setChatMode(settings?.chat_mode || "public");
-    const storedHand = readStoredHand();
-    const currentHand = handIntentRef.current ?? storedHand ?? Boolean(myRow?.hand_raised ?? handRaised);
-    setParticipants(rows.filter((row) => row.status === "online").map((row) =>
-      row.profile_id === profile?.id ? { ...row, hand_raised: currentHand } : row
-    ));
-    setWaiting(rows.filter((row) => row.status === "waiting"));
-    if (myRow) setHandRaised(currentHand);
 
     const visibleMessages: RoomChatMessage[] = [];
     const reactionRows: RoomChatMessage[] = [];
+    const nextHandMap = new Map(handStateMapRef.current);
 
     for (const row of chatRows) {
+      const handState = parseHandState(row.message || "");
+      if (handState) {
+        const existing = nextHandMap.get(handState.profileId);
+        if (!existing || handState.timestamp >= existing.timestamp) {
+          nextHandMap.set(handState.profileId, { raised: handState.raised, timestamp: handState.timestamp });
+        }
+        continue;
+      }
+
       const reaction = parseReaction(row.message || "");
       if (reaction) {
         reactionRows.push(row);
@@ -1145,6 +1164,23 @@ export function LiveMeetingPage() {
         visibleMessages.push(row);
       }
     }
+
+    const storedHand = readStoredHand();
+    const currentHand = handIntentRef.current ?? storedHand ?? Boolean(myRow?.hand_raised ?? handRaised);
+    if (profile?.id) {
+      nextHandMap.set(profile.id, { raised: currentHand, timestamp: Number.MAX_SAFE_INTEGER });
+    }
+    handStateMapRef.current = nextHandMap;
+
+    setParticipants(rows.filter((row) => row.status === "online").map((row) => {
+      const mapped = row.profile_id ? nextHandMap.get(row.profile_id) : null;
+      return {
+        ...row,
+        hand_raised: row.profile_id === profile?.id ? currentHand : Boolean(mapped?.raised ?? row.hand_raised)
+      };
+    }));
+    setWaiting(rows.filter((row) => row.status === "waiting"));
+    if (myRow || profile?.id) setHandRaised(currentHand);
 
     if (!reactionsBooted.current) {
       reactionRows.forEach((row) => seenReactionIds.current.add(row.id));
@@ -1383,12 +1419,14 @@ export function LiveMeetingPage() {
     handHoldUntilRef.current = Number.MAX_SAFE_INTEGER;
     storeHand(next);
     setHandRaised(next);
+    handStateMapRef.current.set(profile.id, { raised: next, timestamp: Number.MAX_SAFE_INTEGER });
     setParticipants((currentRows) => currentRows.map((row) =>
       row.profile_id === profile.id ? { ...row, hand_raised: next } : row
     ));
+    void meetingRoomService.sendChat(profile, encodeHandState(profile.id, next), "everyone", null).catch(() => undefined);
     const saved = await meetingRoomService.setMyHandRaised(profile, next);
-    notify(saved ? (next ? "Hand raised." : "Hand lowered.") : "Hand status did not save. Run the v1.48 SQL patch.");
-    window.setTimeout(() => void refreshRoom(), 700);
+    notify(saved ? (next ? "Hand raised." : "Hand lowered.") : "Hand is shown locally, but server sync failed.");
+    window.setTimeout(() => void refreshRoom(), 1800);
   }
 
   function sendWithKeyboard(event: KeyboardEvent<HTMLTextAreaElement>) {
