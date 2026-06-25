@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { Room, RoomEvent, Track } from "livekit-client";
+import { createLocalAudioTrack, Room, RoomEvent, Track } from "livekit-client";
 import type { UserProfile } from "../../types/roles";
 import type { RoomParticipant } from "../../services/meetingRoomService";
 import { liveKitTokenService } from "../../services/liveKitTokenService";
@@ -273,6 +273,9 @@ export function RealLiveKitRoom({
   const connectingRef = useRef(false);
   const autoTriedRef = useRef(false);
   const micOperationRef = useRef(false);
+  const participantsRef = useRef<RoomParticipant[]>(participants);
+  const profileRef = useRef<UserProfile | null>(profile);
+  const localHandRaisedRef = useRef(localHandRaised);
 
   const [connected, setConnected] = useState(false);
   const [status, setStatus] = useState("Ready");
@@ -286,14 +289,32 @@ export function RealLiveKitRoom({
   const [noiseSuppression, setNoiseSuppression] = useState(true);
   const [echoCancellation, setEchoCancellation] = useState(true);
   const [autoGainControl, setAutoGainControl] = useState(true);
-  const [audioOutputId, setAudioOutputId] = useState("");
-  const [audioOutputLabel, setAudioOutputLabel] = useState("Default speaker");
-  const [speakerActive, setSpeakerActive] = useState(false);
+  const audioOutputId = "";
   const [tiles, setTiles] = useState<LiveTile[]>([]);
   const [needsStart, setNeedsStart] = useState(Boolean(confirmBeforeStart));
   const [notice] = useState(browserNotice());
 
   const canEnter = Boolean(profile?.status === "approved" && (isHostRole(profile) || admitted));
+
+  function stableLocalHandRaised() {
+    if (localHandRaised) return true;
+    try {
+      if (profileRef.current?.id && localStorage.getItem(`omide-hand-raised.${profileRef.current.id}`) === "true") {
+        return true;
+      }
+    } catch {
+      // ignore storage errors
+    }
+    return false;
+  }
+
+  useEffect(() => {
+    participantsRef.current = participants;
+    profileRef.current = profile;
+    localHandRaisedRef.current = stableLocalHandRaised();
+    refreshTiles();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [participants, profile, localHandRaised]);
 
   function refreshTiles(room?: Room | null) {
     const activeRoom = room || roomRef.current;
@@ -303,10 +324,12 @@ export function RealLiveKitRoom({
       return;
     }
 
+    localHandRaisedRef.current = stableLocalHandRaised();
+
     const nextTiles: LiveTile[] = [
-      tileFromParticipant(activeRoom.localParticipant, true, participants, profile, localHandRaised),
+      tileFromParticipant(activeRoom.localParticipant, true, participantsRef.current, profileRef.current, localHandRaisedRef.current),
       ...Array.from(activeRoom.remoteParticipants.values()).map((participant: any) =>
-        tileFromParticipant(participant, false, participants, profile, false)
+        tileFromParticipant(participant, false, participantsRef.current, profileRef.current, false)
       )
     ];
 
@@ -431,6 +454,32 @@ export function RealLiveKitRoom({
     }
   }
 
+  async function publishMicrophoneFallback(room: Room, audioOptions: MediaTrackConstraints) {
+    try {
+      const existingPublications = Array.from(((room.localParticipant as any)?.trackPublications?.values?.() || [])) as any[];
+      for (const publication of existingPublications) {
+        const source = String(publication?.source || "").toLowerCase();
+        if ((source.includes("microphone") || source.includes("mic")) && publication?.track) {
+          try {
+            await (room.localParticipant as any).unpublishTrack(publication.track);
+          } catch {
+            // ignore
+          }
+        }
+      }
+
+      const localTrack = await createLocalAudioTrack(audioOptions as any);
+      await (room.localParticipant as any).publishTrack(localTrack, {
+        source: Track.Source.Microphone,
+        name: "microphone"
+      });
+      await wait(350);
+      return isLocalMicrophoneActive(room);
+    } catch {
+      return false;
+    }
+  }
+
   async function disconnect(markLeave = true) {
     const room = roomRef.current;
 
@@ -500,18 +549,33 @@ export function RealLiveKitRoom({
           await (room.localParticipant as any).setMicrophoneEnabled(true, audioOptions);
           await wait(450);
         }
+
+        if (!isLocalMicrophoneActive(room)) {
+          await publishMicrophoneFallback(room, audioOptions as MediaTrackConstraints);
+        }
       } else {
         setStatus("Microphone muted");
         await (room.localParticipant as any).setMicrophoneEnabled(false);
       }
 
-      const actual = next ? isLocalMicrophoneActive(room) || next : false;
+      const actual = next ? isLocalMicrophoneActive(room) : false;
+      if (actual) {
+        await (room as any).startAudio?.().catch(() => undefined);
+        refreshTiles(room);
+        window.setTimeout(() => refreshTiles(room), 300);
+        window.setTimeout(() => refreshTiles(room), 1200);
+      }
       setMicOn(actual);
-      setError("");
+      if (next && !actual) {
+        setError("Microphone did not start. Check browser permission and selected microphone.");
+        setStatus("Microphone problem");
+      } else {
+        setError("");
+        setStatus(actual ? "Microphone on" : "Connected");
+      }
       refreshTiles(room);
       window.setTimeout(() => refreshTiles(room), 700);
       await onMediaStateChange?.({ mic: actual, camera: cameraOn });
-      setStatus(actual ? "Microphone on" : "Connected");
     } catch (err: any) {
       setMicOn(false);
       setError("Could not change microphone.");
@@ -554,49 +618,6 @@ export function RealLiveKitRoom({
     } catch (err: any) {
       setCameraOn(!next);
       setError(err?.message || "Could not change camera.");
-    }
-  }
-
-  async function chooseAudioOutput() {
-    try {
-      const mediaDevices: any = navigator.mediaDevices;
-
-      // Desktop Chrome: real output selection.
-      if (mediaDevices?.selectAudioOutput) {
-        if (audioOutputId) {
-          setAudioOutputId("");
-          setAudioOutputLabel("Default speaker");
-          setSpeakerActive(false);
-          window.dispatchEvent(new CustomEvent("omide-livekit-speaker-state", { detail: { active: false, label: "Default speaker" } }));
-          setStatus("Default speaker");
-          return;
-        }
-
-        const device = await mediaDevices.selectAudioOutput();
-        if (device?.deviceId) {
-          setAudioOutputId(device.deviceId);
-          setAudioOutputLabel(device.label || "Selected speaker");
-          setSpeakerActive(true);
-          window.dispatchEvent(new CustomEvent("omide-livekit-speaker-state", { detail: { active: true, label: device.label || "Selected speaker" } }));
-          setStatus("Speaker selected");
-          setError("");
-          return;
-        }
-      }
-
-      // Mobile browsers, especially iPhone/Safari, do not expose true earpiece/loudspeaker routing to web apps.
-      // This keeps a visible speaker state and resumes meeting audio, while the OS controls the real output route.
-      document.querySelectorAll("audio").forEach((element) => {
-        void (element as HTMLAudioElement).play?.().catch(() => undefined);
-      });
-      setSpeakerActive((value) => {
-        const next = !value;
-        window.dispatchEvent(new CustomEvent("omide-livekit-speaker-state", { detail: { active: next, label: next ? "Speaker on" : "Speaker off" } }));
-        return next;
-      });
-      setStatus("Speaker toggled");
-    } catch (err: any) {
-      setStatus("Speaker not changed");
     }
   }
 
@@ -645,11 +666,6 @@ export function RealLiveKitRoom({
   }, []);
 
   useEffect(() => {
-    refreshTiles();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [participants, localHandRaised]);
-
-  useEffect(() => {
     if (!micOn || !roomRef.current) {
       setMicLevel(0);
       return;
@@ -672,7 +688,6 @@ export function RealLiveKitRoom({
       if (action === "force-mic-off") void forceMicOff();
       if (action === "camera") void toggleCamera();
       if (action === "screen") void toggleScreenShare();
-      if (action === "speaker") void chooseAudioOutput();
       if (action === "leave") void disconnect(true);
       if (action === "force-disconnect") void disconnect(false);
     }
@@ -680,6 +695,26 @@ export function RealLiveKitRoom({
     window.addEventListener("omide-livekit-control", handleLiveKitControl as EventListener);
     return () => window.removeEventListener("omide-livekit-control", handleLiveKitControl as EventListener);
   }, [micOn, cameraOn, screenOn, connected, participants]);
+
+  useEffect(() => {
+    const unlockAudio = () => {
+      const room = roomRef.current as any;
+      if (!room) return;
+      void room.startAudio?.().catch(() => undefined);
+      document.querySelectorAll("audio").forEach((element) => {
+        void (element as HTMLAudioElement).play?.().catch(() => undefined);
+      });
+    };
+
+    window.addEventListener("pointerdown", unlockAudio, { passive: true });
+    window.addEventListener("touchstart", unlockAudio, { passive: true });
+    window.addEventListener("click", unlockAudio, { passive: true });
+    return () => {
+      window.removeEventListener("pointerdown", unlockAudio);
+      window.removeEventListener("touchstart", unlockAudio);
+      window.removeEventListener("click", unlockAudio);
+    };
+  }, []);
 
   useEffect(() => {
     return () => {
@@ -1157,12 +1192,11 @@ export function RealLiveKitRoom({
 
           <div className="omide-audio-settings-wrap">
             <button type="button" onClick={() => setAudioSettingsOpen((value) => !value)}>
-              Audio <span className="omide-local-mic-meter"><span style={{ width: `${Math.max(4, Math.round(micLevel * 100))}%` }} /></span>
+              Mic <span className="omide-local-mic-meter"><span style={{ width: `${Math.max(4, Math.round(micLevel * 100))}%` }} /></span>
             </button>
             {audioSettingsOpen && (
               <div className="omide-audio-settings-popover">
                 <strong>Audio settings</strong>
-                <button type="button" onClick={chooseAudioOutput}>Speaker: {audioOutputLabel}</button>
                 <label>Music / keyboard mode <input type="checkbox" checked={musicMode} onChange={(event) => setMusicMode(event.target.checked)} /></label>
                 <label>Noise suppression <input type="checkbox" checked={noiseSuppression} disabled={musicMode} onChange={(event) => setNoiseSuppression(event.target.checked)} /></label>
                 <label>Echo cancellation <input type="checkbox" checked={echoCancellation} disabled={musicMode} onChange={(event) => setEchoCancellation(event.target.checked)} /></label>

@@ -217,23 +217,6 @@ function LiveMeetingStyles() {
         z-index: 25;
         overflow: hidden;
       }
-      .live-speaker-indicator {
-        position: absolute;
-        top: 10px;
-        left: 10px;
-        z-index: 66;
-        width: 38px;
-        height: 38px;
-        border-radius: 999px;
-        display: grid;
-        place-items: center;
-        border: 0;
-        background: rgba(255,255,255,.96);
-        color: #06146d;
-        font-weight: 950;
-        box-shadow: 0 14px 34px rgba(6,20,109,.22);
-      }
-
 
       .live-floating-reaction {
         position: absolute;
@@ -1036,7 +1019,6 @@ export function LiveMeetingPage() {
   const [recording, setRecording] = useState(false);
   const [recordingStartedAt, setRecordingStartedAt] = useState<number | null>(null);
   const [recordingElapsed, setRecordingElapsed] = useState("00:00");
-  const [speakerIndicator, setSpeakerIndicator] = useState(false);
   const seenReactionIds = useRef<Set<string>>(new Set());
   const reactionsBooted = useRef(false);
   const handHoldUntilRef = useRef(0);
@@ -1259,17 +1241,6 @@ export function LiveMeetingPage() {
   }, [profile?.id, profile?.displayName, profile?.avatarUrl, profile?.role, canHost]);
 
   useEffect(() => {
-    function handleSpeakerState(event: Event) {
-      const active = Boolean((event as CustomEvent<{ active?: boolean }>).detail?.active);
-      setSpeakerIndicator(active);
-      notify(active ? "Speaker on" : "Speaker off");
-    }
-
-    window.addEventListener("omide-livekit-speaker-state", handleSpeakerState as EventListener);
-    return () => window.removeEventListener("omide-livekit-speaker-state", handleSpeakerState as EventListener);
-  }, []);
-
-  useEffect(() => {
     if (!profile?.id) return;
 
     function markLeftOnClose() {
@@ -1444,7 +1415,7 @@ export function LiveMeetingPage() {
     notify(next ? "REC marker started. Real cloud recording still needs LiveKit Egress setup." : "REC marker stopped.");
   }
 
-  function sendLiveKitControl(action: "enter-live" | "mic" | "camera" | "screen" | "speaker" | "leave" | "force-disconnect" | "force-mic-off") {
+  function sendLiveKitControl(action: "enter-live" | "mic" | "camera" | "screen" | "leave" | "force-disconnect" | "force-mic-off") {
     window.dispatchEvent(new CustomEvent("omide-livekit-control", { detail: { action } }));
   }
 
@@ -1513,7 +1484,7 @@ export function LiveMeetingPage() {
       <header className="clean-live-topbar">
         <div className="clean-live-brand">
           <strong>OmideNo7 Meetings</strong>
-          <span>v1.51 · {deviceLabel()} · {liveKitConnected ? "Connected" : roomIsOpen ? "Ready" : "Waiting"}{toast !== "Ready" ? ` · ${toast}` : ""}</span>
+          <span>v1.56 · {deviceLabel()} · {liveKitConnected ? "Connected" : roomIsOpen ? "Ready" : "Waiting"}{toast !== "Ready" ? ` · ${toast}` : ""}</span>
         </div>
 
         <div className="clean-live-actions">
@@ -1549,17 +1520,12 @@ export function LiveMeetingPage() {
 
       <main className={panel === "closed" ? "clean-live-main" : "clean-live-main panel-open"}>
         <section className="clean-stage">
-          {speakerIndicator && (
-            <button className="live-speaker-indicator" type="button" onClick={() => liveKitConnected ? sendLiveKitControl("speaker") : notify("Enter live first")} title="Speaker on" aria-label="Speaker on">
-              🔊
-            </button>
-          )}
           {recording && <div className="recording-badge">● REC {recordingElapsed}</div>}
           <RealLiveKitRoom
             profile={profile}
             meetingId="main-room"
             admitted={canHost || myStatus === "online"}
-            autoStart={!canHost}
+            autoStart={false}
             confirmBeforeStart={canHost}
             onConnectionChange={async (connected) => {
               setLiveKitConnected(connected);
@@ -1742,9 +1708,6 @@ export function LiveMeetingPage() {
         )}
         <button className="control-icon-btn" title={micOn ? "Mute" : "Microphone"} aria-label={micOn ? "Mute" : "Microphone"} onClick={() => liveKitConnected ? sendLiveKitControl("mic") : notify("Enter live first") }>
           {micOn ? "🔇" : "🎙️"}<span className="toolbar-label">{micOn ? "Mute" : "Mic"}</span>
-        </button>
-        <button className={speakerIndicator ? "speaker-mini-btn control-icon-btn speaker-active" : "speaker-mini-btn control-icon-btn"} onClick={() => liveKitConnected ? sendLiveKitControl("speaker") : notify("Enter live room first.")} title="Speaker" aria-label="Speaker">
-          {speakerIndicator ? "🔊" : "🔈"}<span className="toolbar-label">Speaker</span>
         </button>
         <button className="control-icon-btn" title={cameraOn ? "Camera off" : "Camera"} aria-label={cameraOn ? "Camera off" : "Camera"} onClick={() => liveKitConnected ? sendLiveKitControl("camera") : notify("Enter live room first.")}>
           {cameraOn ? "📷" : "🎥"}<span className="toolbar-label">Camera</span>
