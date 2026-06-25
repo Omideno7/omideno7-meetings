@@ -1,7 +1,7 @@
 {
   "name": "omideno7-meetings-react",
   "private": true,
-  "version": "1.50.0-mobile-live-room-polish",
+  "version": "1.50.1-vercel-deploy-hotfix",
   "type": "module",
   "description": "OmideNo7 Meetings — Vite + React + TypeScript conversion starter",
   "scripts": {
@@ -39,5 +39,5 @@
     "typescript": "latest",
     "vite": "latest"
   },
-  "appStage": "v150-mobile-live-room-polish"
+  "appStage": "v150-vercel-deploy-hotfix"
 }
