@@ -579,7 +579,6 @@ export function RealLiveKitRoom({
     }
 
     if (micOperationRef.current) return;
-    micOperationRef.current = true;
 
     const current = micOn || isLocalMicrophoneActive(room);
     const next = !current;
@@ -588,41 +587,36 @@ export function RealLiveKitRoom({
       const myRow = participants.find((row) => row.profile_id === profile?.id);
       if (myRow && myRow.allowed_mic === false) {
         setError("Microphone is locked by host.");
-        micOperationRef.current = false;
         return;
       }
     }
 
-    try {
-      await (room as any).startAudio?.().catch(() => undefined);
-
-      if (next) {
-        await enableMicrophone(room, false);
-      } else {
-        setStatus("Microphone muted");
-        await (room.localParticipant as any).setMicrophoneEnabled(false);
-      }
-
-      const actual = next ? isLocalMicrophoneActive(room) : false;
-      if (actual) {
-        await (room as any).startAudio?.().catch(() => undefined);
-        refreshTiles(room);
-        window.setTimeout(() => refreshTiles(room), 300);
-        window.setTimeout(() => refreshTiles(room), 1200);
-      }
+    if (next) {
+      // Important: do not set micOperationRef here before calling enableMicrophone().
+      // enableMicrophone() owns that lock. Older versions set the lock first, so
+      // enableMicrophone() immediately returned and the mic button looked dead after mute.
+      const actual = await enableMicrophone(room, false);
       setMicOn(actual);
-      if (next && !actual) {
-        setError("Microphone did not start. Check browser permission and selected microphone.");
-        setStatus("Microphone problem");
-      } else {
-        setError("");
-        setStatus(actual ? "Microphone on" : "Connected");
-      }
       refreshTiles(room);
       window.setTimeout(() => refreshTiles(room), 700);
       await onMediaStateChange?.({ mic: actual, camera: cameraOn });
-    } catch (err: any) {
+      return;
+    }
+
+    micOperationRef.current = true;
+
+    try {
+      await (room as any).startAudio?.().catch(() => undefined);
+      setStatus("Microphone muted");
+      await (room.localParticipant as any).setMicrophoneEnabled(false).catch(() => undefined);
+
       setMicOn(false);
+      setError("");
+      setStatus("Connected");
+      refreshTiles(room);
+      window.setTimeout(() => refreshTiles(room), 700);
+      await onMediaStateChange?.({ mic: false, camera: cameraOn });
+    } catch (err: any) {
       setError("Could not change microphone.");
       setStatus("Microphone problem");
     } finally {

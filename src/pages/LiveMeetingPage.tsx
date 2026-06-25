@@ -307,6 +307,27 @@ function LiveMeetingStyles() {
         color: #fff;
       }
 
+      .clean-panel-tabs button.waiting-tab-alert {
+        background: #ef4444 !important;
+        color: #fff !important;
+        animation: waiting-red-pulse 1.1s ease-in-out infinite;
+      }
+
+      .waiting-tab-count {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        min-width: 18px;
+        height: 18px;
+        margin-left: 6px;
+        padding: 0 5px;
+        border-radius: 999px;
+        background: #fff;
+        color: #ef4444;
+        font-weight: 950;
+        font-size: .68rem;
+      }
+
       .clean-panel-body {
         flex: 1 1 auto;
         overflow-y: auto;
@@ -1484,7 +1505,7 @@ export function LiveMeetingPage() {
       <header className="clean-live-topbar">
         <div className="clean-live-brand">
           <strong>OmideNo7 Meetings</strong>
-          <span>v1.57 · {deviceLabel()} · {liveKitConnected ? "Connected" : roomIsOpen ? "Ready" : "Waiting"}{toast !== "Ready" ? ` · ${toast}` : ""}</span>
+          <span>v1.58 · {deviceLabel()} · {liveKitConnected ? "Connected" : roomIsOpen ? "Ready" : "Waiting"}{toast !== "Ready" ? ` · ${toast}` : ""}</span>
         </div>
 
         <div className="clean-live-actions">
@@ -1568,7 +1589,14 @@ export function LiveMeetingPage() {
             <div className="clean-panel-tabs">
               <button className={panel === "chat" ? "active" : ""} onClick={() => setPanel("chat")}>Chat</button>
               <button className={panel === "attendees" ? "active" : ""} onClick={() => setPanel("attendees")}>Attendees</button>
-              {canWaiting && <button className={panel === "waiting" ? "active" : ""} onClick={() => setPanel("waiting")}>Waiting</button>}
+              {canWaiting && (
+                <button
+                  className={`${panel === "waiting" ? "active" : ""} ${waiting.length ? "waiting-tab-alert" : ""}`}
+                  onClick={() => setPanel("waiting")}
+                >
+                  Waiting{waiting.length > 0 && <span className="waiting-tab-count">{waiting.length}</span>}
+                </button>
+              )}
             </div>
 
             <div className="clean-panel-body">
