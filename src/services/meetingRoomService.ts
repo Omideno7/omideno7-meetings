@@ -325,8 +325,10 @@ export const meetingRoomService = {
       const { error } = await supabase
         .from("meeting_room_participants")
         .update({ hand_raised: raised, updated_at: new Date().toISOString() })
-        .eq("id", id);
+        .eq("meeting_id", MEETING_ID)
+        .eq("profile_id", profile.id);
       if (!error) return true;
+      console.warn("setMyHandRaised update failed", error.message || rpcError.message);
     }
 
     await this.updateParticipant(id, { hand_raised: raised });

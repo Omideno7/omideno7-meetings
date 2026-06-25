@@ -15,6 +15,7 @@ type Props = {
   onMediaStateChange?: (state: { mic: boolean; camera: boolean }) => void | Promise<void>;
   onLeave?: () => void | Promise<void>;
   participants?: RoomParticipant[];
+  localHandRaised?: boolean;
 };
 
 type LiveTile = {
@@ -26,6 +27,7 @@ type LiveTile = {
   micOn: boolean;
   cameraTrack: any | null;
   screenTrack: any | null;
+  screenAudioTrack: any | null;
   microphoneTrack: any | null;
   audioLevel: number;
   profileId: string | null;
@@ -68,7 +70,7 @@ function VideoTrackView({ track, muted }: { track: any | null; muted?: boolean }
   );
 }
 
-function AudioTrackView({ track }: { track: any | null }) {
+function AudioTrackView({ track, sinkId }: { track: any | null; sinkId?: string }) {
   const ref = useRef<HTMLAudioElement | null>(null);
 
   useEffect(() => {
@@ -77,6 +79,7 @@ function AudioTrackView({ track }: { track: any | null }) {
 
     try {
       track.attach(element);
+      void element.play?.().catch(() => undefined);
     } catch {
       // ignore
     }
@@ -89,6 +92,12 @@ function AudioTrackView({ track }: { track: any | null }) {
       }
     };
   }, [track]);
+
+  useEffect(() => {
+    const element = ref.current as HTMLAudioElement & { setSinkId?: (id: string) => Promise<void> };
+    if (!element || !sinkId || !element.setSinkId) return;
+    void element.setSinkId(sinkId).catch(() => undefined);
+  }, [sinkId, track]);
 
   if (!track) return null;
 
@@ -110,7 +119,7 @@ function pickPublication(publications: any[], source: Track.Source, kind: Track.
   return publications.find((publication: any) => publication?.kind === kind);
 }
 
-function pickExactSource(publications: any[], source: Track.Source) {
+function pickExactSource(publications: any[], source: any) {
   return publications.find((publication: any) => publication?.source === source);
 }
 
@@ -122,12 +131,14 @@ function safeMetadata(participant: any) {
   }
 }
 
-function tileFromParticipant(participant: any, isLocal: boolean, participantRows: RoomParticipant[] = [], localProfile?: UserProfile | null): LiveTile {
+function tileFromParticipant(participant: any, isLocal: boolean, participantRows: RoomParticipant[] = [], localProfile?: UserProfile | null, localHandRaised = false): LiveTile {
   const publications = getPublications(participant);
 
   const cameraPublication = pickPublication(publications, Track.Source.Camera, Track.Kind.Video);
   const micPublication = pickPublication(publications, Track.Source.Microphone, Track.Kind.Audio);
   const screenPublication = pickExactSource(publications, Track.Source.ScreenShare);
+  const screenAudioSource = (Track.Source as any).ScreenShareAudio || "screen_share_audio";
+  const screenAudioPublication = pickExactSource(publications, screenAudioSource);
 
   const cameraTrack =
     cameraPublication?.track ||
@@ -142,6 +153,11 @@ function tileFromParticipant(participant: any, isLocal: boolean, participantRows
   const screenTrack =
     screenPublication?.track ||
     screenPublication?.videoTrack ||
+    null;
+
+  const screenAudioTrack =
+    screenAudioPublication?.track ||
+    screenAudioPublication?.audioTrack ||
     null;
 
   const cameraMuted =
@@ -178,11 +194,12 @@ function tileFromParticipant(participant: any, isLocal: boolean, participantRows
     micOn: Boolean(microphoneTrack && !micMuted),
     cameraTrack,
     screenTrack,
+    screenAudioTrack,
     microphoneTrack,
     audioLevel,
     profileId,
     avatarUrl: matchedRow?.avatar_url || metadata.avatarUrl || (isLocal ? localProfile?.avatarUrl || null : null),
-    handRaised: Boolean(matchedRow?.hand_raised)
+    handRaised: Boolean((isLocal && localHandRaised) || matchedRow?.hand_raised)
   };
 }
 
@@ -231,7 +248,8 @@ export function RealLiveKitRoom({
   onConnectionChange,
   onMediaStateChange,
   onLeave,
-  participants = []
+  participants = [],
+  localHandRaised = false
 }: Props) {
   const roomRef = useRef<Room | null>(null);
   const connectingRef = useRef(false);
@@ -249,6 +267,8 @@ export function RealLiveKitRoom({
   const [noiseSuppression, setNoiseSuppression] = useState(true);
   const [echoCancellation, setEchoCancellation] = useState(true);
   const [autoGainControl, setAutoGainControl] = useState(true);
+  const [audioOutputId, setAudioOutputId] = useState("");
+  const [audioOutputLabel, setAudioOutputLabel] = useState("Default speaker");
   const [tiles, setTiles] = useState<LiveTile[]>([]);
   const [needsStart, setNeedsStart] = useState(Boolean(confirmBeforeStart));
   const [notice] = useState(browserNotice());
@@ -264,9 +284,9 @@ export function RealLiveKitRoom({
     }
 
     const nextTiles: LiveTile[] = [
-      tileFromParticipant(activeRoom.localParticipant, true, participants, profile),
+      tileFromParticipant(activeRoom.localParticipant, true, participants, profile, localHandRaised),
       ...Array.from(activeRoom.remoteParticipants.values()).map((participant: any) =>
-        tileFromParticipant(participant, false, participants, profile)
+        tileFromParticipant(participant, false, participants, profile, false)
       )
     ];
 
@@ -483,6 +503,25 @@ export function RealLiveKitRoom({
     }
   }
 
+  async function chooseAudioOutput() {
+    try {
+      const mediaDevices: any = navigator.mediaDevices;
+      if (!mediaDevices?.selectAudioOutput) {
+        setError("Speaker selection is not supported in this browser/device. Use the device speaker controls.");
+        return;
+      }
+
+      const device = await mediaDevices.selectAudioOutput();
+      if (device?.deviceId) {
+        setAudioOutputId(device.deviceId);
+        setAudioOutputLabel(device.label || "Selected speaker");
+        setError("");
+      }
+    } catch (err: any) {
+      setError(err?.message || "Could not select speaker output.");
+    }
+  }
+
   async function toggleScreenShare() {
     const room = roomRef.current;
     if (!room || !connected) {
@@ -530,7 +569,7 @@ export function RealLiveKitRoom({
   useEffect(() => {
     refreshTiles();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [participants]);
+  }, [participants, localHandRaised]);
 
   useEffect(() => {
     if (!micOn || !roomRef.current) {
@@ -926,6 +965,7 @@ export function RealLiveKitRoom({
             {audioSettingsOpen && (
               <div className="omide-audio-settings-popover">
                 <strong>Audio settings</strong>
+                <button type="button" onClick={chooseAudioOutput}>Speaker: {audioOutputLabel}</button>
                 <label>Music / keyboard mode <input type="checkbox" checked={musicMode} onChange={(event) => setMusicMode(event.target.checked)} /></label>
                 <label>Noise suppression <input type="checkbox" checked={noiseSuppression} disabled={musicMode} onChange={(event) => setNoiseSuppression(event.target.checked)} /></label>
                 <label>Echo cancellation <input type="checkbox" checked={echoCancellation} disabled={musicMode} onChange={(event) => setEchoCancellation(event.target.checked)} /></label>
@@ -980,7 +1020,8 @@ export function RealLiveKitRoom({
                 <div className="omide-livekit-hand-badge" title="Hand raised">✋</div>
               )}
 
-              <AudioTrackView track={tile.isLocal ? null : tile.microphoneTrack} />
+              <AudioTrackView track={tile.isLocal ? null : tile.microphoneTrack} sinkId={audioOutputId} />
+              <AudioTrackView track={tile.isLocal ? null : tile.screenAudioTrack} sinkId={audioOutputId} />
 
               {tile.micOn && (
                 <div className="omide-livekit-clean-eq">

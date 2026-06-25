@@ -1,7 +1,7 @@
 {
   "name": "omideno7-meetings-react",
   "private": true,
-  "version": "1.47.0-meeting-state-media-fix",
+  "version": "1.48.0-screen-audio-speaker-hand-fix",
   "type": "module",
   "description": "OmideNo7 Meetings — Vite + React + TypeScript conversion starter",
   "scripts": {
@@ -39,5 +39,5 @@
     "typescript": "latest",
     "vite": "latest"
   },
-  "appStage": "v147-meeting-state-media-fix"
+  "appStage": "v148-screen-audio-speaker-hand-fix"
 }

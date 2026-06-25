@@ -1070,9 +1070,12 @@ export function LiveMeetingPage() {
     const myRow = participants.find((item) => item.id === myId) || await meetingRoomService.getMyRow(profile);
     const next = !Boolean(myRow?.hand_raised ?? handRaised);
     setHandRaised(next);
+    setParticipants((current) => current.map((row) =>
+      row.profile_id === profile.id ? { ...row, hand_raised: next } : row
+    ));
     const saved = await meetingRoomService.setMyHandRaised(profile, next);
-    notify(saved ? (next ? "Hand raised." : "Hand lowered.") : "Hand status did not save. Run the v1.47 SQL patch.");
-    await refreshRoom();
+    notify(saved ? (next ? "Hand raised." : "Hand lowered.") : "Hand status did not save. Run the v1.48 SQL patch.");
+    window.setTimeout(() => void refreshRoom(), 700);
   }
 
   function sendWithKeyboard(event: KeyboardEvent<HTMLTextAreaElement>) {
@@ -1211,6 +1214,7 @@ export function LiveMeetingPage() {
             }}
             onMediaStateChange={handleMediaState}
             participants={participants}
+            localHandRaised={handRaised}
             onLeave={async () => {
               await meetingRoomService.leaveMeeting(profile);
               await refreshRoom();
