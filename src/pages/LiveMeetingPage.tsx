@@ -626,6 +626,45 @@ function LiveMeetingStyles() {
         font-size: 1.05rem !important;
       }
 
+
+      .control-icon-btn,
+      .clean-toolbar .control-icon-btn,
+      .toolbar-react-wrap > .control-icon-btn {
+        width: 44px;
+        height: 44px;
+        min-width: 44px !important;
+        padding: 0 !important;
+        display: grid !important;
+        place-items: center !important;
+        border-radius: 999px !important;
+        font-size: 1.12rem !important;
+        position: relative;
+      }
+
+      .control-icon-btn .toolbar-label {
+        position: absolute;
+        left: 50%;
+        bottom: 52px;
+        transform: translateX(-50%);
+        opacity: 0;
+        pointer-events: none;
+        white-space: nowrap;
+        background: rgba(2,6,23,.88);
+        color: #fff;
+        border-radius: 999px;
+        padding: 5px 9px;
+        font-size: .68rem;
+        font-weight: 800;
+        transition: opacity .15s ease, transform .15s ease;
+      }
+
+      @media (hover: hover) {
+        .control-icon-btn:hover .toolbar-label {
+          opacity: 1;
+          transform: translateX(-50%) translateY(-3px);
+        }
+      }
+
       .live-toast-clean {
         position: fixed;
         left: 50%;
@@ -705,9 +744,11 @@ function LiveMeetingStyles() {
       /* v1.50 mobile meeting room redesign */
       @media (max-width: 740px) {
         .live-clean-page {
-          height: 100dvh;
           min-height: 100dvh;
-          overflow: hidden;
+          height: auto;
+          overflow-y: auto;
+          overflow-x: hidden;
+          padding-bottom: calc(66px + env(safe-area-inset-bottom));
           background: linear-gradient(180deg, #06146d 0%, #0b5798 55%, #f7fbff 55%);
         }
 
@@ -741,25 +782,27 @@ function LiveMeetingStyles() {
 
         .clean-live-main,
         .clean-live-main.panel-open {
-          height: calc(100dvh - 116px - env(safe-area-inset-bottom));
+          min-height: calc(100dvh - 122px - env(safe-area-inset-bottom));
+          height: auto;
           padding: 0;
           gap: 0;
-          overflow: hidden;
+          overflow: visible;
           display: block;
         }
 
         .clean-stage {
-          height: calc(100dvh - 116px - env(safe-area-inset-bottom));
-          min-height: 0;
+          height: auto;
+          min-height: calc(100dvh - 122px - env(safe-area-inset-bottom));
           width: 100%;
           border-radius: 0;
           box-shadow: none;
           background: linear-gradient(135deg, #06146d, #0b5798);
+          overflow: visible;
         }
 
         .clean-stage > * {
-          height: 100% !important;
-          min-height: 0 !important;
+          min-height: calc(100dvh - 122px - env(safe-area-inset-bottom)) !important;
+          height: auto !important;
         }
 
         .clean-panel {
@@ -818,11 +861,17 @@ function LiveMeetingStyles() {
         }
 
         .clean-toolbar button {
-          min-width: max-content;
-          padding: 9px 13px;
+          min-width: 42px !important;
+          width: 42px;
+          height: 42px;
+          padding: 0 !important;
           border-radius: 999px;
-          font-size: .82rem;
+          font-size: 1.05rem;
           box-shadow: none;
+        }
+
+        .control-icon-btn .toolbar-label {
+          display: none;
         }
 
         .clean-toolbar .speaker-mini-btn {
@@ -915,6 +964,15 @@ function formatDuration(totalSeconds: number) {
   const minutes = Math.floor(totalSeconds / 60).toString().padStart(2, "0");
   const seconds = Math.max(0, totalSeconds % 60).toString().padStart(2, "0");
   return `${minutes}:${seconds}`;
+}
+
+function deviceLabel() {
+  const ua = navigator.userAgent || "";
+  if (/iPhone|iPad|iPod/i.test(ua)) return "iOS";
+  if (/Android/i.test(ua)) return "Android";
+  if (/Macintosh|Mac OS X/i.test(ua)) return "Mac";
+  if (/Windows/i.test(ua)) return "Windows";
+  return "Device";
 }
 
 export function LiveMeetingPage() {
@@ -1339,7 +1397,7 @@ export function LiveMeetingPage() {
       <header className="clean-live-topbar">
         <div className="clean-live-brand">
           <strong>OmideNo7 Meetings</strong>
-          <span>v1.50 · {liveKitConnected ? "Connected" : roomIsOpen ? "Ready" : "Waiting"}{toast !== "Ready" ? ` · ${toast}` : ""}</span>
+          <span>v1.51 · {deviceLabel()} · {liveKitConnected ? "Connected" : roomIsOpen ? "Ready" : "Waiting"}{toast !== "Ready" ? ` · ${toast}` : ""}</span>
         </div>
 
         <div className="clean-live-actions">
@@ -1555,33 +1613,35 @@ export function LiveMeetingPage() {
         )}
       </main>
 
-      <footer className="clean-toolbar">
+      <footer className="clean-toolbar" aria-label="Meeting controls">
         {!liveKitConnected && (
-          <button className="green" onClick={() => canHost ? startHostRoom() : sendLiveKitControl("enter-live")}>
-            Enter
+          <button className="green control-icon-btn" title="Enter" aria-label="Enter" onClick={() => canHost ? startHostRoom() : sendLiveKitControl("enter-live")}>
+            ▶️<span className="toolbar-label">Enter</span>
           </button>
         )}
-        <button onClick={() => liveKitConnected ? sendLiveKitControl("mic") : notify("Enter live first") }>
-          {micOn ? "Mute" : "Mic"}
+        <button className="control-icon-btn" title={micOn ? "Mute" : "Microphone"} aria-label={micOn ? "Mute" : "Microphone"} onClick={() => liveKitConnected ? sendLiveKitControl("mic") : notify("Enter live first") }>
+          {micOn ? "🔇" : "🎙️"}<span className="toolbar-label">{micOn ? "Mute" : "Mic"}</span>
         </button>
-        <button className="speaker-mini-btn" onClick={() => liveKitConnected ? sendLiveKitControl("speaker") : notify("Enter live room first.")} title="Speaker">
-          🔊
+        <button className="speaker-mini-btn control-icon-btn" onClick={() => liveKitConnected ? sendLiveKitControl("speaker") : notify("Enter live room first.")} title="Speaker" aria-label="Speaker">
+          🔊<span className="toolbar-label">Speaker</span>
         </button>
-        <button onClick={() => liveKitConnected ? sendLiveKitControl("camera") : notify("Enter live room first.")}>
-          {cameraOn ? "Cam off" : "Camera"}
+        <button className="control-icon-btn" title={cameraOn ? "Camera off" : "Camera"} aria-label={cameraOn ? "Camera off" : "Camera"} onClick={() => liveKitConnected ? sendLiveKitControl("camera") : notify("Enter live room first.")}>
+          {cameraOn ? "📷" : "🎥"}<span className="toolbar-label">Camera</span>
         </button>
         {canShareScreenNow && (
-          <button onClick={() => liveKitConnected ? sendLiveKitControl("screen") : notify("Enter live room first.")}>
-            Share screen
+          <button className="control-icon-btn" title="Share screen" aria-label="Share screen" onClick={() => liveKitConnected ? sendLiveKitControl("screen") : notify("Enter live room first.")}>
+            🖥️<span className="toolbar-label">Share</span>
           </button>
         )}
         {canHost && (
-          <button className={recording ? "danger" : ""} onClick={toggleRecordingMarker}>
-            {recording ? "REC on" : "Record"}
+          <button className={recording ? "danger control-icon-btn" : "control-icon-btn"} title="Record" aria-label="Record" onClick={toggleRecordingMarker}>
+            ⏺<span className="toolbar-label">Record</span>
           </button>
         )}
         <div className="toolbar-react-wrap">
-          <button onClick={() => setReactionMenuOpen((current) => !current)}>React</button>
+          <button className="control-icon-btn" title="React" aria-label="React" onClick={() => setReactionMenuOpen((current) => !current)}>
+            ✨<span className="toolbar-label">React</span>
+          </button>
           {reactionMenuOpen && (
             <div className="reaction-picker">
               <button title="Raise hand" onClick={() => { setReactionMenuOpen(false); void toggleHandRaised(); }}>✋</button>
@@ -1593,10 +1653,16 @@ export function LiveMeetingPage() {
             </div>
           )}
         </div>
-        <button onClick={() => setPanel(panel === "chat" ? "closed" : "chat")}>Chat</button>
-        <button onClick={() => setPanel(panel === "attendees" ? "closed" : "attendees")}>People</button>
-        <button className="danger" onClick={leaveOnly}>Leave</button>
-        {canEnd && <button className="danger" onClick={endForEveryone}>End all</button>}
+        <button className="control-icon-btn" title="Chat" aria-label="Chat" onClick={() => setPanel(panel === "chat" ? "closed" : "chat")}>
+          💬<span className="toolbar-label">Chat</span>
+        </button>
+        <button className="control-icon-btn" title="People" aria-label="People" onClick={() => setPanel(panel === "attendees" ? "closed" : "attendees")}>
+          👥<span className="toolbar-label">People</span>
+        </button>
+        <button className="danger control-icon-btn" title="Leave" aria-label="Leave" onClick={leaveOnly}>
+          🚪<span className="toolbar-label">Leave</span>
+        </button>
+        {canEnd && <button className="danger control-icon-btn" title="End all" aria-label="End all" onClick={endForEveryone}>⛔<span className="toolbar-label">End all</span></button>}
       </footer>
 
       {/* Action status is shown in the top bar to keep the meeting room clean. */}

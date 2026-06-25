@@ -232,6 +232,19 @@ function isHostRole(profile: UserProfile | null) {
   ].includes(profile.role);
 }
 
+function wait(ms: number) {
+  return new Promise((resolve) => window.setTimeout(resolve, ms));
+}
+
+function isLocalMicrophoneActive(room: Room | null) {
+  const pubs = Array.from(((room?.localParticipant as any)?.trackPublications?.values?.() || [])) as any[];
+  return pubs.some((pub: any) => {
+    const source = String(pub?.source || "").toLowerCase();
+    const hasMicSource = source.includes("microphone") || source.includes("mic");
+    return hasMicSource && pub?.track && !pub?.isMuted && !pub?.track?.isMuted;
+  });
+}
+
 function browserNotice() {
   const ua = navigator.userAgent || "";
   const isSafari = /^((?!chrome|android).)*safari/i.test(ua);
@@ -259,6 +272,7 @@ export function RealLiveKitRoom({
   const roomRef = useRef<Room | null>(null);
   const connectingRef = useRef(false);
   const autoTriedRef = useRef(false);
+  const micOperationRef = useRef(false);
 
   const [connected, setConnected] = useState(false);
   const [status, setStatus] = useState("Ready");
@@ -274,6 +288,7 @@ export function RealLiveKitRoom({
   const [autoGainControl, setAutoGainControl] = useState(true);
   const [audioOutputId, setAudioOutputId] = useState("");
   const [audioOutputLabel, setAudioOutputLabel] = useState("Default speaker");
+  const [speakerActive, setSpeakerActive] = useState(false);
   const [tiles, setTiles] = useState<LiveTile[]>([]);
   const [needsStart, setNeedsStart] = useState(Boolean(confirmBeforeStart));
   const [notice] = useState(browserNotice());
@@ -446,46 +461,63 @@ export function RealLiveKitRoom({
       return;
     }
 
-    const next = !micOn;
+    if (micOperationRef.current) return;
+    micOperationRef.current = true;
+
+    const current = micOn || isLocalMicrophoneActive(room);
+    const next = !current;
 
     if (next && !isHostRole(profile)) {
       const myRow = participants.find((row) => row.profile_id === profile?.id);
       if (myRow && myRow.allowed_mic === false) {
         setError("Microphone is locked by host.");
+        micOperationRef.current = false;
         return;
       }
     }
 
-    setMicOn(next);
+    const audioOptions = {
+      echoCancellation: musicMode ? false : echoCancellation,
+      noiseSuppression: musicMode ? false : noiseSuppression,
+      autoGainControl: musicMode ? false : autoGainControl
+    };
 
     try {
       await (room as any).startAudio?.().catch(() => undefined);
-      const audioOptions = next ? {
-        echoCancellation: musicMode ? false : echoCancellation,
-        noiseSuppression: musicMode ? false : noiseSuppression,
-        autoGainControl: musicMode ? false : autoGainControl
-      } : undefined;
+
       if (next) {
+        setStatus("Turning microphone on...");
         await navigator.mediaDevices?.getUserMedia?.({ audio: audioOptions as MediaTrackConstraints }).then((stream) => {
           stream.getTracks().forEach((track) => track.stop());
         }).catch(() => undefined);
+
+        await (room.localParticipant as any).setMicrophoneEnabled(true, audioOptions);
+        await wait(350);
+
+        if (!isLocalMicrophoneActive(room)) {
+          await (room.localParticipant as any).setMicrophoneEnabled(false).catch(() => undefined);
+          await wait(180);
+          await (room.localParticipant as any).setMicrophoneEnabled(true, audioOptions);
+          await wait(450);
+        }
+      } else {
+        setStatus("Microphone muted");
+        await (room.localParticipant as any).setMicrophoneEnabled(false);
       }
-      await (room.localParticipant as any).setMicrophoneEnabled(next, audioOptions);
+
+      const actual = next ? isLocalMicrophoneActive(room) || next : false;
+      setMicOn(actual);
+      setError("");
       refreshTiles(room);
-      if (next) {
-        window.setTimeout(async () => {
-          const pubs = Array.from((room.localParticipant as any).trackPublications?.values?.() || []);
-          const hasMic = pubs.some((pub: any) => pub?.source === Track.Source.Microphone && pub?.track && !pub?.isMuted);
-          if (!hasMic) {
-            await (room.localParticipant as any).setMicrophoneEnabled(true, audioOptions).catch(() => undefined);
-            refreshTiles(room);
-          }
-        }, 650);
-      }
-      await onMediaStateChange?.({ mic: next, camera: cameraOn });
+      window.setTimeout(() => refreshTiles(room), 700);
+      await onMediaStateChange?.({ mic: actual, camera: cameraOn });
+      setStatus(actual ? "Microphone on" : "Connected");
     } catch (err: any) {
-      setMicOn(!next);
+      setMicOn(false);
       setError("Could not change microphone.");
+      setStatus("Microphone problem");
+    } finally {
+      micOperationRef.current = false;
     }
   }
 
@@ -528,20 +560,37 @@ export function RealLiveKitRoom({
   async function chooseAudioOutput() {
     try {
       const mediaDevices: any = navigator.mediaDevices;
-      if (!mediaDevices?.selectAudioOutput) {
-        setStatus("Speaker is controlled by this device.");
-        return;
+
+      // Desktop Chrome: real output selection.
+      if (mediaDevices?.selectAudioOutput) {
+        if (audioOutputId) {
+          setAudioOutputId("");
+          setAudioOutputLabel("Default speaker");
+          setSpeakerActive(false);
+          setStatus("Default speaker");
+          return;
+        }
+
+        const device = await mediaDevices.selectAudioOutput();
+        if (device?.deviceId) {
+          setAudioOutputId(device.deviceId);
+          setAudioOutputLabel(device.label || "Selected speaker");
+          setSpeakerActive(true);
+          setStatus("Speaker selected");
+          setError("");
+          return;
+        }
       }
 
-      const device = await mediaDevices.selectAudioOutput();
-      if (device?.deviceId) {
-        setAudioOutputId(device.deviceId);
-        setAudioOutputLabel(device.label || "Selected speaker");
-        setStatus("Speaker selected");
-        setError("");
-      }
+      // Mobile browsers usually do not expose speaker/earpiece routing.
+      // Still resume all audio elements so the button gives a useful action.
+      document.querySelectorAll("audio").forEach((element) => {
+        void (element as HTMLAudioElement).play?.().catch(() => undefined);
+      });
+      setSpeakerActive((value) => !value);
+      setStatus("Speaker controlled by device");
     } catch (err: any) {
-      setStatus("Speaker selection was not changed.");
+      setStatus("Speaker not changed");
     }
   }
 
@@ -959,6 +1008,36 @@ export function RealLiveKitRoom({
             height: 30px !important;
             font-size: .9rem !important;
           }
+        }
+        /* v151 inner mobile cleanup */
+
+        @media (max-width: 740px) {
+          .omide-livekit-clean {
+            border-radius: 0 !important;
+            padding: 0 !important;
+            gap: 0 !important;
+            min-height: 100% !important;
+            overflow-y: auto !important;
+          }
+
+          .omide-livekit-clean-grid {
+            padding: 8px !important;
+            gap: 8px !important;
+            overflow-y: auto !important;
+            align-content: flex-start !important;
+          }
+
+          .omide-livekit-clean-tile {
+            min-height: 170px !important;
+          }
+        }
+
+        /* v151 hide duplicate internal controls/status after all component CSS */
+        .omide-livekit-clean-head,
+        .omide-livekit-clean-status,
+        .omide-share-help,
+        .omide-livekit-clean-notice {
+          display: none !important;
         }
       `}</style>
 
