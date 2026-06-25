@@ -584,8 +584,8 @@ export function RealLiveKitRoom({
         }
       }
 
-      // Mobile browsers usually do not expose speaker/earpiece routing.
-      // Still resume all audio elements so the button gives a useful action.
+      // Mobile browsers, especially iPhone/Safari, do not expose true earpiece/loudspeaker routing to web apps.
+      // This keeps a visible speaker state and resumes meeting audio, while the OS controls the real output route.
       document.querySelectorAll("audio").forEach((element) => {
         void (element as HTMLAudioElement).play?.().catch(() => undefined);
       });
@@ -594,7 +594,7 @@ export function RealLiveKitRoom({
         window.dispatchEvent(new CustomEvent("omide-livekit-speaker-state", { detail: { active: next, label: next ? "Speaker on" : "Speaker off" } }));
         return next;
       });
-      setStatus("Speaker controlled by device");
+      setStatus("Speaker toggled");
     } catch (err: any) {
       setStatus("Speaker not changed");
     }
@@ -892,10 +892,11 @@ export function RealLiveKitRoom({
           border-radius: 999px !important;
           display: grid !important;
           place-items: center !important;
-          background: rgba(255, 214, 10, .95) !important;
+          background: rgba(255,255,255,.96) !important;
           color: #111827 !important;
           font-weight: 950 !important;
-          box-shadow: 0 12px 26px rgba(0,0,0,.32) !important;
+          border: 1px solid rgba(255,255,255,.70) !important;
+          box-shadow: 0 12px 26px rgba(0,0,0,.26) !important;
         }
 
         .omide-livekit-clean-namebar {

@@ -221,16 +221,17 @@ function LiveMeetingStyles() {
         position: absolute;
         top: 10px;
         left: 10px;
-        z-index: 36;
+        z-index: 66;
         width: 38px;
         height: 38px;
         border-radius: 999px;
         display: grid;
         place-items: center;
-        background: rgba(19, 191, 84, .95);
-        color: #fff;
+        border: 0;
+        background: rgba(255,255,255,.96);
+        color: #06146d;
         font-weight: 950;
-        box-shadow: 0 14px 34px rgba(19,191,84,.28);
+        box-shadow: 0 14px 34px rgba(6,20,109,.22);
       }
 
 
@@ -1044,6 +1045,33 @@ export function LiveMeetingPage() {
     window.setTimeout(() => setToast("Ready"), 2800);
   }
 
+
+  function handStorageKey() {
+    return profile?.id ? `omide-hand-raised.${profile.id}` : "";
+  }
+
+  function readStoredHand() {
+    try {
+      const key = handStorageKey();
+      if (!key) return null;
+      const value = localStorage.getItem(key);
+      if (value === "true") return true;
+      if (value === "false") return false;
+      return null;
+    } catch {
+      return null;
+    }
+  }
+
+  function storeHand(value: boolean) {
+    try {
+      const key = handStorageKey();
+      if (key) localStorage.setItem(key, value ? "true" : "false");
+    } catch {
+      // ignore
+    }
+  }
+
   function pushFloatingReaction(emoji: string, label: string, sender: string) {
     const id = crypto.randomUUID();
     setFloatingReactions((current) => [
@@ -1054,6 +1082,15 @@ export function LiveMeetingPage() {
       setFloatingReactions((current) => current.filter((item) => item.id !== id));
     }, 3400);
   }
+
+  useEffect(() => {
+    const stored = readStoredHand();
+    if (stored !== null) {
+      handIntentRef.current = stored;
+      setHandRaised(stored);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [profile?.id]);
 
   useEffect(() => {
     if (!recording || !recordingStartedAt) {
@@ -1086,7 +1123,8 @@ export function LiveMeetingPage() {
 
     setRoomIsOpen(Boolean(settings?.live_open));
     setChatMode(settings?.chat_mode || "public");
-    const currentHand = handIntentRef.current ?? Boolean(myRow?.hand_raised ?? handRaised);
+    const storedHand = readStoredHand();
+    const currentHand = handIntentRef.current ?? storedHand ?? Boolean(myRow?.hand_raised ?? handRaised);
     setParticipants(rows.filter((row) => row.status === "online").map((row) =>
       row.profile_id === profile?.id ? { ...row, hand_raised: currentHand } : row
     ));
@@ -1342,7 +1380,8 @@ export function LiveMeetingPage() {
     const current = handIntentRef.current ?? Boolean(myRow?.hand_raised ?? handRaised);
     const next = !current;
     handIntentRef.current = next;
-    handHoldUntilRef.current = Date.now() + 60000;
+    handHoldUntilRef.current = Number.MAX_SAFE_INTEGER;
+    storeHand(next);
     setHandRaised(next);
     setParticipants((currentRows) => currentRows.map((row) =>
       row.profile_id === profile.id ? { ...row, hand_raised: next } : row
@@ -1472,6 +1511,11 @@ export function LiveMeetingPage() {
 
       <main className={panel === "closed" ? "clean-live-main" : "clean-live-main panel-open"}>
         <section className="clean-stage">
+          {speakerIndicator && (
+            <button className="live-speaker-indicator" type="button" onClick={() => liveKitConnected ? sendLiveKitControl("speaker") : notify("Enter live first")} title="Speaker on" aria-label="Speaker on">
+              🔊
+            </button>
+          )}
           {recording && <div className="recording-badge">● REC {recordingElapsed}</div>}
           <RealLiveKitRoom
             profile={profile}
