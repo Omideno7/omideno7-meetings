@@ -9,7 +9,7 @@ export function ProfilePage() {
   const fileRef = useRef<HTMLInputElement | null>(null);
   const [displayName, setDisplayName] = useState(profile?.displayName || "");
   const [avatarUrl, setAvatarUrl] = useState(profile?.avatarUrl || "");
-  const [message, setMessage] = useState("Ready");
+  const [message, setMessage] = useState("");
 
   useEffect(() => {
     setDisplayName(profile?.displayName || "");
@@ -129,7 +129,7 @@ export function ProfilePage() {
           <Button variant="secondary" onClick={() => fileRef.current?.click()}>Choose Photo</Button>
           <Button variant="ghost" onClick={() => setRoute("memberHome")}>Close</Button>
         </div>
-        <p className="auth-message">{message}</p>
+        {message && <p className="auth-message">{message}</p>}
       </Card>
 
       <Card>

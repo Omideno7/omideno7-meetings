@@ -138,7 +138,12 @@ function tileFromParticipant(participant: any, isLocal: boolean, participantRows
   const micPublication = pickPublication(publications, Track.Source.Microphone, Track.Kind.Audio);
   const screenPublication = pickExactSource(publications, Track.Source.ScreenShare);
   const screenAudioSource = (Track.Source as any).ScreenShareAudio || "screen_share_audio";
-  const screenAudioPublication = pickExactSource(publications, screenAudioSource);
+  const screenAudioPublication =
+    pickExactSource(publications, screenAudioSource) ||
+    publications.find((publication: any) => {
+      const source = String(publication?.source || "").toLowerCase();
+      return publication?.kind === Track.Kind.Audio && (source.includes("screen") || source.includes("share"));
+    });
 
   const cameraTrack =
     cameraPublication?.track ||
@@ -233,7 +238,7 @@ function browserNotice() {
   const isIOS = /iPad|iPhone|iPod/.test(ua);
 
   if (isSafari || isIOS) {
-    return "Safari/iOS can block WebRTC. Chrome is recommended for the first stable version.";
+    return "";
   }
 
   return "";
@@ -346,7 +351,7 @@ export function RealLiveKitRoom({
     connectingRef.current = true;
     setNeedsStart(false);
     setError("");
-    setStatus("Requesting secure LiveKit token...");
+    setStatus("Preparing meeting...");
 
     try {
       const result = await liveKitTokenService.requestToken({
@@ -357,7 +362,7 @@ export function RealLiveKitRoom({
 
       if (!result.ok) {
         setStatus("Cannot enter live room");
-        setError(result.message || result.reason || "LiveKit token error.");
+        setError(result.message || result.reason || "Could not prepare meeting.");
         await onConnectionChange?.(false);
         return;
       }
@@ -372,7 +377,7 @@ export function RealLiveKitRoom({
         roomRef.current = null;
       }
 
-      setStatus("Connecting to LiveKit room...");
+      setStatus("Connecting...");
 
       const room = new Room({
         adaptiveStream: true,
@@ -388,11 +393,12 @@ export function RealLiveKitRoom({
         autoSubscribe: true
       });
 
+      await (room as any).startAudio?.().catch(() => undefined);
       refreshTiles(room);
       window.setTimeout(() => refreshTiles(room), 500);
       window.setTimeout(() => refreshTiles(room), 1500);
     } catch (err: any) {
-      console.error("LiveKit connection error:", err);
+      console.error("Connection error:", err);
 
       try {
         roomRef.current?.disconnect();
@@ -403,7 +409,7 @@ export function RealLiveKitRoom({
       roomRef.current = null;
       setConnected(false);
       setStatus("Connection failed");
-      setError(err?.message || "Could not connect to LiveKit room.");
+      setError(err?.message || "Could not connect.");
       await onConnectionChange?.(false);
     } finally {
       connectingRef.current = false;
@@ -453,6 +459,7 @@ export function RealLiveKitRoom({
     setMicOn(next);
 
     try {
+      await (room as any).startAudio?.().catch(() => undefined);
       const audioOptions = next ? {
         echoCancellation: musicMode ? false : echoCancellation,
         noiseSuppression: musicMode ? false : noiseSuppression,
@@ -507,7 +514,7 @@ export function RealLiveKitRoom({
     try {
       const mediaDevices: any = navigator.mediaDevices;
       if (!mediaDevices?.selectAudioOutput) {
-        setError("Speaker selection is not supported in this browser/device. Use the device speaker controls.");
+        setStatus("Speaker is controlled by this device.");
         return;
       }
 
@@ -515,10 +522,11 @@ export function RealLiveKitRoom({
       if (device?.deviceId) {
         setAudioOutputId(device.deviceId);
         setAudioOutputLabel(device.label || "Selected speaker");
+        setStatus("Speaker selected");
         setError("");
       }
     } catch (err: any) {
-      setError(err?.message || "Could not select speaker output.");
+      setStatus("Speaker selection was not changed.");
     }
   }
 
@@ -594,6 +602,7 @@ export function RealLiveKitRoom({
       if (action === "force-mic-off") void forceMicOff();
       if (action === "camera") void toggleCamera();
       if (action === "screen") void toggleScreenShare();
+      if (action === "speaker") void chooseAudioOutput();
       if (action === "leave") void disconnect(true);
       if (action === "force-disconnect") void disconnect(false);
     }
@@ -622,14 +631,29 @@ export function RealLiveKitRoom({
           flex: 1 1 auto !important;
           display: flex !important;
           flex-direction: column !important;
-          gap: 12px !important;
-          padding: 12px !important;
+          gap: 8px !important;
+          padding: 8px !important;
           border-radius: 22px !important;
           background: linear-gradient(135deg, #06146d, #0b5798) !important;
           color: #fff !important;
           overflow: hidden !important;
           box-sizing: border-box !important;
           min-height: 100% !important;
+        }
+
+        .omide-livekit-clean-head,
+        .omide-livekit-clean-status,
+        .omide-share-help,
+        .omide-livekit-clean-notice {
+          display: none !important;
+        }
+
+        .omide-livekit-clean-error {
+          position: absolute !important;
+          top: 10px !important;
+          left: 10px !important;
+          right: 10px !important;
+          z-index: 60 !important;
         }
 
         .omide-livekit-clean-head {
@@ -723,7 +747,7 @@ export function RealLiveKitRoom({
           gap: 12px !important;
           align-items: stretch !important;
           justify-items: stretch !important;
-          min-height: 260px !important;
+          min-height: 0 !important;
           flex: 1 1 auto !important;
           overflow-y: auto !important;
           padding: 2px !important;
@@ -735,7 +759,7 @@ export function RealLiveKitRoom({
           width: 100% !important;
           min-width: 0 !important;
           aspect-ratio: 1 / 1 !important;
-          min-height: 190px !important;
+          min-height: 150px !important;
           max-height: 420px !important;
           overflow: hidden !important;
           border-radius: 20px !important;
@@ -869,29 +893,21 @@ export function RealLiveKitRoom({
 
         @media (max-width: 740px) {
           .omide-livekit-clean {
-            padding: 8px !important;
-            border-radius: 18px !important;
-          }
-
-          .omide-livekit-clean-head {
-            align-items: flex-start !important;
-            flex-direction: column !important;
-          }
-
-          .omide-livekit-clean-actions {
-            width: 100% !important;
-            justify-content: flex-start !important;
+            padding: 6px !important;
+            border-radius: 0 !important;
+            height: 100% !important;
+            min-height: 0 !important;
           }
 
           .omide-livekit-clean-grid {
             grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
             gap: 8px !important;
-            min-height: 220px !important;
+            min-height: 0 !important;
           }
 
           .omide-livekit-clean-tile {
-            min-height: 135px !important;
-            max-height: 190px !important;
+            min-height: 128px !important;
+            max-height: none !important;
             border-radius: 16px !important;
           }
 
@@ -931,7 +947,7 @@ export function RealLiveKitRoom({
       <div className="omide-livekit-clean-head">
         <div className="omide-livekit-clean-title">
           <strong>OmideNo7 Live Room</strong>
-          <span>{connected ? "Connected to LiveKit" : "Members enter after host admission"}</span>
+          <span>{connected ? "Connected" : "Ready"}</span>
         </div>
 
         <div className="omide-livekit-clean-actions">

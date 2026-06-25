@@ -14,6 +14,7 @@ export type RoomParticipant = {
   camera_on: boolean;
   hand_raised: boolean;
   allowed_mic: boolean;
+  allowed_screen_share?: boolean;
   room_name: string;
   status: RoomParticipantStatus;
   created_at?: string;
@@ -111,6 +112,7 @@ function toParticipant(profile: UserProfile | null, status: RoomParticipantStatu
     camera_on: false,
     hand_raised: false,
     allowed_mic: false,
+    allowed_screen_share: false,
     room_name: "Main Room",
     status,
     ...patch
@@ -274,6 +276,22 @@ export const meetingRoomService = {
     } as Partial<RoomParticipant>);
     await this.raiseAlert(allowed ? "Microphone permission was allowed." : "Microphone permission was locked by host.", "mic_permission", "red", "active");
     return saved;
+  },
+
+
+  async setParticipantScreenSharePermission(id: string, allowed: boolean): Promise<boolean> {
+    if (supabase) {
+      const { error: rpcError } = await supabase.rpc("host_set_participant_screen_share_permission", {
+        p_participant_id: id,
+        p_allowed: allowed
+      });
+      if (!rpcError) return true;
+      console.warn("host_set_participant_screen_share_permission RPC failed", rpcError.message);
+    }
+
+    return await this.updateParticipant(id, {
+      allowed_screen_share: allowed
+    } as Partial<RoomParticipant>);
   },
 
   async updateParticipantRole(id: string, roleLabel: string) {

@@ -186,6 +186,7 @@ function LiveMeetingStyles() {
         padding: 10px;
         box-sizing: border-box;
         overflow: hidden;
+        min-height: 0;
       }
 
       .clean-live-main.panel-open {
@@ -197,8 +198,8 @@ function LiveMeetingStyles() {
         width: 100% !important;
         min-width: 0 !important;
         max-width: none !important;
-        height: calc(100dvh - 156px);
-        min-height: 480px;
+        height: calc(100dvh - 138px);
+        min-height: 0;
         display: flex;
         flex-direction: column;
         overflow: hidden;
@@ -262,8 +263,8 @@ function LiveMeetingStyles() {
       }
 
       .clean-panel {
-        height: calc(100dvh - 156px);
-        min-height: 480px;
+        height: calc(100dvh - 138px);
+        min-height: 0;
         overflow: hidden;
         border-radius: 28px;
         background: #fff;
@@ -598,16 +599,31 @@ function LiveMeetingStyles() {
       .clean-toolbar {
         display: flex;
         align-items: center;
-        justify-content: center;
+        justify-content: flex-start;
         gap: 8px;
-        padding: 9px 12px 12px;
-        background: rgba(255,255,255,.9);
+        padding: 8px 10px calc(8px + env(safe-area-inset-bottom));
+        background: rgba(255,255,255,.96);
         border-top: 1px solid rgba(6, 20, 109, .08);
-        flex-wrap: wrap;
+        flex-wrap: nowrap;
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+        z-index: 60;
       }
 
       .clean-toolbar button {
-        min-width: 82px;
+        min-width: max-content;
+        flex: 0 0 auto;
+        padding: 9px 13px;
+      }
+
+      .speaker-mini-btn {
+        min-width: 40px !important;
+        width: 40px !important;
+        height: 40px !important;
+        padding: 0 !important;
+        display: grid !important;
+        place-items: center !important;
+        font-size: 1.05rem !important;
       }
 
       .live-toast-clean {
@@ -989,6 +1005,15 @@ export function LiveMeetingPage() {
     await refreshRoom();
   }
 
+
+  async function togglePersonScreenShare(person: RoomParticipant) {
+    if (!canHost) return notify("Only host roles can allow screen share.");
+    const allow = !(person as any).allowed_screen_share;
+    const saved = await meetingRoomService.setParticipantScreenSharePermission(person.id, allow);
+    notify(saved ? (allow ? `${person.display_name} can share screen now.` : `${person.display_name} screen share disabled.`) : "Screen share permission did not save. Run the v1.49 SQL patch.");
+    await refreshRoom();
+  }
+
   async function makeCoHost(person: RoomParticipant) {
     if (!canHost) return notify("Only host roles can change meeting roles.");
     const roleSaved = await meetingRoomService.updateParticipantRole(person.id, "co_host");
@@ -1093,7 +1118,7 @@ export function LiveMeetingPage() {
     notify(next ? "REC marker started. Real cloud recording still needs LiveKit Egress setup." : "REC marker stopped.");
   }
 
-  function sendLiveKitControl(action: "enter-live" | "mic" | "camera" | "screen" | "leave" | "force-disconnect" | "force-mic-off") {
+  function sendLiveKitControl(action: "enter-live" | "mic" | "camera" | "screen" | "speaker" | "leave" | "force-disconnect" | "force-mic-off") {
     window.dispatchEvent(new CustomEvent("omide-livekit-control", { detail: { action } }));
   }
 
@@ -1109,6 +1134,7 @@ export function LiveMeetingPage() {
       role_label: myMeetingRole || roleLabel(profile?.role),
       avatar_url: profile?.avatarUrl || currentRow?.avatar_url || null,
       allowed_mic: true,
+      allowed_screen_share: Boolean((currentRow as any)?.allowed_screen_share),
       hand_raised: Boolean(currentRow?.hand_raised ?? handRaised)
     });
 
@@ -1136,6 +1162,8 @@ export function LiveMeetingPage() {
     setRoute(canHost ? "ownerDashboard" : "memberHome");
   }
 
+  const myRowForControls = participants.find((item) => item.profile_id === profile?.id);
+  const canShareScreenNow = Boolean(canHost || (myRowForControls as any)?.allowed_screen_share);
   const memberBlocked = !canHost && myStatus !== "online";
 
   if (memberBlocked) {
@@ -1158,10 +1186,8 @@ export function LiveMeetingPage() {
 
       <header className="clean-live-topbar">
         <div className="clean-live-brand">
-          <strong>OmideNo7 Main Room</strong>
-          <span>
-            {canHost ? "Host control" : "Member room"} · {meetingRoomService.isReady() ? "Supabase realtime" : "Local mode"} · {liveKitConnected ? "LiveKit connected" : "LiveKit ready"}
-          </span>
+          <strong>OmideNo7 Meetings</strong>
+          <span>v1.49 · {liveKitConnected ? "Connected" : roomIsOpen ? "Ready" : "Waiting"}{toast !== "Ready" ? ` · ${toast}` : ""}</span>
         </div>
 
         <div className="clean-live-actions">
@@ -1198,7 +1224,6 @@ export function LiveMeetingPage() {
       <main className={panel === "closed" ? "clean-live-main" : "clean-live-main panel-open"}>
         <section className="clean-stage">
           {recording && <div className="recording-badge">● REC {recordingElapsed}</div>}
-          {recording && <div className="recording-helper">Recording marker only. Real saved recordings require LiveKit Egress/storage setup.</div>}
           <RealLiveKitRoom
             profile={profile}
             meetingId="main-room"
@@ -1343,6 +1368,7 @@ export function LiveMeetingPage() {
                               <button onClick={() => makeCoHost(person)}>Make co-host</button>
                               <button onClick={() => makeMember(person)}>Change to member</button>
                               <button onClick={() => startDirectMessage(person)}>Direct message</button>
+                              <button onClick={() => togglePersonScreenShare(person)}>{(person as any).allowed_screen_share ? "Disable screen share" : "Allow screen share"}</button>
                               <button className="danger" onClick={() => removePerson(person)}>Remove from meeting</button>
                             </div>
                           )}
@@ -1379,14 +1405,19 @@ export function LiveMeetingPage() {
 
       <footer className="clean-toolbar">
         <button onClick={() => liveKitConnected ? sendLiveKitControl("mic") : notify("Enter live room first.")}>
-          {micOn ? "Mute" : "Unmute"}
+          {micOn ? "Mute" : "Mic"}
+        </button>
+        <button className="speaker-mini-btn" onClick={() => liveKitConnected ? sendLiveKitControl("speaker") : notify("Enter live room first.")} title="Speaker">
+          🔊
         </button>
         <button onClick={() => liveKitConnected ? sendLiveKitControl("camera") : notify("Enter live room first.")}>
-          {cameraOn ? "Camera off" : "Camera on"}
+          {cameraOn ? "Cam off" : "Camera"}
         </button>
-        <button onClick={() => liveKitConnected ? sendLiveKitControl("screen") : notify("Enter live room first.")}>
-          Share screen
-        </button>
+        {canShareScreenNow && (
+          <button onClick={() => liveKitConnected ? sendLiveKitControl("screen") : notify("Enter live room first.")}>
+            Share screen
+          </button>
+        )}
         {canHost && (
           <button className={recording ? "danger" : ""} onClick={toggleRecordingMarker}>
             {recording ? "REC on" : "Record"}
