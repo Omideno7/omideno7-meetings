@@ -1340,7 +1340,7 @@ export function LiveMeetingPage() {
     });
     await meetingRoomService.openMeetingForEveryone();
     setRoomIsOpen(true);
-    notify("Live room opened. Entering live now...");
+    notify("Live room opened. Host microphone will start automatically...");
     window.setTimeout(() => {
       window.dispatchEvent(new CustomEvent("omide-livekit-control", { detail: { action: "enter-live" } }));
     }, 150);
@@ -1484,7 +1484,7 @@ export function LiveMeetingPage() {
       <header className="clean-live-topbar">
         <div className="clean-live-brand">
           <strong>OmideNo7 Meetings</strong>
-          <span>v1.56 · {deviceLabel()} · {liveKitConnected ? "Connected" : roomIsOpen ? "Ready" : "Waiting"}{toast !== "Ready" ? ` · ${toast}` : ""}</span>
+          <span>v1.57 · {deviceLabel()} · {liveKitConnected ? "Connected" : roomIsOpen ? "Ready" : "Waiting"}{toast !== "Ready" ? ` · ${toast}` : ""}</span>
         </div>
 
         <div className="clean-live-actions">

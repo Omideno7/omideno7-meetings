@@ -273,6 +273,7 @@ export function RealLiveKitRoom({
   const connectingRef = useRef(false);
   const autoTriedRef = useRef(false);
   const micOperationRef = useRef(false);
+  const autoHostMicStartedRef = useRef(false);
   const participantsRef = useRef<RoomParticipant[]>(participants);
   const profileRef = useRef<UserProfile | null>(profile);
   const localHandRaisedRef = useRef(localHandRaised);
@@ -432,6 +433,13 @@ export function RealLiveKitRoom({
       });
 
       await (room as any).startAudio?.().catch(() => undefined);
+
+      if (isHostRole(profile) && !autoHostMicStartedRef.current) {
+        autoHostMicStartedRef.current = true;
+        await wait(150);
+        await enableMicrophone(room, true);
+      }
+
       refreshTiles(room);
       window.setTimeout(() => refreshTiles(room), 500);
       window.setTimeout(() => refreshTiles(room), 1500);
@@ -445,12 +453,71 @@ export function RealLiveKitRoom({
       }
 
       roomRef.current = null;
+      autoHostMicStartedRef.current = false;
       setConnected(false);
       setStatus("Connection failed");
       setError("Could not connect.");
       await onConnectionChange?.(false);
     } finally {
       connectingRef.current = false;
+    }
+  }
+
+  function currentAudioOptions() {
+    return {
+      echoCancellation: musicMode ? false : echoCancellation,
+      noiseSuppression: musicMode ? false : noiseSuppression,
+      autoGainControl: musicMode ? false : autoGainControl
+    };
+  }
+
+  async function enableMicrophone(room: Room, announce = true) {
+    if (micOperationRef.current) return isLocalMicrophoneActive(room);
+    micOperationRef.current = true;
+
+    const audioOptions = currentAudioOptions();
+
+    try {
+      await (room as any).startAudio?.().catch(() => undefined);
+      setStatus(announce ? "Starting host microphone..." : "Starting microphone...");
+
+      await navigator.mediaDevices?.getUserMedia?.({ audio: audioOptions as MediaTrackConstraints }).then((stream) => {
+        stream.getTracks().forEach((track) => track.stop());
+      }).catch(() => undefined);
+
+      await (room.localParticipant as any).setMicrophoneEnabled(true, audioOptions);
+      await wait(450);
+
+      if (!isLocalMicrophoneActive(room)) {
+        await (room.localParticipant as any).setMicrophoneEnabled(false).catch(() => undefined);
+        await wait(220);
+        await (room.localParticipant as any).setMicrophoneEnabled(true, audioOptions);
+        await wait(550);
+      }
+
+      if (!isLocalMicrophoneActive(room)) {
+        await publishMicrophoneFallback(room, audioOptions as MediaTrackConstraints);
+        await wait(350);
+      }
+
+      const actual = isLocalMicrophoneActive(room);
+      setMicOn(actual);
+      refreshTiles(room);
+      window.setTimeout(() => refreshTiles(room), 350);
+      window.setTimeout(() => refreshTiles(room), 1200);
+      await onMediaStateChange?.({ mic: actual, camera: cameraOn });
+
+      if (actual) {
+        setError("");
+        setStatus("Host microphone on");
+      } else {
+        setError("Could not start microphone. Tap the microphone button once.");
+        setStatus("Microphone needs tap");
+      }
+
+      return actual;
+    } finally {
+      micOperationRef.current = false;
     }
   }
 
@@ -491,6 +558,7 @@ export function RealLiveKitRoom({
       }
     } finally {
       roomRef.current = null;
+      autoHostMicStartedRef.current = false;
       setConnected(false);
       setMicOn(false);
       setCameraOn(false);
@@ -525,34 +593,11 @@ export function RealLiveKitRoom({
       }
     }
 
-    const audioOptions = {
-      echoCancellation: musicMode ? false : echoCancellation,
-      noiseSuppression: musicMode ? false : noiseSuppression,
-      autoGainControl: musicMode ? false : autoGainControl
-    };
-
     try {
       await (room as any).startAudio?.().catch(() => undefined);
 
       if (next) {
-        setStatus("Turning microphone on...");
-        await navigator.mediaDevices?.getUserMedia?.({ audio: audioOptions as MediaTrackConstraints }).then((stream) => {
-          stream.getTracks().forEach((track) => track.stop());
-        }).catch(() => undefined);
-
-        await (room.localParticipant as any).setMicrophoneEnabled(true, audioOptions);
-        await wait(350);
-
-        if (!isLocalMicrophoneActive(room)) {
-          await (room.localParticipant as any).setMicrophoneEnabled(false).catch(() => undefined);
-          await wait(180);
-          await (room.localParticipant as any).setMicrophoneEnabled(true, audioOptions);
-          await wait(450);
-        }
-
-        if (!isLocalMicrophoneActive(room)) {
-          await publishMicrophoneFallback(room, audioOptions as MediaTrackConstraints);
-        }
+        await enableMicrophone(room, false);
       } else {
         setStatus("Microphone muted");
         await (room.localParticipant as any).setMicrophoneEnabled(false);
