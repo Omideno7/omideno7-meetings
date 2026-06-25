@@ -351,7 +351,7 @@ export function RealLiveKitRoom({
     connectingRef.current = true;
     setNeedsStart(false);
     setError("");
-    setStatus("Preparing meeting...");
+    setStatus("Preparing...");
 
     try {
       const result = await liveKitTokenService.requestToken({
@@ -362,7 +362,7 @@ export function RealLiveKitRoom({
 
       if (!result.ok) {
         setStatus("Cannot enter live room");
-        setError(result.message || result.reason || "Could not prepare meeting.");
+        setError("Could not enter meeting.");
         await onConnectionChange?.(false);
         return;
       }
@@ -409,7 +409,7 @@ export function RealLiveKitRoom({
       roomRef.current = null;
       setConnected(false);
       setStatus("Connection failed");
-      setError(err?.message || "Could not connect.");
+      setError("Could not connect.");
       await onConnectionChange?.(false);
     } finally {
       connectingRef.current = false;
@@ -451,7 +451,7 @@ export function RealLiveKitRoom({
     if (next && !isHostRole(profile)) {
       const myRow = participants.find((row) => row.profile_id === profile?.id);
       if (myRow && myRow.allowed_mic === false) {
-        setError("The host has locked your microphone. Please raise your hand or ask the host to allow unmute.");
+        setError("Microphone is locked by host.");
         return;
       }
     }
@@ -465,12 +465,27 @@ export function RealLiveKitRoom({
         noiseSuppression: musicMode ? false : noiseSuppression,
         autoGainControl: musicMode ? false : autoGainControl
       } : undefined;
+      if (next) {
+        await navigator.mediaDevices?.getUserMedia?.({ audio: audioOptions as MediaTrackConstraints }).then((stream) => {
+          stream.getTracks().forEach((track) => track.stop());
+        }).catch(() => undefined);
+      }
       await (room.localParticipant as any).setMicrophoneEnabled(next, audioOptions);
       refreshTiles(room);
+      if (next) {
+        window.setTimeout(async () => {
+          const pubs = Array.from((room.localParticipant as any).trackPublications?.values?.() || []);
+          const hasMic = pubs.some((pub: any) => pub?.source === Track.Source.Microphone && pub?.track && !pub?.isMuted);
+          if (!hasMic) {
+            await (room.localParticipant as any).setMicrophoneEnabled(true, audioOptions).catch(() => undefined);
+            refreshTiles(room);
+          }
+        }, 650);
+      }
       await onMediaStateChange?.({ mic: next, camera: cameraOn });
     } catch (err: any) {
       setMicOn(!next);
-      setError(err?.message || "Could not change microphone.");
+      setError("Could not change microphone.");
     }
   }
 
@@ -554,7 +569,7 @@ export function RealLiveKitRoom({
       window.setTimeout(() => refreshTiles(room), 650);
     } catch (err: any) {
       setScreenOn(!next);
-      setError(err?.message || "Could not start screen share. On macOS Chrome, share a browser tab and tick Share tab audio when you need music audio.");
+      setError("Could not start screen share.");
     }
   }
 
@@ -644,7 +659,8 @@ export function RealLiveKitRoom({
         .omide-livekit-clean-head,
         .omide-livekit-clean-status,
         .omide-share-help,
-        .omide-livekit-clean-notice {
+        .omide-livekit-clean-notice,
+        .omide-livekit-clean-error {
           display: none !important;
         }
 
@@ -893,7 +909,7 @@ export function RealLiveKitRoom({
 
         @media (max-width: 740px) {
           .omide-livekit-clean {
-            padding: 6px !important;
+            padding: 8px !important;
             border-radius: 0 !important;
             height: 100% !important;
             min-height: 0 !important;
@@ -901,14 +917,16 @@ export function RealLiveKitRoom({
 
           .omide-livekit-clean-grid {
             grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+            grid-auto-rows: minmax(132px, 1fr) !important;
             gap: 8px !important;
             min-height: 0 !important;
+            height: 100% !important;
           }
 
           .omide-livekit-clean-tile {
-            min-height: 128px !important;
+            min-height: 132px !important;
             max-height: none !important;
-            border-radius: 16px !important;
+            border-radius: 18px !important;
           }
 
           .omide-livekit-clean-namebar {

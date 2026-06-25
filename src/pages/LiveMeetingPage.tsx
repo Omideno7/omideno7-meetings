@@ -701,6 +701,156 @@ function LiveMeetingStyles() {
           height: 44dvh;
         }
       }
+
+      /* v1.50 mobile meeting room redesign */
+      @media (max-width: 740px) {
+        .live-clean-page {
+          height: 100dvh;
+          min-height: 100dvh;
+          overflow: hidden;
+          background: linear-gradient(180deg, #06146d 0%, #0b5798 55%, #f7fbff 55%);
+        }
+
+        .clean-live-topbar {
+          min-height: 54px;
+          padding: 8px 12px;
+          align-items: center;
+          flex-direction: row;
+          border-bottom: 0;
+          background: rgba(255,255,255,.96);
+          box-shadow: 0 10px 30px rgba(6, 20, 109, .12);
+        }
+
+        .clean-live-brand strong {
+          font-size: .92rem;
+          line-height: 1.1;
+        }
+
+        .clean-live-brand span {
+          font-size: .64rem;
+          white-space: nowrap;
+          overflow: hidden;
+          text-overflow: ellipsis;
+          max-width: 76vw;
+          display: block;
+        }
+
+        .clean-live-actions {
+          display: none;
+        }
+
+        .clean-live-main,
+        .clean-live-main.panel-open {
+          height: calc(100dvh - 116px - env(safe-area-inset-bottom));
+          padding: 0;
+          gap: 0;
+          overflow: hidden;
+          display: block;
+        }
+
+        .clean-stage {
+          height: calc(100dvh - 116px - env(safe-area-inset-bottom));
+          min-height: 0;
+          width: 100%;
+          border-radius: 0;
+          box-shadow: none;
+          background: linear-gradient(135deg, #06146d, #0b5798);
+        }
+
+        .clean-stage > * {
+          height: 100% !important;
+          min-height: 0 !important;
+        }
+
+        .clean-panel {
+          position: fixed;
+          left: 10px;
+          right: 10px;
+          bottom: calc(64px + env(safe-area-inset-bottom));
+          height: min(56dvh, 440px);
+          min-height: 260px;
+          z-index: 180;
+          border-radius: 24px;
+          box-shadow: 0 24px 80px rgba(2,6,23,.30);
+        }
+
+        .clean-panel-head {
+          padding: 10px 12px;
+        }
+
+        .clean-panel-tabs {
+          display: flex;
+          padding: 8px 10px;
+          gap: 6px;
+          overflow-x: auto;
+        }
+
+        .clean-panel-tabs button {
+          min-width: max-content;
+          padding: 7px 10px;
+          font-size: .74rem;
+        }
+
+        .clean-panel-body {
+          padding: 8px;
+        }
+
+        .clean-toolbar {
+          position: fixed;
+          left: 0;
+          right: 0;
+          bottom: 0;
+          z-index: 220;
+          min-height: calc(58px + env(safe-area-inset-bottom));
+          padding: 8px 8px calc(8px + env(safe-area-inset-bottom));
+          gap: 7px;
+          justify-content: flex-start;
+          flex-wrap: nowrap;
+          overflow-x: auto;
+          background: rgba(255,255,255,.96);
+          border-top: 1px solid rgba(6, 20, 109, .10);
+          box-shadow: 0 -10px 32px rgba(6,20,109,.14);
+          -webkit-overflow-scrolling: touch;
+        }
+
+        .clean-toolbar::-webkit-scrollbar {
+          display: none;
+        }
+
+        .clean-toolbar button {
+          min-width: max-content;
+          padding: 9px 13px;
+          border-radius: 999px;
+          font-size: .82rem;
+          box-shadow: none;
+        }
+
+        .clean-toolbar .speaker-mini-btn {
+          min-width: 42px !important;
+          width: 42px !important;
+          height: 42px !important;
+          padding: 0 !important;
+          font-size: 1.05rem !important;
+        }
+
+        .toolbar-react-wrap {
+          flex: 0 0 auto;
+        }
+
+        .reaction-picker {
+          bottom: calc(72px + env(safe-area-inset-bottom));
+        }
+
+        .recording-badge {
+          top: 10px;
+          right: 10px;
+          font-size: .72rem;
+        }
+
+        .recording-helper {
+          display: none;
+        }
+      }
     `}</style>
   );
 }
@@ -793,6 +943,7 @@ export function LiveMeetingPage() {
   const [recordingElapsed, setRecordingElapsed] = useState("00:00");
   const seenReactionIds = useRef<Set<string>>(new Set());
   const reactionsBooted = useRef(false);
+  const handHoldUntilRef = useRef(0);
 
   const effectiveRole = normalizeMeetingRole(myMeetingRole || profile?.role);
   const canHost = Boolean(profile?.status === "approved" && meetingHostRoles.has(effectiveRole));
@@ -856,7 +1007,7 @@ export function LiveMeetingPage() {
     setChatMode(settings?.chat_mode || "public");
     setParticipants(rows.filter((row) => row.status === "online"));
     setWaiting(rows.filter((row) => row.status === "waiting"));
-    if (myRow) setHandRaised(Boolean(myRow.hand_raised));
+    if (myRow && Date.now() > handHoldUntilRef.current) setHandRaised(Boolean(myRow.hand_raised));
 
     const visibleMessages: RoomChatMessage[] = [];
     const reactionRows: RoomChatMessage[] = [];
@@ -1094,6 +1245,7 @@ export function LiveMeetingPage() {
     const myId = roomParticipantId(meetingRoomService.meetingId, profile.id);
     const myRow = participants.find((item) => item.id === myId) || await meetingRoomService.getMyRow(profile);
     const next = !Boolean(myRow?.hand_raised ?? handRaised);
+    handHoldUntilRef.current = Date.now() + 15000;
     setHandRaised(next);
     setParticipants((current) => current.map((row) =>
       row.profile_id === profile.id ? { ...row, hand_raised: next } : row
@@ -1187,7 +1339,7 @@ export function LiveMeetingPage() {
       <header className="clean-live-topbar">
         <div className="clean-live-brand">
           <strong>OmideNo7 Meetings</strong>
-          <span>v1.49 · {liveKitConnected ? "Connected" : roomIsOpen ? "Ready" : "Waiting"}{toast !== "Ready" ? ` · ${toast}` : ""}</span>
+          <span>v1.50 · {liveKitConnected ? "Connected" : roomIsOpen ? "Ready" : "Waiting"}{toast !== "Ready" ? ` · ${toast}` : ""}</span>
         </div>
 
         <div className="clean-live-actions">
@@ -1404,7 +1556,12 @@ export function LiveMeetingPage() {
       </main>
 
       <footer className="clean-toolbar">
-        <button onClick={() => liveKitConnected ? sendLiveKitControl("mic") : notify("Enter live room first.")}>
+        {!liveKitConnected && (
+          <button className="green" onClick={() => canHost ? startHostRoom() : sendLiveKitControl("enter-live")}>
+            Enter
+          </button>
+        )}
+        <button onClick={() => liveKitConnected ? sendLiveKitControl("mic") : notify("Enter live first") }>
           {micOn ? "Mute" : "Mic"}
         </button>
         <button className="speaker-mini-btn" onClick={() => liveKitConnected ? sendLiveKitControl("speaker") : notify("Enter live room first.")} title="Speaker">
@@ -1442,7 +1599,7 @@ export function LiveMeetingPage() {
         {canEnd && <button className="danger" onClick={endForEveryone}>End all</button>}
       </footer>
 
-      {toast !== "Ready" && <div className="live-toast-clean alert-red">{toast}</div>}
+      {/* Action status is shown in the top bar to keep the meeting room clean. */}
     </div>
   );
 }
