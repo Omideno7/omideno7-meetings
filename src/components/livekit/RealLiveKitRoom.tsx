@@ -567,6 +567,7 @@ export function RealLiveKitRoom({
           setAudioOutputId("");
           setAudioOutputLabel("Default speaker");
           setSpeakerActive(false);
+          window.dispatchEvent(new CustomEvent("omide-livekit-speaker-state", { detail: { active: false, label: "Default speaker" } }));
           setStatus("Default speaker");
           return;
         }
@@ -576,6 +577,7 @@ export function RealLiveKitRoom({
           setAudioOutputId(device.deviceId);
           setAudioOutputLabel(device.label || "Selected speaker");
           setSpeakerActive(true);
+          window.dispatchEvent(new CustomEvent("omide-livekit-speaker-state", { detail: { active: true, label: device.label || "Selected speaker" } }));
           setStatus("Speaker selected");
           setError("");
           return;
@@ -587,7 +589,11 @@ export function RealLiveKitRoom({
       document.querySelectorAll("audio").forEach((element) => {
         void (element as HTMLAudioElement).play?.().catch(() => undefined);
       });
-      setSpeakerActive((value) => !value);
+      setSpeakerActive((value) => {
+        const next = !value;
+        window.dispatchEvent(new CustomEvent("omide-livekit-speaker-state", { detail: { active: next, label: next ? "Speaker on" : "Speaker off" } }));
+        return next;
+      });
       setStatus("Speaker controlled by device");
     } catch (err: any) {
       setStatus("Speaker not changed");
@@ -1029,6 +1035,83 @@ export function RealLiveKitRoom({
 
           .omide-livekit-clean-tile {
             min-height: 170px !important;
+          }
+        }
+
+        /* v152 compact square mobile participant grid */
+        @media (max-width: 740px) {
+          .omide-livekit-clean {
+            height: auto !important;
+            min-height: 0 !important;
+          }
+
+          .omide-livekit-clean-grid {
+            display: grid !important;
+            grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+            grid-auto-rows: auto !important;
+            align-content: start !important;
+            justify-content: stretch !important;
+            gap: 6px !important;
+            padding: 7px !important;
+            height: auto !important;
+            min-height: 0 !important;
+            max-height: none !important;
+            overflow: visible !important;
+          }
+
+          .omide-livekit-clean-tile {
+            aspect-ratio: 1 / 1 !important;
+            min-height: 0 !important;
+            height: auto !important;
+            max-height: none !important;
+            border-radius: 14px !important;
+          }
+
+          .omide-livekit-clean-avatar span,
+          .omide-livekit-clean-avatar-img {
+            width: 46px !important;
+            height: 46px !important;
+            border-radius: 15px !important;
+            font-size: 1rem !important;
+          }
+
+          .omide-livekit-clean-namebar {
+            left: 4px !important;
+            right: 4px !important;
+            bottom: 4px !important;
+            padding: 4px 5px !important;
+            border-radius: 10px !important;
+          }
+
+          .omide-livekit-clean-namebar strong {
+            font-size: .56rem !important;
+          }
+
+          .omide-livekit-clean-namebar small {
+            display: none !important;
+          }
+
+          .omide-livekit-hand-badge {
+            top: 5px !important;
+            left: 5px !important;
+            min-width: 24px !important;
+            height: 24px !important;
+            padding: 0 5px !important;
+            font-size: .78rem !important;
+          }
+
+          .omide-livekit-clean-eq {
+            left: 6px !important;
+            bottom: 30px !important;
+            width: 34px !important;
+            height: 5px !important;
+          }
+        }
+
+        @media (max-width: 380px) {
+          .omide-livekit-clean-grid {
+            grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+            gap: 5px !important;
           }
         }
 

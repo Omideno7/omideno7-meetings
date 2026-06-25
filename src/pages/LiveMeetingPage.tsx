@@ -217,6 +217,22 @@ function LiveMeetingStyles() {
         z-index: 25;
         overflow: hidden;
       }
+      .live-speaker-indicator {
+        position: absolute;
+        top: 10px;
+        left: 10px;
+        z-index: 36;
+        width: 38px;
+        height: 38px;
+        border-radius: 999px;
+        display: grid;
+        place-items: center;
+        background: rgba(19, 191, 84, .95);
+        color: #fff;
+        font-weight: 950;
+        box-shadow: 0 14px 34px rgba(19,191,84,.28);
+      }
+
 
       .live-floating-reaction {
         position: absolute;
@@ -626,6 +642,11 @@ function LiveMeetingStyles() {
         font-size: 1.05rem !important;
       }
 
+      .speaker-mini-btn.speaker-active {
+        background: #13bf54 !important;
+        color: #fff !important;
+      }
+
 
       .control-icon-btn,
       .clean-toolbar .control-icon-btn,
@@ -999,9 +1020,11 @@ export function LiveMeetingPage() {
   const [recording, setRecording] = useState(false);
   const [recordingStartedAt, setRecordingStartedAt] = useState<number | null>(null);
   const [recordingElapsed, setRecordingElapsed] = useState("00:00");
+  const [speakerIndicator, setSpeakerIndicator] = useState(false);
   const seenReactionIds = useRef<Set<string>>(new Set());
   const reactionsBooted = useRef(false);
   const handHoldUntilRef = useRef(0);
+  const handIntentRef = useRef<boolean | null>(null);
 
   const effectiveRole = normalizeMeetingRole(myMeetingRole || profile?.role);
   const canHost = Boolean(profile?.status === "approved" && meetingHostRoles.has(effectiveRole));
@@ -1063,9 +1086,12 @@ export function LiveMeetingPage() {
 
     setRoomIsOpen(Boolean(settings?.live_open));
     setChatMode(settings?.chat_mode || "public");
-    setParticipants(rows.filter((row) => row.status === "online"));
+    const currentHand = handIntentRef.current ?? Boolean(myRow?.hand_raised ?? handRaised);
+    setParticipants(rows.filter((row) => row.status === "online").map((row) =>
+      row.profile_id === profile?.id ? { ...row, hand_raised: currentHand } : row
+    ));
     setWaiting(rows.filter((row) => row.status === "waiting"));
-    if (myRow && Date.now() > handHoldUntilRef.current) setHandRaised(Boolean(myRow.hand_raised));
+    if (myRow) setHandRaised(currentHand);
 
     const visibleMessages: RoomChatMessage[] = [];
     const reactionRows: RoomChatMessage[] = [];
@@ -1157,6 +1183,17 @@ export function LiveMeetingPage() {
       unsubscribe();
     };
   }, [profile?.id, profile?.displayName, profile?.avatarUrl, profile?.role, canHost]);
+
+  useEffect(() => {
+    function handleSpeakerState(event: Event) {
+      const active = Boolean((event as CustomEvent<{ active?: boolean }>).detail?.active);
+      setSpeakerIndicator(active);
+      notify(active ? "Speaker on" : "Speaker off");
+    }
+
+    window.addEventListener("omide-livekit-speaker-state", handleSpeakerState as EventListener);
+    return () => window.removeEventListener("omide-livekit-speaker-state", handleSpeakerState as EventListener);
+  }, []);
 
   useEffect(() => {
     if (!profile?.id) return;
@@ -1302,10 +1339,12 @@ export function LiveMeetingPage() {
     if (!profile?.id) return;
     const myId = roomParticipantId(meetingRoomService.meetingId, profile.id);
     const myRow = participants.find((item) => item.id === myId) || await meetingRoomService.getMyRow(profile);
-    const next = !Boolean(myRow?.hand_raised ?? handRaised);
-    handHoldUntilRef.current = Date.now() + 15000;
+    const current = handIntentRef.current ?? Boolean(myRow?.hand_raised ?? handRaised);
+    const next = !current;
+    handIntentRef.current = next;
+    handHoldUntilRef.current = Date.now() + 60000;
     setHandRaised(next);
-    setParticipants((current) => current.map((row) =>
+    setParticipants((currentRows) => currentRows.map((row) =>
       row.profile_id === profile.id ? { ...row, hand_raised: next } : row
     ));
     const saved = await meetingRoomService.setMyHandRaised(profile, next);
@@ -1345,7 +1384,7 @@ export function LiveMeetingPage() {
       avatar_url: profile?.avatarUrl || currentRow?.avatar_url || null,
       allowed_mic: true,
       allowed_screen_share: Boolean((currentRow as any)?.allowed_screen_share),
-      hand_raised: Boolean(currentRow?.hand_raised ?? handRaised)
+      hand_raised: Boolean(handIntentRef.current ?? currentRow?.hand_raised ?? handRaised)
     });
 
     await refreshRoom();
@@ -1622,8 +1661,8 @@ export function LiveMeetingPage() {
         <button className="control-icon-btn" title={micOn ? "Mute" : "Microphone"} aria-label={micOn ? "Mute" : "Microphone"} onClick={() => liveKitConnected ? sendLiveKitControl("mic") : notify("Enter live first") }>
           {micOn ? "🔇" : "🎙️"}<span className="toolbar-label">{micOn ? "Mute" : "Mic"}</span>
         </button>
-        <button className="speaker-mini-btn control-icon-btn" onClick={() => liveKitConnected ? sendLiveKitControl("speaker") : notify("Enter live room first.")} title="Speaker" aria-label="Speaker">
-          🔊<span className="toolbar-label">Speaker</span>
+        <button className={speakerIndicator ? "speaker-mini-btn control-icon-btn speaker-active" : "speaker-mini-btn control-icon-btn"} onClick={() => liveKitConnected ? sendLiveKitControl("speaker") : notify("Enter live room first.")} title="Speaker" aria-label="Speaker">
+          {speakerIndicator ? "🔊" : "🔈"}<span className="toolbar-label">Speaker</span>
         </button>
         <button className="control-icon-btn" title={cameraOn ? "Camera off" : "Camera"} aria-label={cameraOn ? "Camera off" : "Camera"} onClick={() => liveKitConnected ? sendLiveKitControl("camera") : notify("Enter live room first.")}>
           {cameraOn ? "📷" : "🎥"}<span className="toolbar-label">Camera</span>
