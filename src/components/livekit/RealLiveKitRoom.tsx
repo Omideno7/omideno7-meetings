@@ -217,6 +217,13 @@ function initials(name: string) {
     .join("") || "O7";
 }
 
+function compactName(name: string) {
+  const clean = String(name || "Member").trim();
+  if (!clean) return "Member";
+  if (clean.length <= 18) return clean;
+  return `${clean.slice(0, 17).trim()}…`;
+}
+
 function isHostRole(profile: UserProfile | null) {
   if (!profile) return false;
 
@@ -1339,11 +1346,8 @@ export function RealLiveKitRoom({
                 </div>
               )}
 
-              <div className="omide-livekit-clean-namebar">
-                <strong>{tile.name}</strong>
-                <small>
-                  {tile.isLocal ? "You" : "Member"} · {tile.screenOn ? "Screen" : tile.micOn ? "Mic on" : "Muted"}
-                </small>
+              <div className="omide-livekit-clean-namebar" title={tile.name}>
+                <strong>{compactName(tile.name)}</strong>
               </div>
             </article>
           ))}

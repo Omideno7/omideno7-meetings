@@ -1,7 +1,7 @@
 {
   "name": "omideno7-meetings-react",
   "private": true,
-  "version": "1.59.0",
+  "version": "1.60.0",
   "type": "module",
   "description": "OmideNo7 Meetings — Vite + React + TypeScript conversion starter",
   "scripts": {
@@ -39,5 +39,5 @@
     "typescript": "latest",
     "vite": "latest"
   },
-  "appStage": "v159-simple-signup-screen-focus-mobile-polish"
+  "appStage": "v160-clean-name-overlay"
 }
