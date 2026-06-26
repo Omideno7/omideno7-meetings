@@ -1,4 +1,4 @@
-const CACHE_NAME = "omideno7-meetings-pwa-v170-reaction-float-screen-mobile-frame";
+const CACHE_NAME = "omideno7-meetings-pwa-v165-mobile-admin-audio-unlock";
 const APP_SHELL = [
   "/offline.html",
   "/manifest.webmanifest",

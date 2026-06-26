@@ -230,72 +230,47 @@ function LiveMeetingStyles() {
 
       .live-reaction-layer {
         pointer-events: none;
-        position: fixed;
+        position: absolute;
         inset: 0;
-        z-index: 8500;
+        z-index: 25;
         overflow: hidden;
       }
 
       .live-floating-reaction {
         position: absolute;
         left: var(--x, 50%);
-        bottom: calc(var(--bottom, 88px) + env(safe-area-inset-bottom, 0px));
+        bottom: 72px;
         display: flex;
-        flex-direction: column;
         align-items: center;
-        gap: 5px;
-        min-width: 0;
-        padding: 0;
-        border-radius: 0;
-        background: transparent;
-        color: #ffffff;
+        gap: 6px;
+        min-width: max-content;
+        padding: 10px 14px;
+        border-radius: 999px;
+        background: rgba(255,255,255,.92);
+        color: #06146d;
         font-weight: 950;
-        text-align: center;
-        filter: drop-shadow(0 14px 26px rgba(0,0,0,.34));
-        opacity: 0;
-        animation: omide-reaction-rise var(--duration, 3300ms) cubic-bezier(.18,.82,.28,1) var(--delay, 0ms) forwards;
-        will-change: transform, opacity;
+        box-shadow: 0 16px 36px rgba(0,0,0,.20);
+        animation: reaction-rise 3.8s ease-out forwards;
       }
 
       .live-floating-reaction b {
-        display: block;
-        font-size: var(--size, clamp(1.55rem, 5vw, 2.8rem));
+        font-size: 1.4rem;
         line-height: 1;
-        font-family: "Apple Color Emoji", "Segoe UI Emoji", "Noto Color Emoji", system-ui, sans-serif;
       }
 
       .live-floating-reaction span {
-        display: inline-block;
-        max-width: 130px;
-        padding: 4px 8px;
-        border-radius: 999px;
-        background: rgba(6, 20, 109, .72);
-        color: #ffffff;
-        font-size: .7rem;
-        font-weight: 900;
+        font-size: .72rem;
+        max-width: 120px;
         overflow: hidden;
         text-overflow: ellipsis;
         white-space: nowrap;
       }
 
-      @keyframes omide-reaction-rise {
-        0% { opacity: 0; transform: translate3d(-50%, 38px, 0) scale(.62) rotate(0deg); }
-        10% { opacity: 1; transform: translate3d(-50%, 0, 0) scale(1) rotate(0deg); }
-        42% { opacity: 1; transform: translate3d(calc(-50% + var(--drift, 0px)), -34vh, 0) scale(1.12) rotate(calc(var(--rotate, 0deg) * .45)); }
-        76% { opacity: .82; transform: translate3d(calc(-50% - var(--drift, 0px) * .55), -58vh, 0) scale(1.22) rotate(calc(var(--rotate, 0deg) * .75)); }
-        100% { opacity: 0; transform: translate3d(-50%, -84vh, 0) scale(1.38) rotate(var(--rotate, 0deg)); }
-      }
-
-      @media (prefers-reduced-motion: reduce) {
-        .live-floating-reaction {
-          animation: omide-reaction-rise-reduced 1100ms ease-out forwards;
-        }
-
-        @keyframes omide-reaction-rise-reduced {
-          0% { opacity: 0; transform: translate3d(-50%, 20px, 0) scale(.9); }
-          18% { opacity: 1; }
-          100% { opacity: 0; transform: translate3d(-50%, -24vh, 0) scale(1); }
-        }
+      @keyframes reaction-rise {
+        0% { transform: translate(-50%, 30px) scale(.88); opacity: 0; }
+        10% { opacity: 1; }
+        72% { opacity: .96; }
+        100% { transform: translate(-50%, -78vh) scale(1.26); opacity: 0; }
       }
 
       .clean-stage > * {
@@ -1003,13 +978,11 @@ function LiveMeetingStyles() {
 
 
 const reactionOptions = [
-  { key: "amen", emoji: "🙌", label: "Amen" },
-  { key: "prayer", emoji: "🙏", label: "Prayer" },
-  { key: "love", emoji: "❤️", label: "Love" },
-  { key: "thanks", emoji: "👏", label: "Thanks" },
-  { key: "fire", emoji: "🔥", label: "Fire" },
-  { key: "cross", emoji: "✝️", label: "Jesus" },
-  { key: "blessing", emoji: "💙", label: "Blessing" }
+  { key: "heart", emoji: "❤️", label: "Heart" },
+  { key: "like", emoji: "👍", label: "Like" },
+  { key: "amen", emoji: "Amen", label: "Amen" },
+  { key: "hallelujah", emoji: "🙌", label: "Hallelujah" },
+  { key: "cake", emoji: "🎂", label: "Birthday" }
 ] as const;
 
 type FloatingReaction = {
@@ -1018,53 +991,13 @@ type FloatingReaction = {
   label: string;
   sender: string;
   x: number;
-  drift: number;
-  driftEnd: number;
-  rotate: number;
-  size: number;
-  duration: number;
-  delay: number;
-  bottom: number;
-  showSender: boolean;
 };
 
-type ParsedReaction = {
-  eventId?: string;
-  key: string;
-  emoji: string;
-  label: string;
-  sender: string;
-};
-
-const REACTION_MESSAGE_PREFIX = "__omideno7_reaction_v2__:";
-
-function makeReactionEventId(profileId?: string | null) {
-  return `${profileId || "guest"}-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
+function encodeReaction(key: string, emoji: string, sender: string) {
+  return `__reaction__:${key}:${emoji}:${sender}`;
 }
 
-function encodeReaction(eventId: string, key: string, emoji: string, sender: string, label: string) {
-  const payload = { eventId, key, emoji, sender, label, createdAt: Date.now() };
-  return `${REACTION_MESSAGE_PREFIX}${encodeURIComponent(JSON.stringify(payload))}`;
-}
-
-function parseReaction(message: string): ParsedReaction | null {
-  if (message.startsWith(REACTION_MESSAGE_PREFIX)) {
-    try {
-      const payload = JSON.parse(decodeURIComponent(message.slice(REACTION_MESSAGE_PREFIX.length)));
-      const key = String(payload.key || "reaction");
-      const option = reactionOptions.find((item) => item.key === key);
-      return {
-        eventId: typeof payload.eventId === "string" ? payload.eventId : undefined,
-        key,
-        emoji: String(payload.emoji || option?.emoji || "❤️"),
-        label: String(payload.label || option?.label || key),
-        sender: String(payload.sender || "Member")
-      };
-    } catch {
-      return null;
-    }
-  }
-
+function parseReaction(message: string) {
   if (!message.startsWith("__reaction__:")) return null;
   const [, key = "reaction", emoji = "❤️", ...senderParts] = message.split(":");
   const sender = senderParts.join(":") || "Member";
@@ -1265,36 +1198,15 @@ export function LiveMeetingPage() {
     }
   }
 
-  function pushFloatingReaction(emoji: string, label: string, sender: string, eventId?: string) {
-    const baseId = eventId || makeReactionEventId(profile?.id);
-    const burstCount = 9 + Math.floor(Math.random() * 7); // 9–15 floating emojis per click.
-    const maxDuration = 5200;
-    const senderBadgeIndexes = new Set([0, burstCount >= 13 ? Math.floor(burstCount / 2) : -1]);
-    const burst = Array.from({ length: burstCount }, (_, index): FloatingReaction => {
-      const duration = 3400 + Math.round(Math.random() * 1450);
-      const drift = -72 + Math.round(Math.random() * 144);
-      const driftEnd = -96 + Math.round(Math.random() * 192);
-      return {
-        id: `${baseId}-${index}-${Math.random().toString(36).slice(2, 6)}`,
-        emoji,
-        label,
-        sender,
-        x: 6 + Math.round(Math.random() * 88),
-        drift,
-        driftEnd,
-        rotate: -32 + Math.round(Math.random() * 64),
-        size: 22 + Math.round(Math.random() * 22),
-        duration,
-        delay: Math.round(Math.random() * 520),
-        bottom: 42 + Math.round(Math.random() * 62),
-        showSender: senderBadgeIndexes.has(index)
-      };
-    });
-
-    setFloatingReactions((current) => [...current.slice(-70), ...burst]);
+  function pushFloatingReaction(emoji: string, label: string, sender: string) {
+    const id = crypto.randomUUID();
+    setFloatingReactions((current) => [
+      ...current,
+      { id, emoji, label, sender, x: 18 + Math.round(Math.random() * 64) }
+    ]);
     window.setTimeout(() => {
-      setFloatingReactions((current) => current.filter((item) => !item.id.startsWith(`${baseId}-`)));
-    }, maxDuration + 950);
+      setFloatingReactions((current) => current.filter((item) => item.id !== id));
+    }, 3400);
   }
 
   useEffect(() => {
@@ -1381,18 +1293,14 @@ export function LiveMeetingPage() {
     if (myRow || profile?.id) setHandRaised(currentHand);
 
     if (!reactionsBooted.current) {
-      reactionRows.forEach((row) => {
-        const reaction = parseReaction(row.message || "");
-        seenReactionIds.current.add(reaction?.eventId || row.id);
-      });
+      reactionRows.forEach((row) => seenReactionIds.current.add(row.id));
       reactionsBooted.current = true;
     } else {
       for (const row of reactionRows) {
+        if (seenReactionIds.current.has(row.id)) continue;
+        seenReactionIds.current.add(row.id);
         const reaction = parseReaction(row.message || "");
-        const reactionId = reaction?.eventId || row.id;
-        if (seenReactionIds.current.has(reactionId)) continue;
-        seenReactionIds.current.add(reactionId);
-        if (reaction) pushFloatingReaction(reaction.emoji, reaction.label, reaction.sender, reactionId);
+        if (reaction) pushFloatingReaction(reaction.emoji, reaction.label, reaction.sender);
       }
     }
 
@@ -1629,10 +1537,8 @@ export function LiveMeetingPage() {
 
   async function sendReaction(key: string, emoji: string, label: string) {
     const sender = profile?.displayName || "Member";
-    const eventId = makeReactionEventId(profile?.id);
-    seenReactionIds.current.add(eventId);
-    pushFloatingReaction(emoji, label, sender, eventId);
-    await meetingRoomService.sendChat(profile, encodeReaction(eventId, key, emoji, sender, label), "everyone", null);
+    pushFloatingReaction(emoji, label, sender);
+    await meetingRoomService.sendChat(profile, encodeReaction(key, emoji, sender), "everyone", null);
   }
 
   async function toggleHandRaised() {
@@ -1739,7 +1645,7 @@ export function LiveMeetingPage() {
       <header className="clean-live-topbar">
         <div className="clean-live-brand">
           <strong>OmideNo7 Meetings</strong>
-          <span>v1.70 · {deviceLabel()} · {liveKitConnected ? "Connected" : enterPending ? "Entering" : roomIsOpen ? "Ready" : "Waiting"}{toast !== "Ready" ? ` · ${toast}` : ""}</span>
+          <span>v1.65 · {deviceLabel()} · {liveKitConnected ? "Connected" : enterPending ? "Entering" : roomIsOpen ? "Ready" : "Waiting"}{toast !== "Ready" ? ` · ${toast}` : ""}</span>
         </div>
 
         <div className="clean-live-actions">
@@ -1820,19 +1726,10 @@ export function LiveMeetingPage() {
               <div
                 key={reaction.id}
                 className="live-floating-reaction"
-                style={{
-                  "--x": `${reaction.x}%`,
-                  "--drift": `${reaction.drift}px`,
-                  "--drift-end": `${reaction.driftEnd}px`,
-                  "--rotate": `${reaction.rotate}deg`,
-                  "--size": `${reaction.size}px`,
-                  "--duration": `${reaction.duration}ms`,
-                  "--delay": `${reaction.delay}ms`,
-                  "--bottom": `${reaction.bottom}px`
-                } as CSSProperties}
+                style={{ "--x": `${reaction.x}%` } as CSSProperties}
               >
                 <b>{reaction.emoji}</b>
-                {reaction.showSender ? <span>{reaction.sender}</span> : null}
+                <span>{reaction.sender}</span>
               </div>
             ))}
           </div>
@@ -2019,6 +1916,16 @@ export function LiveMeetingPage() {
           <button className="control-icon-btn" title="React" aria-label="React" onClick={() => setReactionMenuOpen((current) => !current)}>
             ✨<span className="toolbar-label">React</span>
           </button>
+          {reactionMenuOpen && (
+            <div className="reaction-picker">
+              <button title="Raise hand" onClick={() => { setReactionMenuOpen(false); void toggleHandRaised(); }}>✋</button>
+              {reactionOptions.map((reaction) => (
+                <button key={reaction.key} title={reaction.label} onClick={() => { setReactionMenuOpen(false); void sendReaction(reaction.key, reaction.emoji, reaction.label); }}>
+                  {reaction.emoji}
+                </button>
+              ))}
+            </div>
+          )}
         </div>
         <button className="control-icon-btn" title="Chat" aria-label="Chat" onClick={() => setPanel(panel === "chat" ? "closed" : "chat")}>
           💬<span className="toolbar-label">Chat</span>
@@ -2031,19 +1938,6 @@ export function LiveMeetingPage() {
         </button>
         {canEnd && <button className="danger control-icon-btn" title="End all" aria-label="End all" onClick={endForEveryone}>⛔<span className="toolbar-label">End all</span></button>}
       </footer>
-
-      {reactionMenuOpen && (
-        <div className="reaction-picker-overlay" onClick={() => setReactionMenuOpen(false)}>
-          <div className="reaction-picker" role="menu" aria-label="Reactions" onClick={(event) => event.stopPropagation()}>
-            <button title="Raise hand" aria-label="Raise hand" onClick={() => { setReactionMenuOpen(false); void toggleHandRaised(); }}>✋</button>
-            {reactionOptions.map((reaction) => (
-              <button key={reaction.key} title={reaction.label} aria-label={reaction.label} onClick={() => { setReactionMenuOpen(false); void sendReaction(reaction.key, reaction.emoji, reaction.label); }}>
-                {reaction.emoji}
-              </button>
-            ))}
-          </div>
-        </div>
-      )}
 
       {/* Action status is shown in the top bar to keep the meeting room clean. */}
     </div>

@@ -4,12 +4,6 @@ import type { UserProfile } from "../../types/roles";
 import type { RoomParticipant } from "../../services/meetingRoomService";
 import { liveKitTokenService } from "../../services/liveKitTokenService";
 import { liveKitReadyConfig } from "../../config/liveKitReady";
-import {
-  buildOmideAudioConstraints,
-  buildOmideVideoConstraints,
-  loadOmideMediaPreferences,
-  saveOmideMediaPreferences
-} from "../../utils/mediaPreferences";
 
 type Props = {
   profile: UserProfile | null;
@@ -329,85 +323,6 @@ function isLocalMicrophoneActive(room: Room | null) {
   });
 }
 
-function isLocalScreenShareActive(room: Room | null) {
-  const pubs = Array.from(((room?.localParticipant as any)?.trackPublications?.values?.() || [])) as any[];
-  return pubs.some((pub: any) => {
-    const source = String(pub?.source || "").toLowerCase();
-    const hasScreenSource = source.includes("screen") || source.includes("share");
-    return hasScreenSource && pub?.kind === Track.Kind.Video && pub?.track && !pub?.isMuted && !pub?.track?.isMuted;
-  });
-}
-
-function getLocalScreenShareAudioPublication(room: Room | null) {
-  const pubs = Array.from(((room?.localParticipant as any)?.trackPublications?.values?.() || [])) as any[];
-  const screenAudioSource = String((Track.Source as any).ScreenShareAudio || "screen_share_audio").toLowerCase();
-
-  return pubs.find((pub: any) => {
-    const source = String(pub?.source || "").toLowerCase();
-    const name = String(pub?.trackName || pub?.name || pub?.track?.name || "").toLowerCase();
-    return pub?.kind === Track.Kind.Audio && (
-      source === screenAudioSource ||
-      source.includes("screen_share_audio") ||
-      source.includes("screenshareaudio") ||
-      (source.includes("screen") && source.includes("audio")) ||
-      (name.includes("screen") && name.includes("audio"))
-    );
-  });
-}
-
-function isLocalScreenShareAudioActive(room: Room | null) {
-  const publication = getLocalScreenShareAudioPublication(room);
-  const track = publication?.track || publication?.audioTrack || null;
-  return Boolean(track && !publication?.isMuted && !publication?.muted && !track?.isMuted);
-}
-
-function screenShareAudioSupportMessage() {
-  const ua = navigator.userAgent || "";
-  const isIOS = /iPhone|iPad|iPod/i.test(ua) || (String((navigator as any).platform || "") === "MacIntel" && Number(navigator.maxTouchPoints || 0) > 1);
-  const isSafari = /^((?!chrome|android).)*safari/i.test(ua);
-  const isChromeLike = /Chrome|Chromium|Edg/i.test(ua) && !isIOS;
-
-  if (isIOS || isSafari) {
-    return "Screen is shared without audio. Safari/iPhone/iPad usually cannot send tab or system audio. For worship/video sound, use Chrome or Edge on a laptop and choose a browser tab with Share tab audio enabled.";
-  }
-
-  if (!isChromeLike) {
-    return "Screen is shared without audio. For video sound, use Chrome or Edge on desktop/laptop, choose a browser tab, and enable Share tab audio.";
-  }
-
-  return "Screen is shared without audio. For video sound, choose Chrome Tab / browser tab, then enable Share tab audio in the browser sharing dialog. On macOS, system/window audio is usually not captured; tab audio is the reliable option.";
-}
-
-function screenShareOptionsForDevice() {
-  const ua = navigator.userAgent || "";
-  const isIOS = /iPhone|iPad|iPod/i.test(ua) || (String((navigator as any).platform || "") === "MacIntel" && Number(navigator.maxTouchPoints || 0) > 1);
-  const isSafari = /^((?!chrome|android).)*safari/i.test(ua);
-  const isChromeLike = /Chrome|Chromium|Edg/i.test(ua) && !isIOS && !isSafari;
-
-  if (!isChromeLike) {
-    // Safari/iOS and some mobile browsers do not expose screen/tab audio tracks.
-    // Keep the options conservative so screen video still starts.
-    return { audio: false, video: true } as any;
-  }
-
-  return {
-    audio: {
-      echoCancellation: false,
-      noiseSuppression: false,
-      autoGainControl: false,
-      restrictOwnAudio: true
-    },
-    video: { displaySurface: "browser" },
-    systemAudio: "include",
-    selfBrowserSurface: "include",
-    surfaceSwitching: "include",
-    monitorTypeSurfaces: "include",
-    preferCurrentTab: true,
-    suppressLocalAudioPlayback: false,
-    contentHint: "motion"
-  } as any;
-}
-
 function browserNotice() {
   const ua = navigator.userAgent || "";
   const isSafari = /^((?!chrome|android).)*safari/i.test(ua);
@@ -459,13 +374,11 @@ export function RealLiveKitRoom({
   const connectingRef = useRef(false);
   const autoTriedRef = useRef(false);
   const micOperationRef = useRef(false);
-  const screenOperationRef = useRef(false);
   const autoHostMicStartedRef = useRef(false);
   const connectedAnnouncedRef = useRef(false);
   const participantsRef = useRef<RoomParticipant[]>(participants);
   const profileRef = useRef<UserProfile | null>(profile);
   const localHandRaisedRef = useRef(localHandRaised);
-  const savedMediaPreferencesRef = useRef(loadOmideMediaPreferences());
 
   const [connected, setConnected] = useState(false);
   const [status, setStatus] = useState("Ready");
@@ -473,43 +386,19 @@ export function RealLiveKitRoom({
   const [micOn, setMicOn] = useState(false);
   const [cameraOn, setCameraOn] = useState(false);
   const [screenOn, setScreenOn] = useState(false);
-  const [screenAudioNotice, setScreenAudioNotice] = useState("");
   const [micLevel, setMicLevel] = useState(0);
   const [audioSettingsOpen, setAudioSettingsOpen] = useState(false);
-  const [musicMode, setMusicMode] = useState(savedMediaPreferencesRef.current.micMode === "manual");
-  const [noiseSuppression, setNoiseSuppression] = useState(savedMediaPreferencesRef.current.noiseSuppression);
-  const [echoCancellation, setEchoCancellation] = useState(savedMediaPreferencesRef.current.echoCancellation);
-  const [autoGainControl, setAutoGainControl] = useState(savedMediaPreferencesRef.current.autoGainControl);
-  const [audioOutputId, setAudioOutputId] = useState(savedMediaPreferencesRef.current.audioOutputId);
+  const [musicMode, setMusicMode] = useState(false);
+  const [noiseSuppression, setNoiseSuppression] = useState(true);
+  const [echoCancellation, setEchoCancellation] = useState(true);
+  const [autoGainControl, setAutoGainControl] = useState(true);
+  const audioOutputId = "";
   const [tiles, setTiles] = useState<LiveTile[]>([]);
   const [needsStart, setNeedsStart] = useState(Boolean(confirmBeforeStart));
   const [mobileDirectPending, setMobileDirectPending] = useState(false);
   const [notice] = useState(browserNotice());
 
   const canEnter = Boolean(profile?.status === "approved" && (isHostRole(profile) || admitted));
-
-  function reloadSavedMediaPreferences() {
-    const saved = loadOmideMediaPreferences();
-    savedMediaPreferencesRef.current = saved;
-    setAudioOutputId(saved.audioOutputId);
-    return saved;
-  }
-
-  function saveLiveAudioPreferencePatch(next: {
-    musicMode?: boolean;
-    noiseSuppression?: boolean;
-    echoCancellation?: boolean;
-    autoGainControl?: boolean;
-  }) {
-    const merged = {
-      ...savedMediaPreferencesRef.current,
-      noiseSuppression: next.noiseSuppression ?? noiseSuppression,
-      echoCancellation: next.echoCancellation ?? echoCancellation,
-      autoGainControl: next.autoGainControl ?? autoGainControl,
-      micMode: (next.musicMode ?? musicMode) ? "manual" as const : "auto" as const
-    };
-    savedMediaPreferencesRef.current = saveOmideMediaPreferences(merged);
-  }
 
   function stableLocalHandRaised() {
     if (localHandRaised) return true;
@@ -593,18 +482,12 @@ export function RealLiveKitRoom({
     ];
 
     setTiles(nextTiles);
-
-    const localScreenActive = Boolean(nextTiles[0]?.screenOn || isLocalScreenShareActive(activeRoom));
-    setScreenOn(localScreenActive);
   }
 
   function wireRoom(room: Room) {
     const update = () => {
       refreshTiles(room);
       startRoomAudio(room);
-      if (isLocalScreenShareActive(room) && isLocalScreenShareAudioActive(room)) {
-        setScreenAudioNotice("Screen audio is being shared.");
-      }
     };
 
     room.on(RoomEvent.Connected, async () => {
@@ -786,16 +669,11 @@ export function RealLiveKitRoom({
   }
 
   function currentAudioOptions() {
-    const saved = reloadSavedMediaPreferences();
-    return buildOmideAudioConstraints(saved, {
+    return {
       echoCancellation: musicMode ? false : echoCancellation,
       noiseSuppression: musicMode ? false : noiseSuppression,
       autoGainControl: musicMode ? false : autoGainControl
-    });
-  }
-
-  function currentVideoOptions() {
-    return buildOmideVideoConstraints(reloadSavedMediaPreferences());
+    };
   }
 
   async function enableMicrophone(room: Room, announce = true) {
@@ -977,11 +855,7 @@ export function RealLiveKitRoom({
     setCameraOn(next);
 
     try {
-      if (next) {
-        await (room.localParticipant as any).setCameraEnabled(true, currentVideoOptions() as any);
-      } else {
-        await room.localParticipant.setCameraEnabled(false);
-      }
+      await room.localParticipant.setCameraEnabled(next);
       refreshTiles(room);
       window.setTimeout(() => refreshTiles(room), 650);
       await onMediaStateChange?.({ mic: micOn, camera: next });
@@ -998,69 +872,29 @@ export function RealLiveKitRoom({
       return;
     }
 
-    if (screenOperationRef.current) return;
-
-    const localParticipant = room.localParticipant as any;
-    const currentlySharing = isLocalScreenShareActive(room);
-    const next = !currentlySharing;
-
-    screenOperationRef.current = true;
-    setError("");
-    setStatus(next ? "Choose what to share..." : "Stopping screen share...");
+    const next = !screenOn;
+    setScreenOn(next);
 
     try {
+      // Let Chrome show the full native chooser: Entire screen, window, or browser tab.
+      // Do not force displaySurface to "browser", because that can hide desktop/window choices.
       await (room as any).startAudio?.().catch(() => undefined);
-
-      if (next) {
-        setScreenAudioNotice("Choose a browser tab and enable Share tab audio if you want the video sound to enter the meeting.");
-        await localParticipant.setScreenShareEnabled(true, screenShareOptionsForDevice());
-        setScreenOn(true);
-        await wait(450);
-
-        const hasScreenAudio = isLocalScreenShareAudioActive(room);
-        setStatus(hasScreenAudio ? "Screen sharing with audio" : "Screen sharing without audio");
-        setScreenAudioNotice(hasScreenAudio ? "Screen audio is being shared." : screenShareAudioSupportMessage());
-      } else {
-        await localParticipant.setScreenShareEnabled(false).catch(() => undefined);
-        setScreenOn(false);
-        setScreenAudioNotice("");
-        setStatus("Connected");
-      }
-
+      await (room.localParticipant as any).setScreenShareEnabled(next, {
+        audio: true,
+        systemAudio: "include",
+        selfBrowserSurface: "exclude",
+        surfaceSwitching: "include",
+        monitorTypeSurfaces: "include"
+      });
       refreshTiles(room);
       playAllAudioElements();
-      window.setTimeout(() => {
-        refreshTiles(room);
-        playAllAudioElements();
-        if (next && isLocalScreenShareActive(room)) {
-          setScreenAudioNotice(isLocalScreenShareAudioActive(room) ? "Screen audio is being shared." : screenShareAudioSupportMessage());
-          setStatus(isLocalScreenShareAudioActive(room) ? "Screen sharing with audio" : "Screen sharing without audio");
-        }
-      }, 250);
-      window.setTimeout(() => {
-        refreshTiles(room);
-        playAllAudioElements();
-        if (next && isLocalScreenShareActive(room)) {
-          setScreenAudioNotice(isLocalScreenShareAudioActive(room) ? "Screen audio is being shared." : screenShareAudioSupportMessage());
-          setStatus(isLocalScreenShareAudioActive(room) ? "Screen sharing with audio" : "Screen sharing without audio");
-        }
-      }, 900);
+      window.setTimeout(() => { refreshTiles(room); playAllAudioElements(); }, 350);
+      window.setTimeout(() => { refreshTiles(room); playAllAudioElements(); }, 900);
       window.setTimeout(() => { refreshTiles(room); playAllAudioElements(); }, 1800);
       window.setTimeout(() => { refreshTiles(room); playAllAudioElements(); }, 3200);
     } catch (err: any) {
-      const active = isLocalScreenShareActive(room);
-      setScreenOn(active);
-      if (!active) setScreenAudioNotice("");
-      refreshTiles(room);
-      const message = String(err?.message || err?.name || "").toLowerCase();
-      if (message.includes("permission") || message.includes("denied") || message.includes("cancel")) {
-        setError("Screen share was cancelled or blocked. Tap Share and allow screen sharing.");
-      } else {
-        setError("Could not start screen share. Tap Share again.");
-      }
-      setStatus(active ? "Screen sharing" : "Connected");
-    } finally {
-      screenOperationRef.current = false;
+      setScreenOn(!next);
+      setError("Could not start screen share.");
     }
   }
 
@@ -1198,37 +1032,6 @@ export function RealLiveKitRoom({
           left: 10px !important;
           right: 10px !important;
           z-index: 60 !important;
-        }
-
-
-        .omide-share-audio-notice {
-          position: fixed !important;
-          top: calc(10px + env(safe-area-inset-top, 0px)) !important;
-          left: 50% !important;
-          transform: translateX(-50%) !important;
-          z-index: 9990 !important;
-          width: min(720px, calc(100vw - 24px)) !important;
-          padding: 10px 14px !important;
-          border-radius: 16px !important;
-          background: linear-gradient(135deg, rgba(6, 20, 109, .94), rgba(0, 126, 110, .9)) !important;
-          color: #ffffff !important;
-          border: 1px solid rgba(255, 255, 255, .22) !important;
-          box-shadow: 0 16px 42px rgba(0,0,0,.28) !important;
-          font-size: .82rem !important;
-          font-weight: 800 !important;
-          line-height: 1.35 !important;
-          text-align: center !important;
-          pointer-events: none !important;
-        }
-
-        @media (max-width: 640px) {
-          .omide-share-audio-notice {
-            top: calc(8px + env(safe-area-inset-top, 0px)) !important;
-            width: min(96vw, 420px) !important;
-            padding: 8px 10px !important;
-            border-radius: 14px !important;
-            font-size: .72rem !important;
-          }
         }
 
         .omide-livekit-clean-head {
@@ -2166,10 +1969,10 @@ export function RealLiveKitRoom({
             {audioSettingsOpen && (
               <div className="omide-audio-settings-popover">
                 <strong>Audio settings</strong>
-                <label>Music / keyboard mode <input type="checkbox" checked={musicMode} onChange={(event) => { const value = event.target.checked; setMusicMode(value); saveLiveAudioPreferencePatch({ musicMode: value }); }} /></label>
-                <label>Noise suppression <input type="checkbox" checked={noiseSuppression} disabled={musicMode} onChange={(event) => { const value = event.target.checked; setNoiseSuppression(value); saveLiveAudioPreferencePatch({ noiseSuppression: value }); }} /></label>
-                <label>Echo cancellation <input type="checkbox" checked={echoCancellation} disabled={musicMode} onChange={(event) => { const value = event.target.checked; setEchoCancellation(value); saveLiveAudioPreferencePatch({ echoCancellation: value }); }} /></label>
-                <label>Auto gain <input type="checkbox" checked={autoGainControl} disabled={musicMode} onChange={(event) => { const value = event.target.checked; setAutoGainControl(value); saveLiveAudioPreferencePatch({ autoGainControl: value }); }} /></label>
+                <label>Music / keyboard mode <input type="checkbox" checked={musicMode} onChange={(event) => setMusicMode(event.target.checked)} /></label>
+                <label>Noise suppression <input type="checkbox" checked={noiseSuppression} disabled={musicMode} onChange={(event) => setNoiseSuppression(event.target.checked)} /></label>
+                <label>Echo cancellation <input type="checkbox" checked={echoCancellation} disabled={musicMode} onChange={(event) => setEchoCancellation(event.target.checked)} /></label>
+                <label>Auto gain <input type="checkbox" checked={autoGainControl} disabled={musicMode} onChange={(event) => setAutoGainControl(event.target.checked)} /></label>
                 <small>{musicMode ? "Music mode keeps keyboard/worship sound more natural. Turn mic off/on after changing this." : "Normal speech mode is recommended for preaching."}</small>
               </div>
             )}
@@ -2196,8 +1999,7 @@ export function RealLiveKitRoom({
       )}
 
       <div className="omide-livekit-clean-status">{status}</div>
-      <div className="omide-share-help">Screen share: for video sound, use Chrome/Edge desktop and choose Chrome Tab with Share tab audio enabled.</div>
-      {screenAudioNotice && <div className="omide-share-audio-notice">{screenAudioNotice}</div>}
+      <div className="omide-share-help">Screen share: choose Entire Screen for desktop, Window for another app, or Chrome Tab for YouTube/worship with tab audio.</div>
 
       {notice && (
         <div className="omide-livekit-clean-notice">
