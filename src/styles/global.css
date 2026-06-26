@@ -5629,3 +5629,135 @@ button.secondary {
     100% { opacity: 0; transform: translate3d(-50%, -22vh, 0) scale(1); }
   }
 }
+
+/* v1.74 — final reaction burst float: real bottom-to-top motion, valid CSS transforms, clean sender badges */
+.live-reaction-layer {
+  pointer-events: none !important;
+  position: fixed !important;
+  inset: 0 !important;
+  z-index: 9800 !important;
+  overflow: hidden !important;
+  contain: layout paint !important;
+}
+
+.live-floating-reaction {
+  position: absolute !important;
+  left: var(--x, 50%) !important;
+  bottom: calc(var(--bottom, 70px) + env(safe-area-inset-bottom, 0px)) !important;
+  display: flex !important;
+  flex-direction: column !important;
+  align-items: center !important;
+  justify-content: center !important;
+  gap: 5px !important;
+  min-width: 0 !important;
+  padding: 0 !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  color: #ffffff !important;
+  text-align: center !important;
+  opacity: 0;
+  transform: translate3d(-50%, 70px, 0) scale(.45) rotate(0deg) !important;
+  animation-name: omideV174ReactionFloatUp !important;
+  animation-duration: var(--duration, 4200ms) !important;
+  animation-timing-function: cubic-bezier(.16,.84,.24,1) !important;
+  animation-delay: var(--delay, 0ms) !important;
+  animation-fill-mode: both !important;
+  will-change: transform, opacity, filter !important;
+  filter: drop-shadow(0 14px 22px rgba(0,0,0,.35)) !important;
+}
+
+.live-floating-reaction b {
+  display: block !important;
+  font-size: var(--size, 34px) !important;
+  line-height: 1 !important;
+  font-weight: 950 !important;
+  font-family: "Apple Color Emoji", "Segoe UI Emoji", "Noto Color Emoji", system-ui, sans-serif !important;
+  transform-origin: center center !important;
+}
+
+.live-floating-reaction span {
+  display: inline-block !important;
+  max-width: 132px !important;
+  margin-top: 1px !important;
+  padding: 4px 9px !important;
+  border-radius: 999px !important;
+  background: linear-gradient(135deg, rgba(7, 38, 94, .86), rgba(0, 125, 110, .78)) !important;
+  color: #ffffff !important;
+  border: 1px solid rgba(255,255,255,.22) !important;
+  font-size: .68rem !important;
+  font-weight: 900 !important;
+  letter-spacing: .01em !important;
+  line-height: 1.1 !important;
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+  white-space: nowrap !important;
+  box-shadow: 0 8px 20px rgba(0,0,0,.26) !important;
+}
+
+@keyframes omideV174ReactionFloatUp {
+  0% {
+    opacity: 0;
+    transform: translate3d(-50%, 76px, 0) scale(.38) rotate(0deg);
+    filter: drop-shadow(0 16px 22px rgba(0,0,0,.24)) blur(.2px);
+  }
+
+  9% {
+    opacity: 1;
+    transform: translate3d(calc(-50% + var(--drift, 0px)), -6vh, 0) scale(.86) rotate(0deg);
+    filter: drop-shadow(0 14px 24px rgba(0,0,0,.34)) blur(0);
+  }
+
+  42% {
+    opacity: 1;
+    transform: translate3d(calc(-50% + var(--drift-end, 0px)), -42vh, 0) scale(1.1) rotate(var(--rotate, 0deg));
+  }
+
+  72% {
+    opacity: .84;
+    transform: translate3d(calc(-50% + var(--drift, 0px)), -70vh, 0) scale(1.18) rotate(var(--rotate, 0deg));
+  }
+
+  100% {
+    opacity: 0;
+    transform: translate3d(calc(-50% + var(--drift-end, 0px)), -108vh, 0) scale(.92) rotate(var(--rotate, 0deg));
+    filter: drop-shadow(0 2px 10px rgba(0,0,0,.1)) blur(.4px);
+  }
+}
+
+@media (max-width: 640px) {
+  .live-floating-reaction {
+    bottom: calc(var(--bottom, 54px) + env(safe-area-inset-bottom, 0px)) !important;
+  }
+
+  .live-floating-reaction b {
+    font-size: var(--size, 30px) !important;
+  }
+
+  .live-floating-reaction span {
+    display: inline-block !important;
+    max-width: 96px !important;
+    padding: 3px 7px !important;
+    font-size: .58rem !important;
+  }
+}
+
+@media (min-width: 641px) and (max-width: 1024px) {
+  .live-floating-reaction b {
+    font-size: var(--size, 36px) !important;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .live-floating-reaction {
+    animation-name: omideV174ReactionFloatUpReduced !important;
+    animation-duration: 1500ms !important;
+  }
+
+  @keyframes omideV174ReactionFloatUpReduced {
+    0% { opacity: 0; transform: translate3d(-50%, 36px, 0) scale(.78); }
+    18% { opacity: 1; }
+    100% { opacity: 0; transform: translate3d(calc(-50% + var(--drift, 0px)), -48vh, 0) scale(.96); }
+  }
+}

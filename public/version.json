@@ -1,7 +1,7 @@
 {
-  "version": "1.73",
-  "stage": "v173-reaction-burst-media-preferences",
-  "label": "v1.73 Reaction Burst + Saved Media Preferences",
+  "version": "1.74",
+  "stage": "v174-reaction-float-screen-audio",
+  "label": "v1.74 Floating Reactions + Screen Share Audio Guidance",
   "updatedAt": "2026-06-27T00:00:00.000Z",
-  "build": "v173-reaction-burst-media-preferences"
+  "build": "v174-reaction-float-screen-audio"
 }

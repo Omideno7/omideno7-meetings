@@ -1019,6 +1019,7 @@ type FloatingReaction = {
   sender: string;
   x: number;
   drift: number;
+  driftEnd: number;
   rotate: number;
   size: number;
   duration: number;
@@ -1266,23 +1267,27 @@ export function LiveMeetingPage() {
 
   function pushFloatingReaction(emoji: string, label: string, sender: string, eventId?: string) {
     const baseId = eventId || makeReactionEventId(profile?.id);
-    const burstCount = 7 + Math.floor(Math.random() * 9); // 7–15 floating emojis per click.
-    const maxDuration = 4200;
+    const burstCount = 9 + Math.floor(Math.random() * 7); // 9–15 floating emojis per click.
+    const maxDuration = 5200;
+    const senderBadgeIndexes = new Set([0, burstCount >= 13 ? Math.floor(burstCount / 2) : -1]);
     const burst = Array.from({ length: burstCount }, (_, index): FloatingReaction => {
-      const duration = 2800 + Math.round(Math.random() * 1200);
+      const duration = 3400 + Math.round(Math.random() * 1450);
+      const drift = -72 + Math.round(Math.random() * 144);
+      const driftEnd = -96 + Math.round(Math.random() * 192);
       return {
         id: `${baseId}-${index}-${Math.random().toString(36).slice(2, 6)}`,
         emoji,
         label,
         sender,
-        x: 5 + Math.round(Math.random() * 90),
-        drift: -42 + Math.round(Math.random() * 84),
-        rotate: -24 + Math.round(Math.random() * 48),
-        size: 24 + Math.round(Math.random() * 18),
+        x: 6 + Math.round(Math.random() * 88),
+        drift,
+        driftEnd,
+        rotate: -32 + Math.round(Math.random() * 64),
+        size: 22 + Math.round(Math.random() * 22),
         duration,
-        delay: Math.round(Math.random() * 420),
-        bottom: 58 + Math.round(Math.random() * 54),
-        showSender: index === 0
+        delay: Math.round(Math.random() * 520),
+        bottom: 42 + Math.round(Math.random() * 62),
+        showSender: senderBadgeIndexes.has(index)
       };
     });
 
@@ -1818,6 +1823,7 @@ export function LiveMeetingPage() {
                 style={{
                   "--x": `${reaction.x}%`,
                   "--drift": `${reaction.drift}px`,
+                  "--drift-end": `${reaction.driftEnd}px`,
                   "--rotate": `${reaction.rotate}deg`,
                   "--size": `${reaction.size}px`,
                   "--duration": `${reaction.duration}ms`,
