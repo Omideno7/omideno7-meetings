@@ -1645,7 +1645,7 @@ export function LiveMeetingPage() {
       <header className="clean-live-topbar">
         <div className="clean-live-brand">
           <strong>OmideNo7 Meetings</strong>
-          <span>v1.65 · {deviceLabel()} · {liveKitConnected ? "Connected" : enterPending ? "Entering" : roomIsOpen ? "Ready" : "Waiting"}{toast !== "Ready" ? ` · ${toast}` : ""}</span>
+          <span>v1.69 · {deviceLabel()} · {liveKitConnected ? "Connected" : enterPending ? "Entering" : roomIsOpen ? "Ready" : "Waiting"}{toast !== "Ready" ? ` · ${toast}` : ""}</span>
         </div>
 
         <div className="clean-live-actions">
@@ -1916,16 +1916,6 @@ export function LiveMeetingPage() {
           <button className="control-icon-btn" title="React" aria-label="React" onClick={() => setReactionMenuOpen((current) => !current)}>
             ✨<span className="toolbar-label">React</span>
           </button>
-          {reactionMenuOpen && (
-            <div className="reaction-picker">
-              <button title="Raise hand" onClick={() => { setReactionMenuOpen(false); void toggleHandRaised(); }}>✋</button>
-              {reactionOptions.map((reaction) => (
-                <button key={reaction.key} title={reaction.label} onClick={() => { setReactionMenuOpen(false); void sendReaction(reaction.key, reaction.emoji, reaction.label); }}>
-                  {reaction.emoji}
-                </button>
-              ))}
-            </div>
-          )}
         </div>
         <button className="control-icon-btn" title="Chat" aria-label="Chat" onClick={() => setPanel(panel === "chat" ? "closed" : "chat")}>
           💬<span className="toolbar-label">Chat</span>
@@ -1938,6 +1928,19 @@ export function LiveMeetingPage() {
         </button>
         {canEnd && <button className="danger control-icon-btn" title="End all" aria-label="End all" onClick={endForEveryone}>⛔<span className="toolbar-label">End all</span></button>}
       </footer>
+
+      {reactionMenuOpen && (
+        <div className="reaction-picker-overlay" onClick={() => setReactionMenuOpen(false)}>
+          <div className="reaction-picker" role="menu" aria-label="Reactions" onClick={(event) => event.stopPropagation()}>
+            <button title="Raise hand" aria-label="Raise hand" onClick={() => { setReactionMenuOpen(false); void toggleHandRaised(); }}>✋</button>
+            {reactionOptions.map((reaction) => (
+              <button key={reaction.key} title={reaction.label} aria-label={reaction.label} onClick={() => { setReactionMenuOpen(false); void sendReaction(reaction.key, reaction.emoji, reaction.label); }}>
+                {reaction.emoji}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* Action status is shown in the top bar to keep the meeting room clean. */}
     </div>

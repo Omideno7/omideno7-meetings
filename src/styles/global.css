@@ -5277,3 +5277,42 @@ button.secondary {
     font-size: 1.32rem !important;
   }
 }
+
+/* v1.69 — reaction picker rendered outside the mobile toolbar so iOS/Android cannot clip it */
+.reaction-picker-overlay {
+  position: fixed !important;
+  inset: 0 !important;
+  z-index: 999990 !important;
+  pointer-events: auto !important;
+  background: transparent !important;
+  touch-action: manipulation !important;
+}
+
+.reaction-picker-overlay .reaction-picker {
+  position: fixed !important;
+  left: 50% !important;
+  bottom: calc(104px + env(safe-area-inset-bottom)) !important;
+  transform: translateX(-50%) !important;
+  z-index: 1000000 !important;
+  pointer-events: auto !important;
+  visibility: visible !important;
+  opacity: 1 !important;
+}
+
+@media (max-width: 520px) {
+  .reaction-picker-overlay .reaction-picker {
+    left: 50% !important;
+    right: auto !important;
+    bottom: calc(96px + env(safe-area-inset-bottom)) !important;
+    width: max-content !important;
+    max-width: calc(100vw - 16px) !important;
+    display: flex !important;
+    flex-wrap: nowrap !important;
+    justify-content: center !important;
+    overflow: visible !important;
+  }
+
+  .reaction-picker-overlay .reaction-picker button {
+    flex: 0 0 42px !important;
+  }
+}

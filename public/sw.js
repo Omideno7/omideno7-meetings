@@ -1,4 +1,4 @@
-const CACHE_NAME = "omideno7-meetings-pwa-v168-reaction-picker-zindex-fix";
+const CACHE_NAME = "omideno7-meetings-pwa-v169-mobile-reaction-picker-portal";
 const APP_SHELL = [
   "/offline.html",
   "/manifest.webmanifest",

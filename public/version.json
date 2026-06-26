@@ -1,7 +1,7 @@
 {
-  "version": "1.68",
-  "stage": "v168-reaction-picker-zindex-fix",
-  "label": "v1.68 Reaction Picker Z-Index Fix",
-  "updatedAt": "2026-06-26T18:05:00.000Z",
-  "build": "v168-reaction-picker-zindex-fix"
+  "version": "1.69",
+  "stage": "v169-mobile-reaction-picker-portal",
+  "label": "v1.69 Mobile Reaction Picker Portal",
+  "updatedAt": "2026-06-26T18:35:00.000Z",
+  "build": "v169-mobile-reaction-picker-portal"
 }
