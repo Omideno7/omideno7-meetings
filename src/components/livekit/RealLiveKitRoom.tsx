@@ -17,6 +17,7 @@ type Props = {
   onStatusChange?: (state: { status: string; error: string; connected: boolean }) => void | Promise<void>;
   participants?: RoomParticipant[];
   localHandRaised?: boolean;
+  enterSignal?: number;
 };
 
 type LiveTile = {
@@ -250,6 +251,50 @@ function playAllAudioElements() {
   }
 }
 
+function primeAudioPlaybackGesture() {
+  try {
+    const AudioContextCtor = (window as any).AudioContext || (window as any).webkitAudioContext;
+    if (AudioContextCtor) {
+      const ctx = new AudioContextCtor();
+      void ctx.resume?.().catch(() => undefined);
+      const oscillator = ctx.createOscillator();
+      const gain = ctx.createGain();
+      gain.gain.value = 0.00001;
+      oscillator.connect(gain);
+      gain.connect(ctx.destination);
+      oscillator.start();
+      window.setTimeout(() => {
+        try { oscillator.stop(); ctx.close?.(); } catch { /* ignore */ }
+      }, 70);
+    }
+  } catch {
+    // ignore audio unlock errors
+  }
+
+  try {
+    const audio = document.createElement("audio");
+    audio.setAttribute("playsinline", "true");
+    audio.preload = "auto";
+    audio.volume = 0.00001;
+    audio.src = "data:audio/wav;base64,UklGRigAAABXQVZFZm10IBAAAAABAAEAESsAACJWAAACABAAZGF0YQQAAAAAAA==";
+    void audio.play?.().catch(() => undefined);
+    window.setTimeout(() => {
+      try { audio.pause(); audio.remove(); } catch { /* ignore */ }
+    }, 150);
+  } catch {
+    // ignore audio unlock errors
+  }
+}
+
+function startRoomAudio(room: Room | null) {
+  if (!room) return;
+  void (room as any).startAudio?.().catch(() => undefined);
+  playAllAudioElements();
+  window.setTimeout(() => { void (room as any).startAudio?.().catch(() => undefined); playAllAudioElements(); }, 120);
+  window.setTimeout(() => { void (room as any).startAudio?.().catch(() => undefined); playAllAudioElements(); }, 480);
+  window.setTimeout(() => { void (room as any).startAudio?.().catch(() => undefined); playAllAudioElements(); }, 1100);
+}
+
 function isHostRole(profile: UserProfile | null) {
   if (!profile) return false;
 
@@ -311,7 +356,8 @@ export function RealLiveKitRoom({
   onLeave,
   onStatusChange,
   participants = [],
-  localHandRaised = false
+  localHandRaised = false,
+  enterSignal = 0
 }: Props) {
   const roomRef = useRef<Room | null>(null);
   const connectingRef = useRef(false);
@@ -375,10 +421,11 @@ export function RealLiveKitRoom({
   }
 
   function createRoomForDevice() {
-    const mobile = isMobileOrTabletDevice();
+    // Keep LiveKit's adaptive behavior on mobile as well. Disabling it made some
+    // mobile/tablet host joins less reliable on real devices.
     return new Room({
-      adaptiveStream: mobile ? false : true,
-      dynacast: mobile ? false : true
+      adaptiveStream: true,
+      dynacast: true
     });
   }
 
@@ -426,10 +473,7 @@ export function RealLiveKitRoom({
   function wireRoom(room: Room) {
     const update = () => {
       refreshTiles(room);
-      void (room as any).startAudio?.().catch(() => undefined);
-      window.setTimeout(playAllAudioElements, 80);
-      window.setTimeout(playAllAudioElements, 500);
-      window.setTimeout(playAllAudioElements, 1400);
+      startRoomAudio(room);
     };
 
     room.on(RoomEvent.Connected, async () => {
@@ -455,6 +499,14 @@ export function RealLiveKitRoom({
     room.on(RoomEvent.LocalTrackPublished, update);
     room.on(RoomEvent.LocalTrackUnpublished, update);
     room.on(RoomEvent.ActiveSpeakersChanged, update);
+    room.on(RoomEvent.AudioPlaybackStatusChanged, () => {
+      startRoomAudio(room);
+      const canPlay = Boolean((room as any).canPlaybackAudio ?? true);
+      if (!canPlay) {
+        setStatus("Tap Enter once more to enable sound");
+        publishStatus("Tap Enter once more to enable sound", "", connected);
+      }
+    });
   }
 
   async function connect(forceStart = false) {
@@ -475,6 +527,7 @@ export function RealLiveKitRoom({
 
     const mobileHostMode = isHostRole(profile) && isMobileOrTabletDevice();
 
+    primeAudioPlaybackGesture();
     connectingRef.current = true;
     connectedAnnouncedRef.current = false;
     setNeedsStart(false);
@@ -531,10 +584,7 @@ export function RealLiveKitRoom({
 
       await markConnected(room, mobileHostMode ? "Connected. Tap Mic to speak." : "Connected");
 
-      await (room as any).startAudio?.().catch(() => undefined);
-      playAllAudioElements();
-      window.setTimeout(playAllAudioElements, 250);
-      window.setTimeout(playAllAudioElements, 900);
+      startRoomAudio(room);
 
       if (isHostRole(profile) && !mobileHostMode && !autoHostMicStartedRef.current) {
         autoHostMicStartedRef.current = true;
@@ -579,7 +629,7 @@ export function RealLiveKitRoom({
       setConnected(false);
       setStatus("Connection failed");
       const message = mobileHostMode
-        ? "Could not connect on this mobile device. Refresh once and try again."
+        ? "Could not connect on this mobile device. Please refresh once, then tap Enter again. If it still fails, sign out and sign in again."
         : "Could not connect.";
       setError(message);
       publishStatus("Connection failed", message, false);
@@ -838,8 +888,7 @@ export function RealLiveKitRoom({
   useEffect(() => {
     if (!connected) return;
     const timer = window.setInterval(() => {
-      void (roomRef.current as any)?.startAudio?.().catch(() => undefined);
-      playAllAudioElements();
+      startRoomAudio(roomRef.current);
     }, 1500);
     return () => window.clearInterval(timer);
   }, [connected]);
@@ -862,7 +911,8 @@ export function RealLiveKitRoom({
   useEffect(() => {
     function handleLiveKitControl(event: Event) {
       const action = (event as CustomEvent<{ action?: string }>).detail?.action;
-      if (action === "enter-live") void connect(true);
+      if (action === "unlock-audio") { primeAudioPlaybackGesture(); startRoomAudio(roomRef.current); }
+      if (action === "enter-live") { primeAudioPlaybackGesture(); void connect(true); }
       if (action === "mic") void toggleMic();
       if (action === "force-mic-off") void forceMicOff();
       if (action === "camera") void toggleCamera();
@@ -873,14 +923,21 @@ export function RealLiveKitRoom({
 
     window.addEventListener("omide-livekit-control", handleLiveKitControl as EventListener);
     return () => window.removeEventListener("omide-livekit-control", handleLiveKitControl as EventListener);
-  }, [micOn, cameraOn, screenOn, connected, participants]);
+  }, [micOn, cameraOn, screenOn, connected, participants, profile?.id, profile?.status, profile?.role, admitted, needsStart, meetingId]);
+
+
+  useEffect(() => {
+    if (!enterSignal) return;
+    primeAudioPlaybackGesture();
+    startRoomAudio(roomRef.current);
+    void connect(true);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [enterSignal]);
 
   useEffect(() => {
     const unlockAudio = () => {
-      const room = roomRef.current as any;
-      if (!room) return;
-      void room.startAudio?.().catch(() => undefined);
-      playAllAudioElements();
+      primeAudioPlaybackGesture();
+      startRoomAudio(roomRef.current);
     };
 
     window.addEventListener("pointerdown", unlockAudio, { passive: true });

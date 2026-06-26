@@ -6,14 +6,27 @@ export type LiveKitTokenResponse =
   | { ok: true; token: string; wsUrl: string; roomName: string; identity: string; isHost: boolean }
   | { ok: false; reason: string; message?: string };
 
-function getDeviceId() {
-  const key = "omideno7.livekit.deviceId.v4";
-  let existing = sessionStorage.getItem(key);
-  if (!existing) {
-    existing = crypto.randomUUID();
-    sessionStorage.setItem(key, existing);
+function safeRandomId() {
+  try {
+    if (crypto?.randomUUID) return crypto.randomUUID();
+  } catch {
+    // ignore
   }
-  return existing;
+  return `device-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
+}
+
+function getDeviceId() {
+  const key = "omideno7.livekit.deviceId.v5";
+  try {
+    let existing = sessionStorage.getItem(key);
+    if (!existing) {
+      existing = safeRandomId();
+      sessionStorage.setItem(key, existing);
+    }
+    return existing;
+  } catch {
+    return safeRandomId();
+  }
 }
 
 function timeoutSignal(ms: number) {
@@ -43,13 +56,22 @@ export const liveKitTokenService = {
       return { ok: false, reason: "waiting_room_admission_required", message: "Member must be admitted from Waiting Room first." };
     }
 
-    const sessionResult = await supabase?.auth.getSession();
-    const accessToken = sessionResult?.data.session?.access_token;
+    let sessionResult = await supabase?.auth.getSession();
+    let accessToken = sessionResult?.data.session?.access_token;
+
+    if (!accessToken) {
+      try {
+        const refreshed = await supabase?.auth.refreshSession();
+        accessToken = refreshed?.data.session?.access_token;
+      } catch {
+        // ignore refresh errors
+      }
+    }
 
     if (!accessToken) {
       localStorage.removeItem("omideno7.react.profile");
       localStorage.removeItem("omideno7.profile.override");
-      return { ok: false, reason: "missing_supabase_session", message: "Auth session missing. Please logout, refresh, and sign in again with email/password." };
+      return { ok: false, reason: "missing_supabase_session", message: "Please sign out, refresh, and sign in again on this device." };
     }
 
     const timeout = timeoutSignal(15000);

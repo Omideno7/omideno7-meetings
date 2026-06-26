@@ -1,7 +1,7 @@
 {
-  "version": "1.63.0",
-  "stage": "v163-mobile-admin-connect-fix",
-  "label": "OmideNo7 Meetings v1.63 mobile admin connect fix",
-  "updatedAt": "2026-06-26T10:05:00.000Z",
-  "build": "v163-mobile-admin-connect-fix"
+  "version": "1.64.0",
+  "stage": "v164-mobile-admin-audio-unlock",
+  "label": "OmideNo7 Meetings v1.64 mobile admin audio unlock",
+  "updatedAt": "2026-06-26T10:45:00.000Z",
+  "build": "v164-mobile-admin-audio-unlock"
 }

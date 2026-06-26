@@ -1096,6 +1096,7 @@ export function LiveMeetingPage() {
   const [recording, setRecording] = useState(false);
   const [recordingStartedAt, setRecordingStartedAt] = useState<number | null>(null);
   const [enterPending, setEnterPending] = useState(false);
+  const [enterSignal, setEnterSignal] = useState(0);
   const [recordingElapsed, setRecordingElapsed] = useState("00:00");
   const seenReactionIds = useRef<Set<string>>(new Set());
   const reactionsBooted = useRef(false);
@@ -1121,7 +1122,47 @@ export function LiveMeetingPage() {
     window.setTimeout(() => setToast("Ready"), 2800);
   }
 
+  function primeBrowserAudioUnlock() {
+    try {
+      const AudioContextCtor = (window as any).AudioContext || (window as any).webkitAudioContext;
+      if (AudioContextCtor) {
+        const ctx = new AudioContextCtor();
+        void ctx.resume?.().catch(() => undefined);
+        const oscillator = ctx.createOscillator();
+        const gain = ctx.createGain();
+        gain.gain.value = 0.00001;
+        oscillator.connect(gain);
+        gain.connect(ctx.destination);
+        oscillator.start();
+        window.setTimeout(() => {
+          try { oscillator.stop(); ctx.close?.(); } catch { /* ignore */ }
+        }, 60);
+      }
+    } catch {
+      // ignore audio unlock errors
+    }
+
+    try {
+      const audio = document.createElement("audio");
+      audio.setAttribute("playsinline", "true");
+      audio.preload = "auto";
+      audio.volume = 0.00001;
+      audio.src = "data:audio/wav;base64,UklGRigAAABXQVZFZm10IBAAAAABAAEAESsAACJWAAACABAAZGF0YQQAAAAAAA==";
+      void audio.play?.().catch(() => undefined);
+      window.setTimeout(() => {
+        try { audio.pause(); audio.remove(); } catch { /* ignore */ }
+      }, 120);
+    } catch {
+      // ignore audio unlock errors
+    }
+  }
+
   function dispatchEnterLiveNow() {
+    // This runs inside the real tap/click. It primes mobile audio playback so
+    // members can hear the host after pressing Enter without opening their mic.
+    primeBrowserAudioUnlock();
+    setEnterSignal((value) => value + 1);
+    window.dispatchEvent(new CustomEvent("omide-livekit-control", { detail: { action: "unlock-audio" } }));
     window.dispatchEvent(new CustomEvent("omide-livekit-control", { detail: { action: "enter-live" } }));
     // Mobile browsers can miss an event while React is settling after a tap.
     // A short duplicate is safe because RealLiveKitRoom ignores requests while connecting.
@@ -1604,7 +1645,7 @@ export function LiveMeetingPage() {
       <header className="clean-live-topbar">
         <div className="clean-live-brand">
           <strong>OmideNo7 Meetings</strong>
-          <span>v1.62 · {deviceLabel()} · {liveKitConnected ? "Connected" : enterPending ? "Entering" : roomIsOpen ? "Ready" : "Waiting"}{toast !== "Ready" ? ` · ${toast}` : ""}</span>
+          <span>v1.64 · {deviceLabel()} · {liveKitConnected ? "Connected" : enterPending ? "Entering" : roomIsOpen ? "Ready" : "Waiting"}{toast !== "Ready" ? ` · ${toast}` : ""}</span>
         </div>
 
         <div className="clean-live-actions">
@@ -1647,6 +1688,7 @@ export function LiveMeetingPage() {
             admitted={canHost || myStatus === "online"}
             autoStart={false}
             confirmBeforeStart={canHost}
+            enterSignal={enterSignal}
             onConnectionChange={async (connected) => {
               setLiveKitConnected(connected);
               if (connected) {
