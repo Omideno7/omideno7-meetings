@@ -1,7 +1,7 @@
 {
-  "version": "1.67",
-  "stage": "v167-mobile-permission-template-cards",
-  "label": "v1.67 Mobile Permission Template Cards",
-  "updatedAt": "2026-06-26T14:55:00.000Z",
-  "build": "v167-mobile-permission-template-cards"
+  "version": "1.68",
+  "stage": "v168-reaction-picker-zindex-fix",
+  "label": "v1.68 Reaction Picker Z-Index Fix",
+  "updatedAt": "2026-06-26T18:05:00.000Z",
+  "build": "v168-reaction-picker-zindex-fix"
 }

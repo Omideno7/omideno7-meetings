@@ -5138,3 +5138,142 @@ button.secondary {
     max-width: 100%;
   }
 }
+
+/* v1.68 — keep reaction picker above the live stage and mobile sheets */
+.clean-toolbar {
+  position: relative;
+  z-index: 9000 !important;
+  overflow-y: visible !important;
+}
+
+.toolbar-react-wrap {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 auto;
+  z-index: 9010 !important;
+}
+
+.reaction-picker {
+  position: fixed !important;
+  left: 50% !important;
+  right: auto !important;
+  bottom: calc(98px + env(safe-area-inset-bottom)) !important;
+  transform: translateX(-50%) !important;
+  z-index: 999999 !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  gap: 8px !important;
+  max-width: calc(100vw - 24px) !important;
+  padding: 10px !important;
+  border-radius: 22px !important;
+  background: rgba(255,255,255,.98) !important;
+  border: 1px solid rgba(8,41,91,.14) !important;
+  box-shadow: 0 18px 48px rgba(5,39,90,.28) !important;
+  pointer-events: auto !important;
+  overflow: visible !important;
+  backdrop-filter: blur(14px);
+}
+
+.reaction-picker::after {
+  content: "";
+  position: absolute;
+  left: 50%;
+  bottom: -8px;
+  width: 16px;
+  height: 16px;
+  transform: translateX(-50%) rotate(45deg);
+  background: rgba(255,255,255,.98);
+  border-right: 1px solid rgba(8,41,91,.10);
+  border-bottom: 1px solid rgba(8,41,91,.10);
+}
+
+.reaction-picker button {
+  position: relative;
+  z-index: 1;
+  width: 46px !important;
+  height: 46px !important;
+  min-width: 46px !important;
+  min-height: 46px !important;
+  display: grid !important;
+  place-items: center !important;
+  border: 0 !important;
+  border-radius: 16px !important;
+  background: #edf7ff !important;
+  color: #06285a !important;
+  font-size: 1.45rem !important;
+  line-height: 1 !important;
+  cursor: pointer !important;
+  box-shadow: 0 6px 16px rgba(8,41,91,.10) !important;
+  font-family: "Apple Color Emoji", "Segoe UI Emoji", "Noto Color Emoji", system-ui, sans-serif !important;
+}
+
+.reaction-picker button:active {
+  transform: scale(.94);
+  background: #dff5e8 !important;
+}
+
+.live-reaction-layer {
+  pointer-events: none !important;
+  position: fixed !important;
+  inset: 0 !important;
+  z-index: 8500 !important;
+  overflow: hidden !important;
+}
+
+.live-floating-reaction {
+  position: absolute !important;
+  left: var(--x, 50%) !important;
+  bottom: calc(118px + env(safe-area-inset-bottom)) !important;
+  transform: translateX(-50%) !important;
+  animation: liveFloatReaction 2.25s ease-out forwards;
+  text-align: center;
+  color: #fff;
+  filter: drop-shadow(0 12px 22px rgba(0,0,0,.28));
+}
+
+.live-floating-reaction b {
+  display: block;
+  font-size: clamp(2.2rem, 9vw, 5rem);
+  line-height: 1;
+}
+
+.live-floating-reaction span {
+  display: inline-block;
+  margin-top: 4px;
+  max-width: 140px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  border-radius: 999px;
+  padding: 4px 8px;
+  background: rgba(6,40,90,.72);
+  font-size: .72rem;
+  font-weight: 900;
+}
+
+@keyframes liveFloatReaction {
+  0% { opacity: 0; transform: translate(-50%, 26px) scale(.7); }
+  16% { opacity: 1; }
+  100% { opacity: 0; transform: translate(-50%, -48vh) scale(1.35); }
+}
+
+@media (max-width: 520px) {
+  .reaction-picker {
+    bottom: calc(106px + env(safe-area-inset-bottom)) !important;
+    gap: 7px !important;
+    padding: 9px !important;
+    border-radius: 20px !important;
+  }
+
+  .reaction-picker button {
+    width: 42px !important;
+    height: 42px !important;
+    min-width: 42px !important;
+    min-height: 42px !important;
+    border-radius: 15px !important;
+    font-size: 1.32rem !important;
+  }
+}
