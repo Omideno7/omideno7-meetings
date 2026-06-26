@@ -1,7 +1,7 @@
 {
-  "version": "1.61.0",
-  "stage": "v161-screen-overlay-audio-fix",
-  "label": "OmideNo7 Meetings v1.61 screen overlay audio fix",
-  "updatedAt": "2026-06-26T08:55:00.000Z",
-  "build": "v161-screen-overlay-audio-fix"
+  "version": "1.62.0",
+  "stage": "v162-mobile-host-enter-feedback",
+  "label": "OmideNo7 Meetings v1.62 mobile host enter feedback",
+  "updatedAt": "2026-06-26T09:35:00.000Z",
+  "build": "v162-mobile-host-enter-feedback"
 }

@@ -34,10 +34,22 @@ function WaitingGate({
   onBack
 }: {
   status: string;
-  onEnterWaiting: () => void;
+  onEnterWaiting: () => void | Promise<void>;
   onRefresh: () => void;
   onBack: () => void;
 }) {
+  const [requestPending, setRequestPending] = useState(false);
+
+  async function handleRequestClick() {
+    if (requestPending || status === "waiting" || status === "online") return;
+    setRequestPending(true);
+    try {
+      await onEnterWaiting();
+    } finally {
+      window.setTimeout(() => setRequestPending(false), 1200);
+    }
+  }
+
   return (
     <div className="live-clean-page waiting-only">
       <section className="waiting-only-card">
@@ -51,7 +63,13 @@ function WaitingGate({
               : "You have not requested to join yet."}
         </strong>
         <div className="clean-button-row">
-          <button onClick={onEnterWaiting}>Request to Join Meeting</button>
+          <button
+            className={requestPending || status === "waiting" || status === "online" ? "enter-feedback-active" : ""}
+            onClick={handleRequestClick}
+            disabled={requestPending || status === "waiting" || status === "online"}
+          >
+            {requestPending ? "Request sent..." : status === "waiting" ? "Waiting..." : status === "online" ? "Admitted" : "Request to Join Meeting"}
+          </button>
           <button className="ghost" onClick={onRefresh}>Refresh</button>
           <button className="ghost" onClick={onBack}>Back Home</button>
         </div>
@@ -453,6 +471,25 @@ function LiveMeetingStyles() {
         background: #ef4444 !important;
         color: #fff !important;
         animation: waiting-red-pulse 1.1s ease-in-out infinite;
+      }
+
+      .enter-feedback-active,
+      .clean-toolbar .enter-feedback-active {
+        background: #13bf54 !important;
+        color: #fff !important;
+        transform: scale(.96);
+        box-shadow: 0 0 0 6px rgba(19,191,84,.16), 0 12px 28px rgba(19,191,84,.22) !important;
+        animation: enter-click-pulse .85s ease-in-out infinite;
+      }
+
+      .enter-feedback-active:disabled {
+        opacity: 1;
+        cursor: progress;
+      }
+
+      @keyframes enter-click-pulse {
+        0%, 100% { filter: brightness(1); }
+        50% { filter: brightness(1.12); }
       }
 
       @keyframes waiting-red-pulse {
@@ -1025,6 +1062,16 @@ function deviceLabel() {
   return "Device";
 }
 
+function isMobileOrTabletDevice() {
+  try {
+    const ua = navigator.userAgent || "";
+    const touchPoints = Number(navigator.maxTouchPoints || 0);
+    return /Android|iPhone|iPad|iPod|Mobile|Tablet/i.test(ua) || touchPoints > 1;
+  } catch {
+    return false;
+  }
+}
+
 export function LiveMeetingPage() {
   const { profile, setRoute } = useAppState();
 
@@ -1048,6 +1095,7 @@ export function LiveMeetingPage() {
   const [reactionMenuOpen, setReactionMenuOpen] = useState(false);
   const [recording, setRecording] = useState(false);
   const [recordingStartedAt, setRecordingStartedAt] = useState<number | null>(null);
+  const [enterPending, setEnterPending] = useState(false);
   const [recordingElapsed, setRecordingElapsed] = useState("00:00");
   const seenReactionIds = useRef<Set<string>>(new Set());
   const reactionsBooted = useRef(false);
@@ -1359,21 +1407,45 @@ export function LiveMeetingPage() {
   }
 
   async function startHostRoom() {
-    if (!canHost) return;
-    await meetingRoomService.enterOnline(profile, {
-      mic_on: false,
-      camera_on: false,
-      display_name: profile?.displayName || "Host",
-      role_label: myMeetingRole || roleLabel(profile?.role),
-      avatar_url: profile?.avatarUrl || null,
-      allowed_mic: true
-    });
-    await meetingRoomService.openMeetingForEveryone();
-    setRoomIsOpen(true);
-    notify("Live room opened. Host microphone will start automatically...");
-    window.setTimeout(() => {
-      window.dispatchEvent(new CustomEvent("omide-livekit-control", { detail: { action: "enter-live" } }));
-    }, 150);
+    if (!canHost || enterPending) return;
+    setEnterPending(true);
+    notify(isMobileOrTabletDevice() ? "Starting host..." : "Opening live...");
+
+    try {
+      await meetingRoomService.enterOnline(profile, {
+        mic_on: false,
+        camera_on: false,
+        display_name: profile?.displayName || "Host",
+        role_label: myMeetingRole || roleLabel(profile?.role),
+        avatar_url: profile?.avatarUrl || null,
+        allowed_mic: true
+      });
+      await meetingRoomService.openMeetingForEveryone();
+      setRoomIsOpen(true);
+      notify(isMobileOrTabletDevice()
+        ? "Live opened. Connecting without auto mic on mobile..."
+        : "Live room opened. Host microphone will start automatically...");
+      window.setTimeout(() => {
+        window.dispatchEvent(new CustomEvent("omide-livekit-control", { detail: { action: "enter-live" } }));
+      }, 60);
+    } catch {
+      notify("Could not open live room. Try again.");
+      setEnterPending(false);
+    }
+  }
+
+  async function handleEnterButtonClick() {
+    if (enterPending) return;
+
+    if (canHost) {
+      await startHostRoom();
+      return;
+    }
+
+    setEnterPending(true);
+    notify("Entering live...");
+    window.dispatchEvent(new CustomEvent("omide-livekit-control", { detail: { action: "enter-live" } }));
+    window.setTimeout(() => setEnterPending(false), 2200);
   }
 
   async function sendMessage() {
@@ -1514,13 +1586,13 @@ export function LiveMeetingPage() {
       <header className="clean-live-topbar">
         <div className="clean-live-brand">
           <strong>OmideNo7 Meetings</strong>
-          <span>v1.61 · {deviceLabel()} · {liveKitConnected ? "Connected" : roomIsOpen ? "Ready" : "Waiting"}{toast !== "Ready" ? ` · ${toast}` : ""}</span>
+          <span>v1.62 · {deviceLabel()} · {liveKitConnected ? "Connected" : enterPending ? "Entering" : roomIsOpen ? "Ready" : "Waiting"}{toast !== "Ready" ? ` · ${toast}` : ""}</span>
         </div>
 
         <div className="clean-live-actions">
           {canHost && !roomIsOpen && (
-            <button className="green" onClick={startHostRoom}>
-              Open & enter live
+            <button className={enterPending ? "green enter-feedback-active" : "green"} onClick={handleEnterButtonClick} disabled={enterPending}>
+              {enterPending ? "Opening..." : "Open & enter live"}
             </button>
           )}
 
@@ -1559,6 +1631,7 @@ export function LiveMeetingPage() {
             confirmBeforeStart={canHost}
             onConnectionChange={async (connected) => {
               setLiveKitConnected(connected);
+              if (connected) setEnterPending(false);
               if (connected && canHost) {
                 await meetingRoomService.openMeetingForEveryone();
                 setRoomIsOpen(true);
@@ -1739,8 +1812,14 @@ export function LiveMeetingPage() {
 
       <footer className="clean-toolbar" aria-label="Meeting controls">
         {!liveKitConnected && (
-          <button className="green control-icon-btn" title="Enter" aria-label="Enter" onClick={() => canHost ? startHostRoom() : sendLiveKitControl("enter-live")}>
-            ▶️<span className="toolbar-label">Enter</span>
+          <button
+            className={enterPending ? "green control-icon-btn enter-feedback-active" : "green control-icon-btn"}
+            title="Enter"
+            aria-label="Enter"
+            onClick={handleEnterButtonClick}
+            disabled={enterPending}
+          >
+            {enterPending ? "⏳" : "▶️"}<span className="toolbar-label">{enterPending ? "Wait" : "Enter"}</span>
           </button>
         )}
         <button className="control-icon-btn" title={micOn ? "Mute" : "Microphone"} aria-label={micOn ? "Mute" : "Microphone"} onClick={() => liveKitConnected ? sendLiveKitControl("mic") : notify("Enter live first") }>

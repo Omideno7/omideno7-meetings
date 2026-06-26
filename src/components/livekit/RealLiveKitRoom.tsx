@@ -289,6 +289,16 @@ function browserNotice() {
   return "";
 }
 
+function isMobileOrTabletDevice() {
+  try {
+    const ua = navigator.userAgent || "";
+    const touchPoints = Number(navigator.maxTouchPoints || 0);
+    return /Android|iPhone|iPad|iPod|Mobile|Tablet/i.test(ua) || touchPoints > 1;
+  } catch {
+    return false;
+  }
+}
+
 export function RealLiveKitRoom({
   profile,
   admitted,
@@ -474,10 +484,13 @@ export function RealLiveKitRoom({
       playAllAudioElements();
       window.setTimeout(playAllAudioElements, 500);
 
-      if (isHostRole(profile) && !autoHostMicStartedRef.current) {
+      const mobileHostMode = isHostRole(profile) && isMobileOrTabletDevice();
+      if (isHostRole(profile) && !mobileHostMode && !autoHostMicStartedRef.current) {
         autoHostMicStartedRef.current = true;
         await wait(150);
         await enableMicrophone(room, true);
+      } else if (mobileHostMode) {
+        setStatus("Connected. Tap Mic to speak.");
       }
 
       refreshTiles(room);
@@ -1374,7 +1387,7 @@ export function RealLiveKitRoom({
               onClick={() => void connect(true)}
               disabled={!canEnter || connectingRef.current}
             >
-              {connectingRef.current ? "Connecting..." : "Enter live"}
+              {connectingRef.current ? "Connecting..." : isMobileOrTabletDevice() && isHostRole(profile) ? "Start host" : "Enter live"}
             </button>
           )}
 
