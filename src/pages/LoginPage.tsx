@@ -8,7 +8,7 @@ import { isSupabaseConfigured } from "../services/supabaseClient";
 export function LoginPage() {
   const { loginAs, setRoute, signIn, signUp, authLoading, authMessage } = useAppState();
   const [mode, setMode] = useState<"signin" | "signup">("signin");
-  const [fullName, setFullName] = useState("Apostle Yuhana");
+  const [fullName, setFullName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
 
@@ -29,7 +29,7 @@ export function LoginPage() {
 
         {supabaseMode ? (
           <>
-            <p>Real Supabase Auth is active. Use your approved account to enter the app.</p>
+            <p>{mode === "signin" ? "Sign in with your approved OmideNo7 account." : "Create your account once. Your meeting access request will be sent automatically."}</p>
 
             <div className="auth-toggle">
               <button className={mode === "signin" ? "active" : ""} onClick={() => setMode("signin")}>Sign In</button>
@@ -47,16 +47,17 @@ export function LoginPage() {
             {authMessage && <p className="auth-message">{authMessage}</p>}
 
             <div className="stack">
-              <Button onClick={submitRealAuth} disabled={authLoading || !email || !password}>
+              <Button onClick={submitRealAuth} disabled={authLoading || !email || !password || (mode === "signup" && !fullName.trim())}>
                 {authLoading ? "Please wait..." : mode === "signin" ? "Sign In" : "Create Account"}
               </Button>
-              <Button variant="ghost" onClick={() => setRoute("requestAccess")}>Request Access</Button>
+              <Button variant="ghost" onClick={() => setRoute("requestAccess")}>Servant / Host Request</Button>
             </div>
 
-            <div className="demo-separator">Owner setup note</div>
-            <p className="small-note">
-              First create the Apostle Yuhana account here. Then run the Owner Bootstrap SQL in Supabase to approve this email as Owner.
-            </p>
+            {mode === "signup" && (
+              <p className="small-note">
+                After creating the account, confirm your email if asked. The owner will see your access request automatically.
+              </p>
+            )}
           </>
         ) : (
           <>
@@ -65,7 +66,7 @@ export function LoginPage() {
               <Button onClick={() => loginAs("owner")}>Demo Login as Apostle Yuhana / Owner</Button>
               <Button variant="secondary" onClick={() => loginAs("member")}>Demo Login as Approved Member</Button>
               <Button variant="secondary" onClick={() => loginAs("pending")}>Demo Login as Pending User</Button>
-              <Button variant="ghost" onClick={() => setRoute("requestAccess")}>Request Access</Button>
+              <Button variant="ghost" onClick={() => setRoute("requestAccess")}>Servant / Host Request</Button>
             </div>
           </>
         )}

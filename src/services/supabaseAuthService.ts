@@ -1,5 +1,6 @@
 import type { UserProfile, UserRole, UserStatus } from "../types/roles";
 import { isSupabaseConfigured, supabase } from "./supabaseClient";
+import { supabaseAccessRequestService } from "./supabaseAccessRequestService";
 
 function mapRole(role: string | null | undefined): UserRole {
   const allowed: UserRole[] = [
@@ -123,11 +124,23 @@ export const supabaseAuthService = {
 
     if (error) return { profile: null, error: error.message, message: "" };
 
+    const requestResult = await supabaseAccessRequestService.submitRequest({
+      full_name: fullName,
+      email,
+      country: "",
+      relationship: "Church member",
+      reason: "I created an OmideNo7 Meetings account and request access to join church meetings."
+    });
+
     const profile = await this.getCurrentProfile();
+    const requestWarning = requestResult.error && !/duplicate|already|exists/i.test(requestResult.error)
+      ? " Account was created, but automatic access request may need manual review."
+      : "";
+
     return {
       profile,
       error: null,
-      message: "Account created. If email confirmation is enabled, confirm the email first. Owner must approve the profile."
+      message: `Account created. Please confirm your email if asked. Your meeting access request was sent automatically.${requestWarning}`
     };
   },
 

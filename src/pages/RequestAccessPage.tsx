@@ -91,22 +91,22 @@ export function RequestAccessPage() {
   return (
     <div className="public-page">
       <Card className="auth-card">
-        <h1>Request Access</h1>
-        <p>New users stay Pending until Apostle Yuhana approves them in the Owner Approval Panel.</p>
+        <h1>Servant / Host Access Request</h1>
+        <p>Use this form only when someone needs a servant or host role. Normal members should use Create Account; their access request is sent automatically.</p>
         <p className="small-note">Data mode: {dataMode}</p>
 
         <div className="form-grid">
           <input value={form.fullName} onChange={(e) => update("fullName", e.target.value)} placeholder="Full name" />
           <input value={form.email} onChange={(e) => update("email", e.target.value)} placeholder="Email" />
           <input value={form.country} onChange={(e) => update("country", e.target.value)} placeholder="Country" />
-          <input value={form.relationship} onChange={(e) => update("relationship", e.target.value)} placeholder="Relationship to church" />
-          <textarea value={form.reason} onChange={(e) => update("reason", e.target.value)} placeholder="Reason for requesting access" />
+          <input value={form.relationship} onChange={(e) => update("relationship", e.target.value)} placeholder="Requested role or relationship" />
+          <textarea value={form.reason} onChange={(e) => update("reason", e.target.value)} placeholder="Reason / ministry responsibility" />
         </div>
 
         {message && <p className="auth-message">{message}</p>}
 
         <div className="button-row">
-          <Button onClick={submit} disabled={submitting}>{submitting ? "Saving..." : "Submit Request"}</Button>
+          <Button onClick={submit} disabled={submitting}>{submitting ? "Saving..." : "Submit Servant Request"}</Button>
           <Button variant="ghost" onClick={() => setRoute("login")}>Back to Login</Button>
         </div>
       </Card>

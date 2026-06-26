@@ -1,6 +1,7 @@
 {
-  "version": "1.58.0",
-  "stage": "v158-mic-toggle-waiting-badge",
-  "label": "OmideNo7 Meetings v1.58 mic toggle + waiting badge",
-  "updatedAt": "2026-06-25T21:40:00.000Z"
+  "version": "1.59.0",
+  "stage": "v159-simple-signup-screen-focus-mobile-polish",
+  "label": "OmideNo7 Meetings v1.59 simple signup + screen focus + mobile polish",
+  "updatedAt": "2026-06-25T21:40:00.000Z",
+  "build": "v159-simple-signup-screen-focus-mobile-polish"
 }

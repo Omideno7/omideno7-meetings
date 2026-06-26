@@ -13,7 +13,7 @@ export function LandingPage() {
         <p>Secure church meetings for approved OmideNo7 members and delegated servants.</p>
         <div className="button-row">
           <Button onClick={() => setRoute("login")}>Login</Button>
-          <Button variant="secondary" onClick={() => setRoute("requestAccess")}>Request Access</Button>
+          <Button variant="secondary" onClick={() => setRoute("requestAccess")}>Servant / Host Request</Button>
           <Button variant="ghost" onClick={() => setRoute("installApp")}>Install App</Button>
         </div>
         <small>Public users cannot see meeting links, codes, recordings, reports, or member data.</small>

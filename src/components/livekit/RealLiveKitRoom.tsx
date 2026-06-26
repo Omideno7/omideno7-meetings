@@ -765,6 +765,8 @@ export function RealLiveKitRoom({
     };
   }, []);
 
+  const hasScreenShare = tiles.some((tile) => tile.screenOn);
+
   return (
     <section className="omide-livekit-clean">
       <style>{`
@@ -911,6 +913,25 @@ export function RealLiveKitRoom({
           background: #020617 !important;
           border: 1px solid rgba(255,255,255,.16) !important;
           box-shadow: 0 18px 38px rgba(0,0,0,.28) !important;
+        }
+
+        .omide-livekit-clean-grid.screen-active {
+          grid-template-columns: repeat(4, minmax(0, 1fr)) !important;
+          align-content: start !important;
+        }
+
+        .omide-livekit-clean-tile.screen-tile {
+          grid-column: 1 / -1 !important;
+          aspect-ratio: 16 / 9 !important;
+          min-height: min(52vh, 420px) !important;
+          max-height: 62vh !important;
+          border-radius: 22px !important;
+          background: #020617 !important;
+        }
+
+        .omide-livekit-clean-tile.screen-tile .omide-video-el {
+          object-fit: contain !important;
+          background: #020617 !important;
         }
 
         .omide-video-el {
@@ -1183,10 +1204,29 @@ export function RealLiveKitRoom({
           }
         }
 
+        @media (max-width: 740px) {
+          .omide-livekit-clean-grid.screen-active {
+            grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+            gap: 6px !important;
+          }
+
+          .omide-livekit-clean-tile.screen-tile {
+            grid-column: 1 / -1 !important;
+            aspect-ratio: 16 / 9 !important;
+            min-height: 218px !important;
+            max-height: 54svh !important;
+            border-radius: 14px !important;
+          }
+        }
+
         @media (max-width: 380px) {
           .omide-livekit-clean-grid {
             grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
             gap: 5px !important;
+          }
+
+          .omide-livekit-clean-tile.screen-tile {
+            min-height: 198px !important;
           }
         }
 
@@ -1271,9 +1311,9 @@ export function RealLiveKitRoom({
           {canEnter ? "Ready to enter live room" : "Waiting for host admission"}
         </div>
       ) : (
-        <div className="omide-livekit-clean-grid">
+        <div className={hasScreenShare ? "omide-livekit-clean-grid screen-active" : "omide-livekit-clean-grid"}>
           {tiles.map((tile) => (
-            <article className="omide-livekit-clean-tile" key={tile.key}>
+            <article className={tile.screenOn ? "omide-livekit-clean-tile screen-tile" : "omide-livekit-clean-tile"} key={tile.key}>
               {tile.screenOn || tile.cameraOn ? (
                 <VideoTrackView track={tile.screenTrack || tile.cameraTrack} muted={tile.isLocal} />
               ) : (

@@ -668,27 +668,32 @@ function LiveMeetingStyles() {
       }
 
       .control-icon-btn .toolbar-label {
-        position: absolute;
-        left: 50%;
-        bottom: 52px;
-        transform: translateX(-50%);
-        opacity: 0;
+        position: static;
+        transform: none;
+        opacity: 1;
         pointer-events: none;
         white-space: nowrap;
-        background: rgba(2,6,23,.88);
-        color: #fff;
-        border-radius: 999px;
-        padding: 5px 9px;
-        font-size: .68rem;
-        font-weight: 800;
-        transition: opacity .15s ease, transform .15s ease;
+        background: transparent;
+        color: inherit;
+        border-radius: 0;
+        padding: 0;
+        font-size: .52rem;
+        line-height: 1;
+        font-weight: 900;
+        letter-spacing: -.02em;
+        max-width: 40px;
+        overflow: hidden;
+        text-overflow: ellipsis;
       }
 
-      @media (hover: hover) {
-        .control-icon-btn:hover .toolbar-label {
-          opacity: 1;
-          transform: translateX(-50%) translateY(-3px);
-        }
+      .control-icon-btn,
+      .clean-toolbar .control-icon-btn,
+      .toolbar-react-wrap > .control-icon-btn {
+        display: flex !important;
+        flex-direction: column !important;
+        align-items: center !important;
+        justify-content: center !important;
+        gap: 2px !important;
       }
 
       .live-toast-clean {
@@ -770,12 +775,14 @@ function LiveMeetingStyles() {
       /* v1.50 mobile meeting room redesign */
       @media (max-width: 740px) {
         .live-clean-page {
-          min-height: 100dvh;
+          min-height: 100svh;
           height: auto;
           overflow-y: auto;
           overflow-x: hidden;
+          padding-top: env(safe-area-inset-top);
           padding-bottom: calc(66px + env(safe-area-inset-bottom));
           background: linear-gradient(180deg, #06146d 0%, #0b5798 55%, #f7fbff 55%);
+          -webkit-text-size-adjust: 100%;
         }
 
         .clean-live-topbar {
@@ -808,7 +815,7 @@ function LiveMeetingStyles() {
 
         .clean-live-main,
         .clean-live-main.panel-open {
-          min-height: calc(100dvh - 122px - env(safe-area-inset-bottom));
+          min-height: calc(100svh - 122px - env(safe-area-inset-top) - env(safe-area-inset-bottom));
           height: auto;
           padding: 0;
           gap: 0;
@@ -818,7 +825,7 @@ function LiveMeetingStyles() {
 
         .clean-stage {
           height: auto;
-          min-height: calc(100dvh - 122px - env(safe-area-inset-bottom));
+          min-height: calc(100svh - 122px - env(safe-area-inset-top) - env(safe-area-inset-bottom));
           width: 100%;
           border-radius: 0;
           box-shadow: none;
@@ -827,7 +834,7 @@ function LiveMeetingStyles() {
         }
 
         .clean-stage > * {
-          min-height: calc(100dvh - 122px - env(safe-area-inset-bottom)) !important;
+          min-height: calc(100svh - 122px - env(safe-area-inset-top) - env(safe-area-inset-bottom)) !important;
           height: auto !important;
         }
 
@@ -887,17 +894,19 @@ function LiveMeetingStyles() {
         }
 
         .clean-toolbar button {
-          min-width: 42px !important;
-          width: 42px;
-          height: 42px;
+          min-width: 46px !important;
+          width: 46px;
+          height: 46px;
           padding: 0 !important;
           border-radius: 999px;
-          font-size: 1.05rem;
+          font-size: 1rem;
           box-shadow: none;
         }
 
         .control-icon-btn .toolbar-label {
-          display: none;
+          display: block;
+          font-size: .47rem;
+          max-width: 42px;
         }
 
         .clean-toolbar .speaker-mini-btn {
@@ -1505,7 +1514,7 @@ export function LiveMeetingPage() {
       <header className="clean-live-topbar">
         <div className="clean-live-brand">
           <strong>OmideNo7 Meetings</strong>
-          <span>v1.58 · {deviceLabel()} · {liveKitConnected ? "Connected" : roomIsOpen ? "Ready" : "Waiting"}{toast !== "Ready" ? ` · ${toast}` : ""}</span>
+          <span>v1.59 · {deviceLabel()} · {liveKitConnected ? "Connected" : roomIsOpen ? "Ready" : "Waiting"}{toast !== "Ready" ? ` · ${toast}` : ""}</span>
         </div>
 
         <div className="clean-live-actions">
