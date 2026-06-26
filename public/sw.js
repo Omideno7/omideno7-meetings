@@ -1,4 +1,4 @@
-const CACHE_NAME = "omideno7-meetings-pwa-v128-livekit-connect-stable";
+const CACHE_NAME = "omideno7-meetings-pwa-v161-screen-overlay-audio-fix";
 const APP_SHELL = [
   "/offline.html",
   "/manifest.webmanifest",

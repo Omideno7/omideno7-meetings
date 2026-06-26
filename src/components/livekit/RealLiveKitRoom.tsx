@@ -78,8 +78,13 @@ function AudioTrackView({ track, sinkId }: { track: any | null; sinkId?: string 
     if (!element || !track) return;
 
     try {
+      element.muted = false;
+      element.volume = 1;
       track.attach(element);
       void element.play?.().catch(() => undefined);
+      window.setTimeout(() => void element.play?.().catch(() => undefined), 250);
+      window.setTimeout(() => void element.play?.().catch(() => undefined), 900);
+      window.setTimeout(() => void element.play?.().catch(() => undefined), 1800);
     } catch {
       // ignore
     }
@@ -220,8 +225,28 @@ function initials(name: string) {
 function compactName(name: string) {
   const clean = String(name || "Member").trim();
   if (!clean) return "Member";
-  if (clean.length <= 18) return clean;
-  return `${clean.slice(0, 17).trim()}…`;
+  if (clean.length <= 12) return clean;
+  return `${clean.slice(0, 11).trim()}…`;
+}
+
+function screenName(name: string) {
+  const clean = String(name || "Screen").trim();
+  if (!clean) return "Screen";
+  if (clean.length <= 14) return clean;
+  return `${clean.slice(0, 13).trim()}…`;
+}
+
+function playAllAudioElements() {
+  try {
+    document.querySelectorAll("audio").forEach((element) => {
+      const audio = element as HTMLAudioElement;
+      audio.muted = false;
+      audio.volume = 1;
+      void audio.play?.().catch(() => undefined);
+    });
+  } catch {
+    // ignore
+  }
 }
 
 function isHostRole(profile: UserProfile | null) {
@@ -345,7 +370,13 @@ export function RealLiveKitRoom({
   }
 
   function wireRoom(room: Room) {
-    const update = () => refreshTiles(room);
+    const update = () => {
+      refreshTiles(room);
+      void (room as any).startAudio?.().catch(() => undefined);
+      window.setTimeout(playAllAudioElements, 80);
+      window.setTimeout(playAllAudioElements, 500);
+      window.setTimeout(playAllAudioElements, 1400);
+    };
 
     room.on(RoomEvent.Connected, async () => {
       setConnected(true);
@@ -440,6 +471,8 @@ export function RealLiveKitRoom({
       });
 
       await (room as any).startAudio?.().catch(() => undefined);
+      playAllAudioElements();
+      window.setTimeout(playAllAudioElements, 500);
 
       if (isHostRole(profile) && !autoHostMicStartedRef.current) {
         autoHostMicStartedRef.current = true;
@@ -680,6 +713,7 @@ export function RealLiveKitRoom({
     try {
       // Let Chrome show the full native chooser: Entire screen, window, or browser tab.
       // Do not force displaySurface to "browser", because that can hide desktop/window choices.
+      await (room as any).startAudio?.().catch(() => undefined);
       await (room.localParticipant as any).setScreenShareEnabled(next, {
         audio: true,
         systemAudio: "include",
@@ -688,7 +722,11 @@ export function RealLiveKitRoom({
         monitorTypeSurfaces: "include"
       });
       refreshTiles(room);
-      window.setTimeout(() => refreshTiles(room), 650);
+      playAllAudioElements();
+      window.setTimeout(() => { refreshTiles(room); playAllAudioElements(); }, 350);
+      window.setTimeout(() => { refreshTiles(room); playAllAudioElements(); }, 900);
+      window.setTimeout(() => { refreshTiles(room); playAllAudioElements(); }, 1800);
+      window.setTimeout(() => { refreshTiles(room); playAllAudioElements(); }, 3200);
     } catch (err: any) {
       setScreenOn(!next);
       setError("Could not start screen share.");
@@ -710,6 +748,15 @@ export function RealLiveKitRoom({
     const timer = window.setInterval(() => refreshTiles(), 700);
     return () => window.clearInterval(timer);
   }, []);
+
+  useEffect(() => {
+    if (!connected) return;
+    const timer = window.setInterval(() => {
+      void (roomRef.current as any)?.startAudio?.().catch(() => undefined);
+      playAllAudioElements();
+    }, 1500);
+    return () => window.clearInterval(timer);
+  }, [connected]);
 
   useEffect(() => {
     if (!micOn || !roomRef.current) {
@@ -747,9 +794,7 @@ export function RealLiveKitRoom({
       const room = roomRef.current as any;
       if (!room) return;
       void room.startAudio?.().catch(() => undefined);
-      document.querySelectorAll("audio").forEach((element) => {
-        void (element as HTMLAudioElement).play?.().catch(() => undefined);
-      });
+      playAllAudioElements();
     };
 
     window.addEventListener("pointerdown", unlockAudio, { passive: true });
@@ -1244,6 +1289,75 @@ export function RealLiveKitRoom({
         .omide-livekit-clean-notice {
           display: none !important;
         }
+
+
+        /* v161 final overlay fix: no black name bar; small chip only */
+        .omide-livekit-clean .omide-livekit-clean-namebar {
+          position: absolute !important;
+          left: 8px !important;
+          right: auto !important;
+          bottom: 8px !important;
+          top: auto !important;
+          z-index: 22 !important;
+          max-width: min(150px, 45%) !important;
+          width: auto !important;
+          border-radius: 999px !important;
+          padding: 3px 7px !important;
+          background: rgba(255,255,255,.88) !important;
+          color: #0f172a !important;
+          border: 1px solid rgba(15,23,42,.14) !important;
+          box-shadow: 0 8px 18px rgba(0,0,0,.18) !important;
+          backdrop-filter: blur(4px) !important;
+          display: inline-flex !important;
+          align-items: center !important;
+          justify-content: flex-start !important;
+          pointer-events: none !important;
+        }
+
+        .omide-livekit-clean .omide-livekit-clean-namebar strong {
+          color: #0f172a !important;
+          font-size: .58rem !important;
+          line-height: 1 !important;
+          font-weight: 900 !important;
+          white-space: nowrap !important;
+          overflow: hidden !important;
+          text-overflow: ellipsis !important;
+          max-width: 100% !important;
+        }
+
+        .omide-livekit-clean .omide-livekit-clean-tile.screen-tile .omide-livekit-clean-namebar {
+          top: 8px !important;
+          bottom: auto !important;
+          left: 8px !important;
+          max-width: 126px !important;
+          opacity: .78 !important;
+        }
+
+        .omide-livekit-clean .omide-livekit-clean-tile.screen-tile .omide-livekit-clean-namebar strong {
+          font-size: .54rem !important;
+        }
+
+        @media (max-width: 740px) {
+          .omide-livekit-clean .omide-livekit-clean-namebar {
+            left: 5px !important;
+            bottom: 5px !important;
+            padding: 2px 5px !important;
+            max-width: 58px !important;
+            opacity: .82 !important;
+          }
+
+          .omide-livekit-clean .omide-livekit-clean-namebar strong {
+            font-size: .48rem !important;
+          }
+
+          .omide-livekit-clean .omide-livekit-clean-tile.screen-tile .omide-livekit-clean-namebar {
+            top: 6px !important;
+            bottom: auto !important;
+            left: 6px !important;
+            max-width: 74px !important;
+            opacity: .72 !important;
+          }
+        }
       `}</style>
 
       <div className="omide-livekit-clean-head">
@@ -1347,7 +1461,7 @@ export function RealLiveKitRoom({
               )}
 
               <div className="omide-livekit-clean-namebar" title={tile.name}>
-                <strong>{compactName(tile.name)}</strong>
+                <strong>{tile.screenOn ? screenName(tile.name) : compactName(tile.name)}</strong>
               </div>
             </article>
           ))}

@@ -1,7 +1,7 @@
 {
-  "version": "1.60.0",
-  "stage": "v160-clean-name-overlay",
-  "label": "OmideNo7 Meetings v1.60 clean name overlay",
-  "updatedAt": "2026-06-26T08:25:00.000Z",
-  "build": "v160-clean-name-overlay"
+  "version": "1.61.0",
+  "stage": "v161-screen-overlay-audio-fix",
+  "label": "OmideNo7 Meetings v1.61 screen overlay audio fix",
+  "updatedAt": "2026-06-26T08:55:00.000Z",
+  "build": "v161-screen-overlay-audio-fix"
 }
