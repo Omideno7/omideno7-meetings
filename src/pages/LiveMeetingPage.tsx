@@ -1121,6 +1121,15 @@ export function LiveMeetingPage() {
     window.setTimeout(() => setToast("Ready"), 2800);
   }
 
+  function dispatchEnterLiveNow() {
+    window.dispatchEvent(new CustomEvent("omide-livekit-control", { detail: { action: "enter-live" } }));
+    // Mobile browsers can miss an event while React is settling after a tap.
+    // A short duplicate is safe because RealLiveKitRoom ignores requests while connecting.
+    window.setTimeout(() => {
+      window.dispatchEvent(new CustomEvent("omide-livekit-control", { detail: { action: "enter-live" } }));
+    }, 180);
+  }
+
 
   function handStorageKey() {
     return profile?.id ? `omide-hand-raised.${profile.id}` : "";
@@ -1408,8 +1417,15 @@ export function LiveMeetingPage() {
 
   async function startHostRoom() {
     if (!canHost || enterPending) return;
+    const mobileHost = isMobileOrTabletDevice();
+
     setEnterPending(true);
-    notify(isMobileOrTabletDevice() ? "Starting host..." : "Opening live...");
+    setRoomIsOpen(true);
+    notify(mobileHost ? "Connecting mobile host..." : "Opening live...");
+
+    // Important for phone/tablet: begin the LiveKit connection immediately from
+    // the tap flow. Do not wait for Supabase room bookkeeping first.
+    dispatchEnterLiveNow();
 
     try {
       await meetingRoomService.enterOnline(profile, {
@@ -1422,15 +1438,17 @@ export function LiveMeetingPage() {
       });
       await meetingRoomService.openMeetingForEveryone();
       setRoomIsOpen(true);
-      notify(isMobileOrTabletDevice()
-        ? "Live opened. Connecting without auto mic on mobile..."
+      notify(mobileHost
+        ? "Mobile host is connecting. Tap Mic after connected."
         : "Live room opened. Host microphone will start automatically...");
-      window.setTimeout(() => {
-        window.dispatchEvent(new CustomEvent("omide-livekit-control", { detail: { action: "enter-live" } }));
-      }, 60);
     } catch {
-      notify("Could not open live room. Try again.");
-      setEnterPending(false);
+      // The host token does not depend on this bookkeeping call. Keep the live
+      // connection attempt running, but show a simple warning.
+      notify("Live is connecting. Room status will refresh shortly.");
+    } finally {
+      window.setTimeout(() => {
+        if (!liveKitConnected) setEnterPending(false);
+      }, 24000);
     }
   }
 
@@ -1444,7 +1462,7 @@ export function LiveMeetingPage() {
 
     setEnterPending(true);
     notify("Entering live...");
-    window.dispatchEvent(new CustomEvent("omide-livekit-control", { detail: { action: "enter-live" } }));
+    dispatchEnterLiveNow();
     window.setTimeout(() => setEnterPending(false), 2200);
   }
 
@@ -1631,13 +1649,27 @@ export function LiveMeetingPage() {
             confirmBeforeStart={canHost}
             onConnectionChange={async (connected) => {
               setLiveKitConnected(connected);
-              if (connected) setEnterPending(false);
+              if (connected) {
+                setEnterPending(false);
+              } else {
+                window.setTimeout(() => setEnterPending(false), 700);
+              }
               if (connected && canHost) {
                 await meetingRoomService.openMeetingForEveryone();
                 setRoomIsOpen(true);
               }
             }}
             onMediaStateChange={handleMediaState}
+            onStatusChange={({ status, error, connected }) => {
+              if (connected) {
+                setEnterPending(false);
+                return;
+              }
+              if (status.toLowerCase().includes("failed") || status.toLowerCase().includes("cannot")) {
+                setEnterPending(false);
+                notify(error || status);
+              }
+            }}
             participants={participants}
             localHandRaised={handRaised}
             onLeave={async () => {

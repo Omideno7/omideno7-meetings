@@ -1,7 +1,7 @@
 {
-  "version": "1.62.0",
-  "stage": "v162-mobile-host-enter-feedback",
-  "label": "OmideNo7 Meetings v1.62 mobile host enter feedback",
-  "updatedAt": "2026-06-26T09:35:00.000Z",
-  "build": "v162-mobile-host-enter-feedback"
+  "version": "1.63.0",
+  "stage": "v163-mobile-admin-connect-fix",
+  "label": "OmideNo7 Meetings v1.63 mobile admin connect fix",
+  "updatedAt": "2026-06-26T10:05:00.000Z",
+  "build": "v163-mobile-admin-connect-fix"
 }

@@ -14,6 +14,7 @@ type Props = {
   onConnectionChange?: (connected: boolean) => void | Promise<void>;
   onMediaStateChange?: (state: { mic: boolean; camera: boolean }) => void | Promise<void>;
   onLeave?: () => void | Promise<void>;
+  onStatusChange?: (state: { status: string; error: string; connected: boolean }) => void | Promise<void>;
   participants?: RoomParticipant[];
   localHandRaised?: boolean;
 };
@@ -308,6 +309,7 @@ export function RealLiveKitRoom({
   onConnectionChange,
   onMediaStateChange,
   onLeave,
+  onStatusChange,
   participants = [],
   localHandRaised = false
 }: Props) {
@@ -316,6 +318,7 @@ export function RealLiveKitRoom({
   const autoTriedRef = useRef(false);
   const micOperationRef = useRef(false);
   const autoHostMicStartedRef = useRef(false);
+  const connectedAnnouncedRef = useRef(false);
   const participantsRef = useRef<RoomParticipant[]>(participants);
   const profileRef = useRef<UserProfile | null>(profile);
   const localHandRaisedRef = useRef(localHandRaised);
@@ -349,6 +352,47 @@ export function RealLiveKitRoom({
       // ignore storage errors
     }
     return false;
+  }
+
+  function publishStatus(nextStatus: string, nextError = "", nextConnected = connected) {
+    void onStatusChange?.({ status: nextStatus, error: nextError, connected: nextConnected });
+  }
+
+  async function markConnected(room: Room, message = "Connected") {
+    setConnected(true);
+    setStatus(message);
+    setError("");
+    refreshTiles(room);
+
+    if (!connectedAnnouncedRef.current) {
+      connectedAnnouncedRef.current = true;
+      await onConnectionChange?.(true);
+      setMicOn(false);
+      setCameraOn(false);
+      setScreenOn(false);
+      await onMediaStateChange?.({ mic: false, camera: false });
+    }
+  }
+
+  function createRoomForDevice() {
+    const mobile = isMobileOrTabletDevice();
+    return new Room({
+      adaptiveStream: mobile ? false : true,
+      dynacast: mobile ? false : true
+    });
+  }
+
+  function withConnectTimeout<T>(promise: Promise<T>, ms: number) {
+    return new Promise<T>((resolve, reject) => {
+      const timer = window.setTimeout(() => reject(new Error("mobile_connect_timeout")), ms);
+      promise.then((value) => {
+        window.clearTimeout(timer);
+        resolve(value);
+      }).catch((error) => {
+        window.clearTimeout(timer);
+        reject(error);
+      });
+    });
   }
 
   useEffect(() => {
@@ -389,19 +433,11 @@ export function RealLiveKitRoom({
     };
 
     room.on(RoomEvent.Connected, async () => {
-      setConnected(true);
-      setStatus("Connected");
-      setError("");
-      refreshTiles(room);
-      await onConnectionChange?.(true);
-
-      setMicOn(false);
-      setCameraOn(false);
-      setScreenOn(false);
-      await onMediaStateChange?.({ mic: false, camera: false });
+      await markConnected(room, "Connected");
     });
 
     room.on(RoomEvent.Disconnected, async () => {
+      connectedAnnouncedRef.current = false;
       setConnected(false);
       setStatus("Disconnected");
       refreshTiles(room);
@@ -427,34 +463,34 @@ export function RealLiveKitRoom({
     if (!canEnter) {
       setError("Members must wait for host admission.");
       setStatus("Waiting Room");
+      publishStatus("Waiting Room", "Members must wait for host admission.", false);
       return;
     }
 
     if (needsStart && !forceStart) {
       setStatus("Ready to start");
+      publishStatus("Ready to start", "", false);
       return;
     }
 
+    const mobileHostMode = isHostRole(profile) && isMobileOrTabletDevice();
+
     connectingRef.current = true;
+    connectedAnnouncedRef.current = false;
     setNeedsStart(false);
     setError("");
-    setStatus("Preparing...");
+    setStatus(mobileHostMode ? "Starting mobile host..." : "Preparing...");
+    publishStatus(mobileHostMode ? "Starting mobile host..." : "Preparing...", "", false);
 
-    try {
-      const result = await liveKitTokenService.requestToken({
+    async function requestFreshToken() {
+      return liveKitTokenService.requestToken({
         meetingId,
         profile,
         admitted: isHostRole(profile) || admitted
       });
+    }
 
-      if (!result.ok) {
-        setStatus("Cannot enter live room");
-        setError("Could not enter meeting.");
-        await onConnectionChange?.(false);
-        return;
-      }
-
-      // Always create a fresh room on each explicit enter.
+    async function disconnectCurrentRoom() {
       if (roomRef.current) {
         try {
           roomRef.current.disconnect();
@@ -463,53 +499,90 @@ export function RealLiveKitRoom({
         }
         roomRef.current = null;
       }
+    }
 
-      setStatus("Connecting...");
+    async function connectAttempt(label: string, timeoutMs: number) {
+      const result = await requestFreshToken();
 
-      const room = new Room({
-        adaptiveStream: true,
-        dynacast: true
-      });
+      if (!result.ok) {
+        const message = result.message || "Could not enter meeting.";
+        setStatus("Cannot enter live room");
+        setError(message);
+        publishStatus("Cannot enter live room", message, false);
+        await onConnectionChange?.(false);
+        return false;
+      }
 
+      await disconnectCurrentRoom();
+
+      const room = createRoomForDevice();
       roomRef.current = room;
       wireRoom(room);
 
-      // Do not wrap room.connect in our own timeout.
-      // Previous timeout/abort handling could trigger "Abort handler called" in some browsers.
-      await room.connect(result.wsUrl || liveKitReadyConfig.wsUrl, result.token, {
-        autoSubscribe: true
-      });
+      setStatus(label);
+      publishStatus(label, "", false);
+
+      await withConnectTimeout(
+        room.connect(result.wsUrl || liveKitReadyConfig.wsUrl, result.token, {
+          autoSubscribe: true
+        }),
+        timeoutMs
+      );
+
+      await markConnected(room, mobileHostMode ? "Connected. Tap Mic to speak." : "Connected");
 
       await (room as any).startAudio?.().catch(() => undefined);
       playAllAudioElements();
-      window.setTimeout(playAllAudioElements, 500);
+      window.setTimeout(playAllAudioElements, 250);
+      window.setTimeout(playAllAudioElements, 900);
 
-      const mobileHostMode = isHostRole(profile) && isMobileOrTabletDevice();
       if (isHostRole(profile) && !mobileHostMode && !autoHostMicStartedRef.current) {
         autoHostMicStartedRef.current = true;
         await wait(150);
         await enableMicrophone(room, true);
       } else if (mobileHostMode) {
         setStatus("Connected. Tap Mic to speak.");
+        publishStatus("Connected. Tap Mic to speak.", "", true);
       }
 
       refreshTiles(room);
       window.setTimeout(() => refreshTiles(room), 500);
       window.setTimeout(() => refreshTiles(room), 1500);
+      return true;
+    }
+
+    try {
+      try {
+        const first = await connectAttempt(mobileHostMode ? "Connecting mobile host..." : "Connecting...", mobileHostMode ? 14000 : 18000);
+        if (first) return;
+      } catch (firstError) {
+        console.warn("First Live connection attempt failed", firstError);
+        await disconnectCurrentRoom();
+        if (!mobileHostMode) throw firstError;
+      }
+
+      if (mobileHostMode) {
+        setStatus("Retrying mobile connection...");
+        publishStatus("Retrying mobile connection...", "", false);
+        await wait(450);
+        const second = await connectAttempt("Retrying mobile connection...", 18000);
+        if (second) return;
+      }
     } catch (err: any) {
       console.error("Connection error:", err);
 
-      try {
-        roomRef.current?.disconnect();
-      } catch {
-        // ignore
-      }
+      await disconnectCurrentRoom();
 
       roomRef.current = null;
       autoHostMicStartedRef.current = false;
+      connectedAnnouncedRef.current = false;
       setConnected(false);
       setStatus("Connection failed");
-      setError("Could not connect.");
+      const message = mobileHostMode
+        ? "Could not connect on this mobile device. Refresh once and try again."
+        : "Could not connect.";
+      setError(message);
+      publishStatus("Connection failed", message, false);
       await onConnectionChange?.(false);
     } finally {
       connectingRef.current = false;
@@ -819,6 +892,11 @@ export function RealLiveKitRoom({
       window.removeEventListener("click", unlockAudio);
     };
   }, []);
+
+  useEffect(() => {
+    void onStatusChange?.({ status, error, connected });
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [status, error, connected]);
 
   useEffect(() => {
     return () => {
@@ -1371,6 +1449,74 @@ export function RealLiveKitRoom({
             opacity: .72 !important;
           }
         }
+
+
+        /* v163: use a new name chip class so old black namebar CSS cannot override it */
+        .omide-livekit-clean .omide-livekit-namechip {
+          position: absolute !important;
+          left: 7px !important;
+          bottom: 7px !important;
+          z-index: 28 !important;
+          max-width: min(120px, 42%) !important;
+          width: auto !important;
+          border-radius: 999px !important;
+          padding: 2px 6px !important;
+          background: rgba(255,255,255,.86) !important;
+          color: #0f172a !important;
+          border: 1px solid rgba(15,23,42,.12) !important;
+          box-shadow: 0 6px 14px rgba(0,0,0,.14) !important;
+          backdrop-filter: blur(4px) !important;
+          display: inline-flex !important;
+          align-items: center !important;
+          justify-content: flex-start !important;
+          pointer-events: none !important;
+        }
+
+        .omide-livekit-clean .omide-livekit-namechip strong {
+          color: #0f172a !important;
+          font-size: .52rem !important;
+          line-height: 1 !important;
+          font-weight: 900 !important;
+          white-space: nowrap !important;
+          overflow: hidden !important;
+          text-overflow: ellipsis !important;
+          max-width: 100% !important;
+        }
+
+        .omide-livekit-clean .omide-livekit-clean-tile.screen-tile .omide-livekit-namechip {
+          top: 7px !important;
+          bottom: auto !important;
+          left: 7px !important;
+          max-width: 70px !important;
+          opacity: .68 !important;
+        }
+
+        .omide-livekit-clean .omide-livekit-clean-tile.screen-tile .omide-livekit-namechip strong {
+          font-size: .46rem !important;
+        }
+
+        @media (max-width: 740px) {
+          .omide-livekit-clean .omide-livekit-namechip {
+            left: 5px !important;
+            bottom: 5px !important;
+            padding: 2px 5px !important;
+            max-width: 54px !important;
+            opacity: .78 !important;
+          }
+
+          .omide-livekit-clean .omide-livekit-namechip strong {
+            font-size: .45rem !important;
+          }
+
+          .omide-livekit-clean .omide-livekit-clean-tile.screen-tile .omide-livekit-namechip {
+            top: 5px !important;
+            bottom: auto !important;
+            left: 5px !important;
+            max-width: 54px !important;
+            opacity: .58 !important;
+          }
+        }
+
       `}</style>
 
       <div className="omide-livekit-clean-head">
@@ -1473,7 +1619,7 @@ export function RealLiveKitRoom({
                 </div>
               )}
 
-              <div className="omide-livekit-clean-namebar" title={tile.name}>
+              <div className="omide-livekit-namechip" title={tile.name}>
                 <strong>{tile.screenOn ? screenName(tile.name) : compactName(tile.name)}</strong>
               </div>
             </article>
