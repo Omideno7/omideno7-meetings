@@ -106,6 +106,7 @@ export default async function handler(req, res) {
   }
 
   const deviceId = cleanText(body.deviceId, "device").replace(/\s+/g, "-");
+  const mobileSafe = Boolean(body.mobileSafe);
   const identity = cleanText(`${user.id}:${Date.now()}:${deviceId}`, user.id);
   const displayName = cleanText(profile.display_name || profile.full_name || user.email, "OmideNo7 User");
 
@@ -128,7 +129,9 @@ export default async function handler(req, res) {
       canPublish: true,
       canSubscribe: true,
       canPublishData: true,
-      roomAdmin: isHost
+      // App host controls are handled by Supabase, so mobile hosts do not need
+      // LiveKit roomAdmin permission just to join and speak.
+      roomAdmin: isHost && !mobileSafe
     });
 
     const jwtToken = await token.toJwt();

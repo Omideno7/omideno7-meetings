@@ -1,7 +1,7 @@
 {
-  "version": "1.64.0",
-  "stage": "v164-mobile-admin-audio-unlock",
-  "label": "OmideNo7 Meetings v1.64 mobile admin audio unlock",
+  "version": "1.65.0",
+  "stage": "v165-ios-admin-direct-entry-diagnostics",
+  "label": "v1.65 iOS Admin Direct Entry + Diagnostics",
   "updatedAt": "2026-06-26T10:45:00.000Z",
   "build": "v164-mobile-admin-audio-unlock"
 }

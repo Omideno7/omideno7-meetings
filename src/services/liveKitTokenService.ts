@@ -87,7 +87,8 @@ export const liveKitTokenService = {
         body: JSON.stringify({
           meetingId,
           roomName: liveKitReadyConfig.defaultRoom,
-          deviceId: getDeviceId()
+          deviceId: getDeviceId(),
+          mobileSafe: /iPhone|iPad|iPod|Android|Mobile|Tablet/i.test(navigator.userAgent || "") || Number(navigator.maxTouchPoints || 0) > 1
         })
       });
 

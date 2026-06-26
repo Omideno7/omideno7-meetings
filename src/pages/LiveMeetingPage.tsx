@@ -1480,7 +1480,7 @@ export function LiveMeetingPage() {
       await meetingRoomService.openMeetingForEveryone();
       setRoomIsOpen(true);
       notify(mobileHost
-        ? "Mobile host is connecting. Tap Mic after connected."
+        ? "Mobile host is connecting. If it does not open, use the green iPhone/iPad Start button inside the meeting screen."
         : "Live room opened. Host microphone will start automatically...");
     } catch {
       // The host token does not depend on this bookkeeping call. Keep the live
@@ -1645,7 +1645,7 @@ export function LiveMeetingPage() {
       <header className="clean-live-topbar">
         <div className="clean-live-brand">
           <strong>OmideNo7 Meetings</strong>
-          <span>v1.64 · {deviceLabel()} · {liveKitConnected ? "Connected" : enterPending ? "Entering" : roomIsOpen ? "Ready" : "Waiting"}{toast !== "Ready" ? ` · ${toast}` : ""}</span>
+          <span>v1.65 · {deviceLabel()} · {liveKitConnected ? "Connected" : enterPending ? "Entering" : roomIsOpen ? "Ready" : "Waiting"}{toast !== "Ready" ? ` · ${toast}` : ""}</span>
         </div>
 
         <div className="clean-live-actions">

@@ -335,6 +335,17 @@ function browserNotice() {
   return "";
 }
 
+function isIOSOrIPadOSDevice() {
+  try {
+    const ua = navigator.userAgent || "";
+    const platform = String((navigator as any).platform || "");
+    const touchPoints = Number(navigator.maxTouchPoints || 0);
+    return /iPhone|iPad|iPod/i.test(ua) || (platform === "MacIntel" && touchPoints > 1);
+  } catch {
+    return false;
+  }
+}
+
 function isMobileOrTabletDevice() {
   try {
     const ua = navigator.userAgent || "";
@@ -384,6 +395,7 @@ export function RealLiveKitRoom({
   const audioOutputId = "";
   const [tiles, setTiles] = useState<LiveTile[]>([]);
   const [needsStart, setNeedsStart] = useState(Boolean(confirmBeforeStart));
+  const [mobileDirectPending, setMobileDirectPending] = useState(false);
   const [notice] = useState(browserNotice());
 
   const canEnter = Boolean(profile?.status === "approved" && (isHostRole(profile) || admitted));
@@ -421,11 +433,13 @@ export function RealLiveKitRoom({
   }
 
   function createRoomForDevice() {
-    // Keep LiveKit's adaptive behavior on mobile as well. Disabling it made some
-    // mobile/tablet host joins less reliable on real devices.
+    const ios = isIOSOrIPadOSDevice();
     return new Room({
-      adaptiveStream: true,
-      dynacast: true
+      // iPhone/iPad Safari/WebKit is stricter than desktop Chrome. For iOS host
+      // entry we keep the first connection simple and avoid dynacast/adaptive
+      // negotiation until the room is connected.
+      adaptiveStream: !ios,
+      dynacast: !ios
     });
   }
 
@@ -583,6 +597,7 @@ export function RealLiveKitRoom({
       );
 
       await markConnected(room, mobileHostMode ? "Connected. Tap Mic to speak." : "Connected");
+      setMobileDirectPending(false);
 
       startRoomAudio(room);
 
@@ -620,6 +635,7 @@ export function RealLiveKitRoom({
       }
     } catch (err: any) {
       console.error("Connection error:", err);
+      setMobileDirectPending(false);
 
       await disconnectCurrentRoom();
 
@@ -636,7 +652,20 @@ export function RealLiveKitRoom({
       await onConnectionChange?.(false);
     } finally {
       connectingRef.current = false;
+      setMobileDirectPending(false);
     }
+  }
+
+  async function directMobileHostEnter() {
+    if (mobileDirectPending || connectingRef.current || connected) return;
+    setMobileDirectPending(true);
+    setNeedsStart(false);
+    setError("");
+    setStatus("Starting iPhone/iPad host mode...");
+    publishStatus("Starting iPhone/iPad host mode...", "", false);
+    primeAudioPlaybackGesture();
+    startRoomAudio(roomRef.current);
+    await connect(true);
   }
 
   function currentAudioOptions() {
@@ -965,6 +994,8 @@ export function RealLiveKitRoom({
     };
   }, []);
 
+  const mobileDirectHostMode = Boolean(isHostRole(profile) && isMobileOrTabletDevice() && !connected);
+  const isIOSHostMode = Boolean(isHostRole(profile) && isIOSOrIPadOSDevice() && !connected);
   const hasScreenShare = tiles.some((tile) => tile.screenOn);
 
   return (
@@ -1085,6 +1116,71 @@ export function RealLiveKitRoom({
           border: 1px solid rgba(255,255,255,.18) !important;
           font-weight: 800 !important;
           font-size: .82rem !important;
+        }
+
+        .omide-mobile-host-entry {
+          display: flex !important;
+          flex-direction: column !important;
+          gap: 10px !important;
+          width: min(520px, 100%) !important;
+          margin: 0 auto 10px !important;
+          padding: 14px !important;
+          border-radius: 20px !important;
+          background: rgba(255,255,255,.14) !important;
+          border: 1px solid rgba(255,255,255,.22) !important;
+          box-shadow: 0 16px 42px rgba(0,0,0,.22) !important;
+        }
+
+        .omide-mobile-host-entry strong {
+          color: #fff !important;
+          font-size: .96rem !important;
+        }
+
+        .omide-mobile-host-entry p {
+          margin: 0 !important;
+          color: rgba(255,255,255,.86) !important;
+          font-size: .78rem !important;
+          line-height: 1.4 !important;
+        }
+
+        .omide-mobile-host-entry button {
+          width: 100% !important;
+          border: 0 !important;
+          border-radius: 999px !important;
+          padding: 13px 16px !important;
+          background: #13bf54 !important;
+          color: #fff !important;
+          font-weight: 950 !important;
+          font-size: .95rem !important;
+          box-shadow: 0 0 0 6px rgba(19,191,84,.14), 0 14px 30px rgba(19,191,84,.22) !important;
+        }
+
+        .omide-mobile-host-entry button:disabled {
+          opacity: 1 !important;
+          filter: brightness(1.08) !important;
+          cursor: progress !important;
+          animation: omide-mobile-host-pulse .85s ease-in-out infinite;
+        }
+
+        .omide-mobile-status {
+          display: block !important;
+          width: 100% !important;
+          border-radius: 14px !important;
+          padding: 9px 10px !important;
+          background: rgba(6,20,109,.22) !important;
+          color: #fff !important;
+          font-size: .74rem !important;
+          font-weight: 800 !important;
+          line-height: 1.35 !important;
+        }
+
+        .omide-mobile-status.error {
+          background: rgba(239,68,68,.30) !important;
+        }
+
+        @keyframes omide-mobile-host-pulse {
+          0%, 100% { transform: scale(1); }
+          50% { transform: scale(.97); }
         }
 
         .omide-livekit-clean-grid {
@@ -1266,7 +1362,72 @@ export function RealLiveKitRoom({
             min-height: 0 !important;
           }
 
-          .omide-livekit-clean-grid {
+          .omide-mobile-host-entry {
+          display: flex !important;
+          flex-direction: column !important;
+          gap: 10px !important;
+          width: min(520px, 100%) !important;
+          margin: 0 auto 10px !important;
+          padding: 14px !important;
+          border-radius: 20px !important;
+          background: rgba(255,255,255,.14) !important;
+          border: 1px solid rgba(255,255,255,.22) !important;
+          box-shadow: 0 16px 42px rgba(0,0,0,.22) !important;
+        }
+
+        .omide-mobile-host-entry strong {
+          color: #fff !important;
+          font-size: .96rem !important;
+        }
+
+        .omide-mobile-host-entry p {
+          margin: 0 !important;
+          color: rgba(255,255,255,.86) !important;
+          font-size: .78rem !important;
+          line-height: 1.4 !important;
+        }
+
+        .omide-mobile-host-entry button {
+          width: 100% !important;
+          border: 0 !important;
+          border-radius: 999px !important;
+          padding: 13px 16px !important;
+          background: #13bf54 !important;
+          color: #fff !important;
+          font-weight: 950 !important;
+          font-size: .95rem !important;
+          box-shadow: 0 0 0 6px rgba(19,191,84,.14), 0 14px 30px rgba(19,191,84,.22) !important;
+        }
+
+        .omide-mobile-host-entry button:disabled {
+          opacity: 1 !important;
+          filter: brightness(1.08) !important;
+          cursor: progress !important;
+          animation: omide-mobile-host-pulse .85s ease-in-out infinite;
+        }
+
+        .omide-mobile-status {
+          display: block !important;
+          width: 100% !important;
+          border-radius: 14px !important;
+          padding: 9px 10px !important;
+          background: rgba(6,20,109,.22) !important;
+          color: #fff !important;
+          font-size: .74rem !important;
+          font-weight: 800 !important;
+          line-height: 1.35 !important;
+        }
+
+        .omide-mobile-status.error {
+          background: rgba(239,68,68,.30) !important;
+        }
+
+        @keyframes omide-mobile-host-pulse {
+          0%, 100% { transform: scale(1); }
+          50% { transform: scale(.97); }
+        }
+
+        .omide-livekit-clean-grid {
             grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
             grid-auto-rows: minmax(132px, 1fr) !important;
             gap: 8px !important;
@@ -1322,7 +1483,72 @@ export function RealLiveKitRoom({
             overflow-y: auto !important;
           }
 
-          .omide-livekit-clean-grid {
+          .omide-mobile-host-entry {
+          display: flex !important;
+          flex-direction: column !important;
+          gap: 10px !important;
+          width: min(520px, 100%) !important;
+          margin: 0 auto 10px !important;
+          padding: 14px !important;
+          border-radius: 20px !important;
+          background: rgba(255,255,255,.14) !important;
+          border: 1px solid rgba(255,255,255,.22) !important;
+          box-shadow: 0 16px 42px rgba(0,0,0,.22) !important;
+        }
+
+        .omide-mobile-host-entry strong {
+          color: #fff !important;
+          font-size: .96rem !important;
+        }
+
+        .omide-mobile-host-entry p {
+          margin: 0 !important;
+          color: rgba(255,255,255,.86) !important;
+          font-size: .78rem !important;
+          line-height: 1.4 !important;
+        }
+
+        .omide-mobile-host-entry button {
+          width: 100% !important;
+          border: 0 !important;
+          border-radius: 999px !important;
+          padding: 13px 16px !important;
+          background: #13bf54 !important;
+          color: #fff !important;
+          font-weight: 950 !important;
+          font-size: .95rem !important;
+          box-shadow: 0 0 0 6px rgba(19,191,84,.14), 0 14px 30px rgba(19,191,84,.22) !important;
+        }
+
+        .omide-mobile-host-entry button:disabled {
+          opacity: 1 !important;
+          filter: brightness(1.08) !important;
+          cursor: progress !important;
+          animation: omide-mobile-host-pulse .85s ease-in-out infinite;
+        }
+
+        .omide-mobile-status {
+          display: block !important;
+          width: 100% !important;
+          border-radius: 14px !important;
+          padding: 9px 10px !important;
+          background: rgba(6,20,109,.22) !important;
+          color: #fff !important;
+          font-size: .74rem !important;
+          font-weight: 800 !important;
+          line-height: 1.35 !important;
+        }
+
+        .omide-mobile-status.error {
+          background: rgba(239,68,68,.30) !important;
+        }
+
+        @keyframes omide-mobile-host-pulse {
+          0%, 100% { transform: scale(1); }
+          50% { transform: scale(.97); }
+        }
+
+        .omide-livekit-clean-grid {
             padding: 8px !important;
             gap: 8px !important;
             overflow-y: auto !important;
@@ -1341,7 +1567,72 @@ export function RealLiveKitRoom({
             min-height: 0 !important;
           }
 
-          .omide-livekit-clean-grid {
+          .omide-mobile-host-entry {
+          display: flex !important;
+          flex-direction: column !important;
+          gap: 10px !important;
+          width: min(520px, 100%) !important;
+          margin: 0 auto 10px !important;
+          padding: 14px !important;
+          border-radius: 20px !important;
+          background: rgba(255,255,255,.14) !important;
+          border: 1px solid rgba(255,255,255,.22) !important;
+          box-shadow: 0 16px 42px rgba(0,0,0,.22) !important;
+        }
+
+        .omide-mobile-host-entry strong {
+          color: #fff !important;
+          font-size: .96rem !important;
+        }
+
+        .omide-mobile-host-entry p {
+          margin: 0 !important;
+          color: rgba(255,255,255,.86) !important;
+          font-size: .78rem !important;
+          line-height: 1.4 !important;
+        }
+
+        .omide-mobile-host-entry button {
+          width: 100% !important;
+          border: 0 !important;
+          border-radius: 999px !important;
+          padding: 13px 16px !important;
+          background: #13bf54 !important;
+          color: #fff !important;
+          font-weight: 950 !important;
+          font-size: .95rem !important;
+          box-shadow: 0 0 0 6px rgba(19,191,84,.14), 0 14px 30px rgba(19,191,84,.22) !important;
+        }
+
+        .omide-mobile-host-entry button:disabled {
+          opacity: 1 !important;
+          filter: brightness(1.08) !important;
+          cursor: progress !important;
+          animation: omide-mobile-host-pulse .85s ease-in-out infinite;
+        }
+
+        .omide-mobile-status {
+          display: block !important;
+          width: 100% !important;
+          border-radius: 14px !important;
+          padding: 9px 10px !important;
+          background: rgba(6,20,109,.22) !important;
+          color: #fff !important;
+          font-size: .74rem !important;
+          font-weight: 800 !important;
+          line-height: 1.35 !important;
+        }
+
+        .omide-mobile-status.error {
+          background: rgba(239,68,68,.30) !important;
+        }
+
+        @keyframes omide-mobile-host-pulse {
+          0%, 100% { transform: scale(1); }
+          50% { transform: scale(.97); }
+        }
+
+        .omide-livekit-clean-grid {
             display: grid !important;
             grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
             grid-auto-rows: auto !important;
@@ -1420,7 +1711,72 @@ export function RealLiveKitRoom({
         }
 
         @media (max-width: 380px) {
-          .omide-livekit-clean-grid {
+          .omide-mobile-host-entry {
+          display: flex !important;
+          flex-direction: column !important;
+          gap: 10px !important;
+          width: min(520px, 100%) !important;
+          margin: 0 auto 10px !important;
+          padding: 14px !important;
+          border-radius: 20px !important;
+          background: rgba(255,255,255,.14) !important;
+          border: 1px solid rgba(255,255,255,.22) !important;
+          box-shadow: 0 16px 42px rgba(0,0,0,.22) !important;
+        }
+
+        .omide-mobile-host-entry strong {
+          color: #fff !important;
+          font-size: .96rem !important;
+        }
+
+        .omide-mobile-host-entry p {
+          margin: 0 !important;
+          color: rgba(255,255,255,.86) !important;
+          font-size: .78rem !important;
+          line-height: 1.4 !important;
+        }
+
+        .omide-mobile-host-entry button {
+          width: 100% !important;
+          border: 0 !important;
+          border-radius: 999px !important;
+          padding: 13px 16px !important;
+          background: #13bf54 !important;
+          color: #fff !important;
+          font-weight: 950 !important;
+          font-size: .95rem !important;
+          box-shadow: 0 0 0 6px rgba(19,191,84,.14), 0 14px 30px rgba(19,191,84,.22) !important;
+        }
+
+        .omide-mobile-host-entry button:disabled {
+          opacity: 1 !important;
+          filter: brightness(1.08) !important;
+          cursor: progress !important;
+          animation: omide-mobile-host-pulse .85s ease-in-out infinite;
+        }
+
+        .omide-mobile-status {
+          display: block !important;
+          width: 100% !important;
+          border-radius: 14px !important;
+          padding: 9px 10px !important;
+          background: rgba(6,20,109,.22) !important;
+          color: #fff !important;
+          font-size: .74rem !important;
+          font-weight: 800 !important;
+          line-height: 1.35 !important;
+        }
+
+        .omide-mobile-status.error {
+          background: rgba(239,68,68,.30) !important;
+        }
+
+        @keyframes omide-mobile-host-pulse {
+          0%, 100% { transform: scale(1); }
+          50% { transform: scale(.97); }
+        }
+
+        .omide-livekit-clean-grid {
             grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
             gap: 5px !important;
           }
@@ -1627,6 +1983,20 @@ export function RealLiveKitRoom({
           </button>
         </div>
       </div>
+
+      {mobileDirectHostMode && (
+        <div className="omide-mobile-host-entry">
+          <strong>{isIOSHostMode ? "iPhone / iPad host entry" : "Mobile host entry"}</strong>
+          <p>For mobile host devices, start the live room from this green button. After it connects, tap Mic to speak.</p>
+          {isIOSHostMode && <p>Best on iPhone/iPad: open this page in Safari, not Chrome.</p>}
+          <button onClick={directMobileHostEnter} disabled={mobileDirectPending || connectingRef.current}>
+            {mobileDirectPending || connectingRef.current ? "Starting..." : "Start Live on this device"}
+          </button>
+          <div className={error ? "omide-mobile-status error" : "omide-mobile-status"}>
+            Status: {status}{error ? ` · ${error}` : ""}
+          </div>
+        </div>
+      )}
 
       <div className="omide-livekit-clean-status">{status}</div>
       <div className="omide-share-help">Screen share: choose Entire Screen for desktop, Window for another app, or Chrome Tab for YouTube/worship with tab audio.</div>

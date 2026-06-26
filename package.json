@@ -1,7 +1,7 @@
 {
   "name": "omideno7-meetings-react",
   "private": true,
-  "version": "1.64.0",
+  "version": "1.65.0",
   "type": "module",
   "description": "OmideNo7 Meetings — Vite + React + TypeScript conversion starter",
   "scripts": {
@@ -39,5 +39,5 @@
     "typescript": "latest",
     "vite": "latest"
   },
-  "appStage": "v164-mobile-admin-audio-unlock"
+  "appStage": "v165-ios-admin-direct-entry-diagnostics"
 }
