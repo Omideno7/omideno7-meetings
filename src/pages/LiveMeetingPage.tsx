@@ -1645,7 +1645,7 @@ export function LiveMeetingPage() {
       <header className="clean-live-topbar">
         <div className="clean-live-brand">
           <strong>OmideNo7 Meetings</strong>
-          <span>v1.69 · {deviceLabel()} · {liveKitConnected ? "Connected" : enterPending ? "Entering" : roomIsOpen ? "Ready" : "Waiting"}{toast !== "Ready" ? ` · ${toast}` : ""}</span>
+          <span>v1.70 · {deviceLabel()} · {liveKitConnected ? "Connected" : enterPending ? "Entering" : roomIsOpen ? "Ready" : "Waiting"}{toast !== "Ready" ? ` · ${toast}` : ""}</span>
         </div>
 
         <div className="clean-live-actions">
@@ -1729,7 +1729,7 @@ export function LiveMeetingPage() {
                 style={{ "--x": `${reaction.x}%` } as CSSProperties}
               >
                 <b>{reaction.emoji}</b>
-                <span>{reaction.sender}</span>
+                
               </div>
             ))}
           </div>

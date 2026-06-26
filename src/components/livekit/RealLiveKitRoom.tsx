@@ -323,6 +323,34 @@ function isLocalMicrophoneActive(room: Room | null) {
   });
 }
 
+function isLocalScreenShareActive(room: Room | null) {
+  const pubs = Array.from(((room?.localParticipant as any)?.trackPublications?.values?.() || [])) as any[];
+  return pubs.some((pub: any) => {
+    const source = String(pub?.source || "").toLowerCase();
+    const hasScreenSource = source.includes("screen") || source.includes("share");
+    return hasScreenSource && pub?.kind === Track.Kind.Video && pub?.track && !pub?.isMuted && !pub?.track?.isMuted;
+  });
+}
+
+function screenShareOptionsForDevice() {
+  const ua = navigator.userAgent || "";
+  const isChromeLike = /Chrome|CriOS|Chromium|Edg/i.test(ua) && !/iPhone|iPad|iPod/i.test(ua);
+
+  if (!isChromeLike) {
+    // Safari/iOS expose their own native sharing flow and can fail when Chrome-only
+    // getDisplayMedia options are passed. Keep it simple for Apple devices.
+    return { audio: false } as any;
+  }
+
+  return {
+    audio: true,
+    systemAudio: "include",
+    selfBrowserSurface: "exclude",
+    surfaceSwitching: "include",
+    monitorTypeSurfaces: "include"
+  } as any;
+}
+
 function browserNotice() {
   const ua = navigator.userAgent || "";
   const isSafari = /^((?!chrome|android).)*safari/i.test(ua);
@@ -374,6 +402,7 @@ export function RealLiveKitRoom({
   const connectingRef = useRef(false);
   const autoTriedRef = useRef(false);
   const micOperationRef = useRef(false);
+  const screenOperationRef = useRef(false);
   const autoHostMicStartedRef = useRef(false);
   const connectedAnnouncedRef = useRef(false);
   const participantsRef = useRef<RoomParticipant[]>(participants);
@@ -482,6 +511,9 @@ export function RealLiveKitRoom({
     ];
 
     setTiles(nextTiles);
+
+    const localScreenActive = Boolean(nextTiles[0]?.screenOn || isLocalScreenShareActive(activeRoom));
+    setScreenOn(localScreenActive);
   }
 
   function wireRoom(room: Room) {
@@ -872,29 +904,48 @@ export function RealLiveKitRoom({
       return;
     }
 
-    const next = !screenOn;
-    setScreenOn(next);
+    if (screenOperationRef.current) return;
+
+    const localParticipant = room.localParticipant as any;
+    const currentlySharing = isLocalScreenShareActive(room);
+    const next = !currentlySharing;
+
+    screenOperationRef.current = true;
+    setError("");
+    setStatus(next ? "Choose what to share..." : "Stopping screen share...");
 
     try {
-      // Let Chrome show the full native chooser: Entire screen, window, or browser tab.
-      // Do not force displaySurface to "browser", because that can hide desktop/window choices.
       await (room as any).startAudio?.().catch(() => undefined);
-      await (room.localParticipant as any).setScreenShareEnabled(next, {
-        audio: true,
-        systemAudio: "include",
-        selfBrowserSurface: "exclude",
-        surfaceSwitching: "include",
-        monitorTypeSurfaces: "include"
-      });
+
+      if (next) {
+        await localParticipant.setScreenShareEnabled(true, screenShareOptionsForDevice());
+        setScreenOn(true);
+        setStatus("Screen sharing");
+      } else {
+        await localParticipant.setScreenShareEnabled(false).catch(() => undefined);
+        setScreenOn(false);
+        setStatus("Connected");
+      }
+
       refreshTiles(room);
       playAllAudioElements();
-      window.setTimeout(() => { refreshTiles(room); playAllAudioElements(); }, 350);
-      window.setTimeout(() => { refreshTiles(room); playAllAudioElements(); }, 900);
-      window.setTimeout(() => { refreshTiles(room); playAllAudioElements(); }, 1800);
-      window.setTimeout(() => { refreshTiles(room); playAllAudioElements(); }, 3200);
+      window.setTimeout(() => { refreshTiles(room); playAllAudioElements(); }, 250);
+      window.setTimeout(() => { refreshTiles(room); playAllAudioElements(); }, 800);
+      window.setTimeout(() => { refreshTiles(room); playAllAudioElements(); }, 1600);
+      window.setTimeout(() => { refreshTiles(room); playAllAudioElements(); }, 2800);
     } catch (err: any) {
-      setScreenOn(!next);
-      setError("Could not start screen share.");
+      const active = isLocalScreenShareActive(room);
+      setScreenOn(active);
+      refreshTiles(room);
+      const message = String(err?.message || err?.name || "").toLowerCase();
+      if (message.includes("permission") || message.includes("denied") || message.includes("cancel")) {
+        setError("Screen share was cancelled or blocked. Tap Share and allow screen sharing.");
+      } else {
+        setError("Could not start screen share. Tap Share again.");
+      }
+      setStatus(active ? "Screen sharing" : "Connected");
+    } finally {
+      screenOperationRef.current = false;
     }
   }
 

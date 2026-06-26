@@ -1,9 +1,9 @@
 {
   "name": "omideno7-meetings-react",
   "private": true,
-  "version": "1.69.0",
+  "version": "1.70.0",
   "type": "module",
-  "description": "OmideNo7 Meetings — Vite + React + TypeScript conversion starter",
+  "description": "OmideNo7 Meetings \u2014 Vite + React + TypeScript conversion starter",
   "scripts": {
     "dev": "vite",
     "build": "vite build",
@@ -39,5 +39,5 @@
     "typescript": "latest",
     "vite": "latest"
   },
-  "appStage": "v169-mobile-reaction-picker-portal"
+  "appStage": "v170-reaction-float-screen-mobile-frame"
 }

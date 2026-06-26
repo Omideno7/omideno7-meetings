@@ -1,7 +1,7 @@
 {
-  "version": "1.69",
-  "stage": "v169-mobile-reaction-picker-portal",
-  "label": "v1.69 Mobile Reaction Picker Portal",
-  "updatedAt": "2026-06-26T18:35:00.000Z",
-  "build": "v169-mobile-reaction-picker-portal"
+  "version": "1.70",
+  "stage": "v170-reaction-float-screen-mobile-frame",
+  "label": "v1.70 Reaction Float + Screen Share + Mobile Frame",
+  "updatedAt": "2026-06-26T22:05:00.000Z",
+  "build": "v170-reaction-float-screen-mobile-frame"
 }
