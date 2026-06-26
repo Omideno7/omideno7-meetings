@@ -4,6 +4,12 @@ import type { UserProfile } from "../../types/roles";
 import type { RoomParticipant } from "../../services/meetingRoomService";
 import { liveKitTokenService } from "../../services/liveKitTokenService";
 import { liveKitReadyConfig } from "../../config/liveKitReady";
+import {
+  buildOmideAudioConstraints,
+  buildOmideVideoConstraints,
+  loadOmideMediaPreferences,
+  saveOmideMediaPreferences
+} from "../../utils/mediaPreferences";
 
 type Props = {
   profile: UserProfile | null;
@@ -408,6 +414,7 @@ export function RealLiveKitRoom({
   const participantsRef = useRef<RoomParticipant[]>(participants);
   const profileRef = useRef<UserProfile | null>(profile);
   const localHandRaisedRef = useRef(localHandRaised);
+  const savedMediaPreferencesRef = useRef(loadOmideMediaPreferences());
 
   const [connected, setConnected] = useState(false);
   const [status, setStatus] = useState("Ready");
@@ -417,17 +424,40 @@ export function RealLiveKitRoom({
   const [screenOn, setScreenOn] = useState(false);
   const [micLevel, setMicLevel] = useState(0);
   const [audioSettingsOpen, setAudioSettingsOpen] = useState(false);
-  const [musicMode, setMusicMode] = useState(false);
-  const [noiseSuppression, setNoiseSuppression] = useState(true);
-  const [echoCancellation, setEchoCancellation] = useState(true);
-  const [autoGainControl, setAutoGainControl] = useState(true);
-  const audioOutputId = "";
+  const [musicMode, setMusicMode] = useState(savedMediaPreferencesRef.current.micMode === "manual");
+  const [noiseSuppression, setNoiseSuppression] = useState(savedMediaPreferencesRef.current.noiseSuppression);
+  const [echoCancellation, setEchoCancellation] = useState(savedMediaPreferencesRef.current.echoCancellation);
+  const [autoGainControl, setAutoGainControl] = useState(savedMediaPreferencesRef.current.autoGainControl);
+  const [audioOutputId, setAudioOutputId] = useState(savedMediaPreferencesRef.current.audioOutputId);
   const [tiles, setTiles] = useState<LiveTile[]>([]);
   const [needsStart, setNeedsStart] = useState(Boolean(confirmBeforeStart));
   const [mobileDirectPending, setMobileDirectPending] = useState(false);
   const [notice] = useState(browserNotice());
 
   const canEnter = Boolean(profile?.status === "approved" && (isHostRole(profile) || admitted));
+
+  function reloadSavedMediaPreferences() {
+    const saved = loadOmideMediaPreferences();
+    savedMediaPreferencesRef.current = saved;
+    setAudioOutputId(saved.audioOutputId);
+    return saved;
+  }
+
+  function saveLiveAudioPreferencePatch(next: {
+    musicMode?: boolean;
+    noiseSuppression?: boolean;
+    echoCancellation?: boolean;
+    autoGainControl?: boolean;
+  }) {
+    const merged = {
+      ...savedMediaPreferencesRef.current,
+      noiseSuppression: next.noiseSuppression ?? noiseSuppression,
+      echoCancellation: next.echoCancellation ?? echoCancellation,
+      autoGainControl: next.autoGainControl ?? autoGainControl,
+      micMode: (next.musicMode ?? musicMode) ? "manual" as const : "auto" as const
+    };
+    savedMediaPreferencesRef.current = saveOmideMediaPreferences(merged);
+  }
 
   function stableLocalHandRaised() {
     if (localHandRaised) return true;
@@ -701,11 +731,16 @@ export function RealLiveKitRoom({
   }
 
   function currentAudioOptions() {
-    return {
+    const saved = reloadSavedMediaPreferences();
+    return buildOmideAudioConstraints(saved, {
       echoCancellation: musicMode ? false : echoCancellation,
       noiseSuppression: musicMode ? false : noiseSuppression,
       autoGainControl: musicMode ? false : autoGainControl
-    };
+    });
+  }
+
+  function currentVideoOptions() {
+    return buildOmideVideoConstraints(reloadSavedMediaPreferences());
   }
 
   async function enableMicrophone(room: Room, announce = true) {
@@ -887,7 +922,11 @@ export function RealLiveKitRoom({
     setCameraOn(next);
 
     try {
-      await room.localParticipant.setCameraEnabled(next);
+      if (next) {
+        await (room.localParticipant as any).setCameraEnabled(true, currentVideoOptions() as any);
+      } else {
+        await room.localParticipant.setCameraEnabled(false);
+      }
       refreshTiles(room);
       window.setTimeout(() => refreshTiles(room), 650);
       await onMediaStateChange?.({ mic: micOn, camera: next });
@@ -2020,10 +2059,10 @@ export function RealLiveKitRoom({
             {audioSettingsOpen && (
               <div className="omide-audio-settings-popover">
                 <strong>Audio settings</strong>
-                <label>Music / keyboard mode <input type="checkbox" checked={musicMode} onChange={(event) => setMusicMode(event.target.checked)} /></label>
-                <label>Noise suppression <input type="checkbox" checked={noiseSuppression} disabled={musicMode} onChange={(event) => setNoiseSuppression(event.target.checked)} /></label>
-                <label>Echo cancellation <input type="checkbox" checked={echoCancellation} disabled={musicMode} onChange={(event) => setEchoCancellation(event.target.checked)} /></label>
-                <label>Auto gain <input type="checkbox" checked={autoGainControl} disabled={musicMode} onChange={(event) => setAutoGainControl(event.target.checked)} /></label>
+                <label>Music / keyboard mode <input type="checkbox" checked={musicMode} onChange={(event) => { const value = event.target.checked; setMusicMode(value); saveLiveAudioPreferencePatch({ musicMode: value }); }} /></label>
+                <label>Noise suppression <input type="checkbox" checked={noiseSuppression} disabled={musicMode} onChange={(event) => { const value = event.target.checked; setNoiseSuppression(value); saveLiveAudioPreferencePatch({ noiseSuppression: value }); }} /></label>
+                <label>Echo cancellation <input type="checkbox" checked={echoCancellation} disabled={musicMode} onChange={(event) => { const value = event.target.checked; setEchoCancellation(value); saveLiveAudioPreferencePatch({ echoCancellation: value }); }} /></label>
+                <label>Auto gain <input type="checkbox" checked={autoGainControl} disabled={musicMode} onChange={(event) => { const value = event.target.checked; setAutoGainControl(value); saveLiveAudioPreferencePatch({ autoGainControl: value }); }} /></label>
                 <small>{musicMode ? "Music mode keeps keyboard/worship sound more natural. Turn mic off/on after changing this." : "Normal speech mode is recommended for preaching."}</small>
               </div>
             )}

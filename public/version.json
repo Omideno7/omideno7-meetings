@@ -1,7 +1,7 @@
 {
-  "version": "1.70",
-  "stage": "v170-reaction-float-screen-mobile-frame",
-  "label": "v1.70 Reaction Float + Screen Share + Mobile Frame",
-  "updatedAt": "2026-06-26T22:05:00.000Z",
-  "build": "v170-reaction-float-screen-mobile-frame"
+  "version": "1.73",
+  "stage": "v173-reaction-burst-media-preferences",
+  "label": "v1.73 Reaction Burst + Saved Media Preferences",
+  "updatedAt": "2026-06-27T00:00:00.000Z",
+  "build": "v173-reaction-burst-media-preferences"
 }

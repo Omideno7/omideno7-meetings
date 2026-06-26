@@ -1,6 +1,17 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Button } from "../components/ui/Button";
 import { Card } from "../components/ui/Card";
+import {
+  buildOmideAudioConstraints,
+  buildOmideVideoConstraints,
+  loadOmideMediaPreferences,
+  OMIDE_QUALITY_PRESETS,
+  saveOmideMediaPreferences,
+  type OmideCameraFacingMode,
+  type OmideMediaPreferences,
+  type OmideMicMode,
+  type OmideVideoQuality
+} from "../utils/mediaPreferences";
 
 type DeviceInfo = {
   label: string;
@@ -8,12 +19,7 @@ type DeviceInfo = {
   id: string;
 };
 
-const qualityPresets = {
-  auto: {},
-  low: { width: 640, height: 360 },
-  hd: { width: 1280, height: 720 },
-  fullhd: { width: 1920, height: 1080 }
-};
+const qualityPresets = OMIDE_QUALITY_PRESETS;
 
 export function DeviceTestPage() {
   const videoRef = useRef<HTMLVideoElement | null>(null);
@@ -22,6 +28,7 @@ export function DeviceTestPage() {
   const audioContextRef = useRef<AudioContext | null>(null);
   const animationRef = useRef<number | null>(null);
   const lastModeRef = useRef<{ video: boolean; audio: boolean }>({ video: false, audio: false });
+  const savedPreferencesRef = useRef<OmideMediaPreferences>(loadOmideMediaPreferences());
 
   const [message, setMessage] = useState("Choose your camera, microphone and speaker, then press Test.");
   const [devices, setDevices] = useState<DeviceInfo[]>([]);
@@ -29,16 +36,16 @@ export function DeviceTestPage() {
   const [micOn, setMicOn] = useState(false);
   const [micLevel, setMicLevel] = useState(0);
   const [micStatus, setMicStatus] = useState("Microphone is off.");
-  const [videoDeviceId, setVideoDeviceId] = useState("");
-  const [audioInputId, setAudioInputId] = useState("");
-  const [audioOutputId, setAudioOutputId] = useState("");
-  const [quality, setQuality] = useState<keyof typeof qualityPresets>("hd");
-  const [noiseSuppression, setNoiseSuppression] = useState(true);
-  const [echoCancellation, setEchoCancellation] = useState(true);
-  const [autoGainControl, setAutoGainControl] = useState(true);
-  const [micMode, setMicMode] = useState<"auto" | "manual">("auto");
-  const [backgroundMode, setBackgroundMode] = useState("none");
-  const [facingMode, setFacingMode] = useState<"auto" | "user" | "environment">("auto");
+  const [videoDeviceId, setVideoDeviceId] = useState(savedPreferencesRef.current.videoDeviceId);
+  const [audioInputId, setAudioInputId] = useState(savedPreferencesRef.current.audioInputId);
+  const [audioOutputId, setAudioOutputId] = useState(savedPreferencesRef.current.audioOutputId);
+  const [quality, setQuality] = useState<OmideVideoQuality>(savedPreferencesRef.current.quality);
+  const [noiseSuppression, setNoiseSuppression] = useState(savedPreferencesRef.current.noiseSuppression);
+  const [echoCancellation, setEchoCancellation] = useState(savedPreferencesRef.current.echoCancellation);
+  const [autoGainControl, setAutoGainControl] = useState(savedPreferencesRef.current.autoGainControl);
+  const [micMode, setMicMode] = useState<OmideMicMode>(savedPreferencesRef.current.micMode);
+  const [backgroundMode, setBackgroundMode] = useState(savedPreferencesRef.current.backgroundMode);
+  const [facingMode, setFacingMode] = useState<OmideCameraFacingMode>(savedPreferencesRef.current.facingMode);
   const [permissionGranted, setPermissionGranted] = useState(false);
 
   const videoInputs = useMemo(() => devices.filter((device) => device.kind === "videoinput"), [devices]);
@@ -59,9 +66,26 @@ export function DeviceTestPage() {
     }));
 
     setDevices(mapped);
-    setVideoDeviceId((current) => current || mapped.find((device) => device.kind === "videoinput")?.id || "");
-    setAudioInputId((current) => current || mapped.find((device) => device.kind === "audioinput")?.id || "");
-    setAudioOutputId((current) => current || mapped.find((device) => device.kind === "audiooutput")?.id || "");
+
+    // Do not override a saved phone camera side such as Front camera.
+    // If facingMode is user/environment, leaving videoDeviceId empty lets the browser honor that side.
+    const saved = savedPreferencesRef.current;
+    setVideoDeviceId((current) => {
+      if (current) return current;
+      if (facingMode !== "auto" || saved.facingMode !== "auto") return "";
+      if (saved.videoDeviceId && mapped.some((device) => device.kind === "videoinput" && device.id === saved.videoDeviceId)) return saved.videoDeviceId;
+      return mapped.find((device) => device.kind === "videoinput")?.id || "";
+    });
+    setAudioInputId((current) => {
+      if (current) return current;
+      if (saved.audioInputId && mapped.some((device) => device.kind === "audioinput" && device.id === saved.audioInputId)) return saved.audioInputId;
+      return mapped.find((device) => device.kind === "audioinput")?.id || "";
+    });
+    setAudioOutputId((current) => {
+      if (current) return current;
+      if (saved.audioOutputId && mapped.some((device) => device.kind === "audiooutput" && device.id === saved.audioOutputId)) return saved.audioOutputId;
+      return mapped.find((device) => device.kind === "audiooutput")?.id || "";
+    });
 
     if (!mapped.length) {
       setMessage("No devices visible yet. Press Allow / Refresh Devices and allow camera/microphone permission.");
@@ -80,8 +104,30 @@ export function DeviceTestPage() {
     }
   }
 
+  function currentPreferences(): OmideMediaPreferences {
+    return {
+      videoDeviceId,
+      audioInputId,
+      audioOutputId,
+      quality,
+      noiseSuppression,
+      echoCancellation,
+      autoGainControl,
+      micMode,
+      backgroundMode,
+      facingMode,
+      savedAt: Date.now()
+    };
+  }
+
+  function saveCurrentPreferences(messageText = "Media settings saved. Live meetings will use these camera/microphone choices.") {
+    savedPreferencesRef.current = saveOmideMediaPreferences(currentPreferences());
+    setMessage(messageText);
+  }
+
   async function applyAudioOutput(deviceId: string) {
     setAudioOutputId(deviceId);
+    savedPreferencesRef.current = saveOmideMediaPreferences({ ...currentPreferences(), audioOutputId: deviceId });
     const element = audioRef.current || videoRef.current;
     if (element && "setSinkId" in element && deviceId) {
       try {
@@ -132,26 +178,19 @@ export function DeviceTestPage() {
 
   function getVideoConstraints(video: boolean) {
     if (!video) return false;
-    const preset = qualityPresets[quality] as any;
-    if (videoDeviceId) return { deviceId: { exact: videoDeviceId }, ...preset };
-    if (facingMode !== "auto") return { facingMode, ...preset };
-    return { ...preset };
+    return buildOmideVideoConstraints(currentPreferences());
   }
 
   function getAudioConstraints(audio: boolean) {
     if (!audio) return false;
-    return {
-      deviceId: audioInputId ? { exact: audioInputId } : undefined,
-      noiseSuppression,
-      echoCancellation,
-      autoGainControl
-    };
+    return buildOmideAudioConstraints(currentPreferences());
   }
 
   async function startTest(video: boolean, audio: boolean) {
     try {
       stopTest(false);
       lastModeRef.current = { video, audio };
+      saveCurrentPreferences("Media settings saved and test started.");
 
       if (!navigator.mediaDevices?.getUserMedia) {
         setMessage("Camera/microphone test is not supported in this browser.");
@@ -193,6 +232,7 @@ export function DeviceTestPage() {
       setMessage("First start a camera or microphone test, then change options and press Apply.");
       return;
     }
+    saveCurrentPreferences("Media settings saved. Applying selected devices...");
     await startTest(video, audio);
   }
 
@@ -236,7 +276,7 @@ export function DeviceTestPage() {
           <label><strong>2. Phone camera side</strong><select value={facingMode} onChange={(event) => { setFacingMode(event.target.value as typeof facingMode); if (event.target.value !== "auto") setVideoDeviceId(""); }}><option value="auto">Auto / selected camera</option><option value="user">Front camera</option><option value="environment">Back camera</option></select></label>
           <label><strong>3. Microphone / External mic</strong><select value={audioInputId} onChange={(event) => setAudioInputId(event.target.value)}><option value="">Auto microphone</option>{audioInputs.map((device) => <option key={device.id} value={device.id}>{device.label}</option>)}</select></label>
           <label><strong>4. Speaker / Headphones</strong><select value={audioOutputId} onChange={(event) => applyAudioOutput(event.target.value)}><option value="">System default</option>{audioOutputs.map((device) => <option key={device.id} value={device.id}>{device.label}</option>)}</select></label>
-          <label><strong>5. Video quality</strong><select value={quality} onChange={(event) => setQuality(event.target.value as keyof typeof qualityPresets)}><option value="auto">Auto</option><option value="low">Low 360p</option><option value="hd">HD 720p</option><option value="fullhd">Full HD 1080p</option></select></label>
+          <label><strong>5. Video quality</strong><select value={quality} onChange={(event) => setQuality(event.target.value as OmideVideoQuality)}><option value="auto">Auto</option><option value="low">Low 360p</option><option value="hd">HD 720p</option><option value="fullhd">Full HD 1080p</option></select></label>
           <label><strong>6. Background preview</strong><select value={backgroundMode} onChange={(event) => setBackgroundMode(event.target.value)}><option value="none">None</option><option value="soft-blur">Soft blur preview</option><option value="church">Church background preview</option><option value="blue">OmideNo7 blue background</option></select></label>
         </div>
 
@@ -253,6 +293,7 @@ export function DeviceTestPage() {
           <Button variant="secondary" onClick={() => startTest(false, true)}>Test Mic Only</Button>
           <Button variant="secondary" onClick={() => startTest(true, false)}>Test Camera Only</Button>
           <Button onClick={applySelectedDevices}>Apply Selected Devices</Button>
+          <Button variant="secondary" onClick={() => saveCurrentPreferences()}>Save Media Settings</Button>
           <Button variant="ghost" onClick={() => stopTest()}>Stop Test</Button>
         </div>
         <p className={`auth-message ${permissionGranted ? "message-success" : ""}`}>{message}</p>
