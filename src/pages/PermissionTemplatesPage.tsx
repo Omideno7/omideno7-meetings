@@ -307,7 +307,54 @@ export function PermissionTemplatesPage() {
       <Card>
         <h2>Editable Template Matrix</h2>
         <p>Default/core templates are protected from accidental deletion. Clone them if you need a custom version.</p>
-        <div className="table-wrap">
+        <div className="mobile-template-cards">
+          {templates.map((template) => {
+            const draft = drafts[template.id] || cloneTemplate(template);
+            const protectedRow = isCore(template.name);
+            return (
+              <div key={template.id} className="mobile-template-card">
+                <div className="mobile-template-head">
+                  <div>
+                    <span className="mobile-template-label">Template</span>
+                    <input className="table-input" value={draft.name} onChange={(event) => updateDraft(template.id, "name", event.target.value)} />
+                  </div>
+                  <span className={`status-badge ${protectedRow ? "status-approved" : "status-scheduled"}`}>{protectedRow ? "Core" : "Custom"}</span>
+                </div>
+
+                <label className="mobile-template-field">
+                  <span className="mobile-template-label">Role</span>
+                  <select value={draft.role} onChange={(event) => updateDraft(template.id, "role", event.target.value as UserRole)}>
+                    {servantRoleOptions.map((role) => <option key={role.value} value={role.value}>{role.label}</option>)}
+                  </select>
+                </label>
+
+                <div className="mobile-permission-list">
+                  {permissionFieldLabels.map((field) => (
+                    <label key={field.key} className="mobile-permission-toggle">
+                      <span>
+                        <strong>{field.label}</strong>
+                        <small>{field.description}</small>
+                      </span>
+                      <input
+                        type="checkbox"
+                        checked={Boolean(draft[field.key])}
+                        onChange={(event) => updateDraft(template.id, field.key, event.target.checked)}
+                      />
+                    </label>
+                  ))}
+                </div>
+
+                <div className="mobile-template-actions">
+                  <Button variant="secondary" onClick={() => saveTemplate(template.id)} disabled={isBusy}>{label(`save-${template.id}`, "Save", "Saving...")}</Button>
+                  <Button variant="ghost" onClick={() => cloneIntoCustom(template)} disabled={isBusy}>Clone</Button>
+                  <Button variant={protectedRow ? "ghost" : "danger"} onClick={() => deleteTemplate(template)} disabled={isBusy}>{protectedRow ? "Protected" : label(`delete-${template.id}`, "Delete", "Deleting...")}</Button>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+
+        <div className="table-wrap permission-template-table-wrap">
           <table className="admin-table permission-table">
             <thead>
               <tr>

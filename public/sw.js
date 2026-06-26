@@ -1,4 +1,4 @@
-const CACHE_NAME = "omideno7-meetings-pwa-v165-mobile-admin-audio-unlock";
+const CACHE_NAME = "omideno7-meetings-pwa-v167-mobile-permission-template-cards";
 const APP_SHELL = [
   "/offline.html",
   "/manifest.webmanifest",

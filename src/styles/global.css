@@ -5017,3 +5017,124 @@ button.secondary {
   width: 100% !important;
   flex: 1 1 100% !important;
 }
+
+/* v1.67 — mobile-friendly Permission Templates editor only */
+.mobile-template-cards {
+  display: none;
+}
+
+.form-grid select,
+.mobile-template-field select {
+  width: 100%;
+  min-width: 0;
+  border: 1px solid rgba(8,41,91,.14);
+  border-radius: 14px;
+  padding: 12px;
+  background: #fff;
+  color: #06285a;
+}
+
+@media (max-width: 760px) {
+  .permission-template-table-wrap {
+    display: none;
+  }
+
+  .mobile-template-cards {
+    display: grid;
+    gap: 14px;
+    width: 100%;
+    min-width: 0;
+  }
+
+  .mobile-template-card {
+    display: grid;
+    gap: 12px;
+    width: 100%;
+    min-width: 0;
+    border: 1px solid rgba(8,41,91,.12);
+    border-radius: 20px;
+    padding: 14px;
+    background: rgba(8,41,91,.025);
+    box-shadow: 0 12px 32px rgba(8,41,91,.08);
+  }
+
+  .mobile-template-head {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: start;
+    gap: 10px;
+  }
+
+  .mobile-template-label {
+    display: block;
+    margin-bottom: 6px;
+    color: #607086;
+    font-size: .74rem;
+    font-weight: 900;
+    letter-spacing: .04em;
+    text-transform: uppercase;
+  }
+
+  .mobile-template-field {
+    display: grid;
+    gap: 6px;
+    min-width: 0;
+  }
+
+  .mobile-permission-list {
+    display: grid;
+    gap: 8px;
+    min-width: 0;
+  }
+
+  .mobile-permission-toggle {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: center;
+    gap: 12px;
+    padding: 11px 12px;
+    border: 1px solid rgba(8,41,91,.10);
+    border-radius: 16px;
+    background: #fff;
+  }
+
+  .mobile-permission-toggle strong,
+  .mobile-permission-toggle small {
+    display: block;
+  }
+
+  .mobile-permission-toggle strong {
+    color: #06285a;
+    font-size: .92rem;
+    line-height: 1.2;
+  }
+
+  .mobile-permission-toggle small {
+    margin-top: 3px;
+    color: #607086;
+    font-size: .78rem;
+    line-height: 1.25;
+  }
+
+  .mobile-permission-toggle input[type="checkbox"] {
+    width: 22px;
+    height: 22px;
+  }
+
+  .mobile-template-actions {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 8px;
+  }
+
+  .mobile-template-actions .btn {
+    width: 100%;
+  }
+
+  .card,
+  .page-grid,
+  .main-content {
+    min-width: 0;
+    max-width: 100%;
+  }
+}
