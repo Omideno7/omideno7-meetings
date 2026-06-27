@@ -1,7 +1,7 @@
 {
-  "version": "1.67",
-  "stage": "v167-mobile-permission-template-cards",
-  "label": "v1.67 Mobile Permission Template Cards",
-  "updatedAt": "2026-06-26T14:55:00.000Z",
-  "build": "v167-mobile-permission-template-cards"
+  "version": "1.75",
+  "stage": "v175-end-meeting-mobile-reactions",
+  "label": "v1.75 End Meeting Sync + Mobile Connect + Reaction Rise Fix",
+  "updatedAt": "2026-06-27T00:00:00.000Z",
+  "build": "v175-end-meeting-mobile-reactions"
 }

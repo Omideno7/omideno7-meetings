@@ -74,7 +74,8 @@ export const liveKitTokenService = {
       return { ok: false, reason: "missing_supabase_session", message: "Please sign out, refresh, and sign in again on this device." };
     }
 
-    const timeout = timeoutSignal(15000);
+    const mobileSafe = /iPhone|iPad|iPod|Android|Mobile|Tablet/i.test(navigator.userAgent || "") || Number(navigator.maxTouchPoints || 0) > 1;
+    const timeout = timeoutSignal(mobileSafe ? 25000 : 15000);
 
     try {
       const response = await fetch(liveKitReadyConfig.tokenEndpoint, {
@@ -88,7 +89,7 @@ export const liveKitTokenService = {
           meetingId,
           roomName: liveKitReadyConfig.defaultRoom,
           deviceId: getDeviceId(),
-          mobileSafe: /iPhone|iPad|iPod|Android|Mobile|Tablet/i.test(navigator.userAgent || "") || Number(navigator.maxTouchPoints || 0) > 1
+          mobileSafe
         })
       });
 
